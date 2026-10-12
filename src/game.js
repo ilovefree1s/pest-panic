@@ -288,9 +288,9 @@ const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25]];
 // ---------------------------------------------------------------- sound effects (all synthesized with Web Audio, no files)
 const SND = (() => {
   let ctx = null, master = null, noiseBuf = null, hum = null;
-  let vol = 0.7, muted = false;
-  try { const v = JSON.parse(localStorage.getItem('pestpanic-sound') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
-  const save = () => { try { localStorage.setItem('pestpanic-sound', JSON.stringify({ vol, muted })); } catch (e) {} };
+  let vol = 0.15, muted = false;
+  try { const v = JSON.parse(localStorage.getItem('pestpanic-sfx') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
+  const save = () => { try { localStorage.setItem('pestpanic-sfx', JSON.stringify({ vol, muted })); } catch (e) {} };
   const last = {}, R = (a, b) => a + Math.random() * (b - a);
   function init() {
     if (ctx) return ctx;
@@ -450,9 +450,9 @@ const MUSIC = (() => {
   const FILES = { game: 'music/game.mp3', boss: 'music/boss.mp3', menu: 'music/menu.mp3' };
   const FALLBACK = { boss: 'game', menu: 'game', game: null };
   const els = {}, ok = {}, cur = {};
-  let vol = 0.5, muted = false, unlocked = false, blocked = false, tried = false;
-  try { const v = JSON.parse(localStorage.getItem('pestpanic-music') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
-  const save = () => { try { localStorage.setItem('pestpanic-music', JSON.stringify({ vol, muted })); } catch (e) {} };
+  let vol = 0.15, muted = false, unlocked = false, blocked = false, tried = false;
+  try { const v = JSON.parse(localStorage.getItem('pestpanic-music2') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
+  const save = () => { try { localStorage.setItem('pestpanic-music2', JSON.stringify({ vol, muted })); } catch (e) {} };
   function el(name) {
     if (els[name]) return els[name];
     const a = new Audio(); a.loop = true; a.preload = 'auto'; a.volume = 0;
@@ -1569,7 +1569,7 @@ function syncSoundUi() {
   $('musbtn').textContent = MUSIC.muted ? '🎵 Music off' : '🎵 Music on';
   $('mvol').value = Math.round(MUSIC.vol * 100); $('mvolv').textContent = MUSIC.muted ? 'Off' : Math.round(MUSIC.vol * 100) + '%';
   $('mmutebtn').textContent = MUSIC.muted ? 'Turn on' : 'Turn off';
-  $('sndbtn').textContent = SND.muted ? '🔇 Sound off' : '🔊 Sound on';
+  $('sndbtn').textContent = SND.muted ? '🔇 Sound FX off' : '🔊 Sound FX on';
   $('vol').value = Math.round(SND.vol * 100); $('volv').textContent = SND.muted ? 'Muted' : Math.round(SND.vol * 100) + '%';
   $('mutebtn').textContent = SND.muted ? 'Unmute' : 'Mute';
 }
