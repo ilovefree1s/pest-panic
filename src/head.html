@@ -1,0 +1,195 @@
+<title>Pest Panic Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap">
+<style>
+/* layout: the game stage fills the screen; on phones held upright a control deck sits below it, never over it */
+:root{
+  --ink:#0d1013; --panel:rgba(14,18,22,.78); --line:rgba(255,255,255,.12);
+  --text:#f4efe4; --dim:#b9b3a6; --gold:#ffc93c; --goo:#86e34b; --hp:#ff5248; --sky:#7fd8ff;
+  --display:"Luckiest Guy","Arial Black",system-ui,sans-serif;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-family:var(--body);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+#stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#0d1013}
+#gl,#fx{position:absolute;inset:0;width:100%;height:100%;display:block}
+#fx{pointer-events:none}
+#hurt{position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at center,rgba(255,0,0,0) 45%,rgba(200,0,0,.55) 100%);transition:opacity .25s}
+#vign{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.45) 100%)}
+
+/* ---------- HUD */
+#hud{position:absolute;inset:0;pointer-events:none;padding:10px 12px;display:grid;
+  grid-template-columns:1fr auto 1fr;grid-template-rows:auto auto 1fr auto;gap:6px 10px}
+.xp{grid-column:1/4;display:flex;align-items:center;gap:8px}
+.lvl{font-family:var(--display);font-size:20px;letter-spacing:.04em;color:var(--gold);text-shadow:0 2px 0 #000;min-width:58px}
+.bar{position:relative;flex:1;height:12px;border-radius:999px;background:rgba(0,0,0,.55);box-shadow:inset 0 0 0 2px rgba(255,255,255,.1);overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;width:0;border-radius:inherit}
+#xpfill{background:linear-gradient(90deg,#3fd0ff,#9df3ff)}
+.clock{grid-column:2;font-family:var(--display);font-size:26px;text-shadow:0 2px 0 #000;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.kills{grid-column:3;justify-self:end;font-family:var(--display);font-size:20px;color:var(--goo);text-shadow:0 2px 0 #000;display:flex;gap:6px;align-items:center;font-variant-numeric:tabular-nums}
+.kills svg{width:22px;height:22px}
+.left{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.hp{display:flex;align-items:center;gap:8px;width:min(240px,42vw)}
+.hp b{font-family:var(--display);font-size:16px;color:var(--hp);text-shadow:0 2px 0 #000;min-width:30px}
+#hpfill{background:linear-gradient(90deg,#ff3b30,#ff8a5c)}
+#gear{display:flex;flex-wrap:wrap;gap:4px;max-width:min(240px,42vw)}
+.g{position:relative;width:30px;height:30px;border-radius:8px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line)}
+.g svg{position:absolute;inset:3px;width:24px;height:24px}
+.g em{position:absolute;right:-3px;bottom:-4px;font-style:normal;font-family:var(--display);font-size:11px;color:var(--gold);text-shadow:0 1px 0 #000}
+#queen{grid-column:1/4;grid-row:3;align-self:start;justify-self:center;width:min(420px,70vw);text-align:center;margin-top:2px}
+#queen .n{font-family:var(--display);font-size:15px;letter-spacing:.06em;color:#ffb3a8;text-shadow:0 2px 0 #000}
+#qfill{background:linear-gradient(90deg,#b2161a,#ff5a3c)}
+#minimap{grid-column:3;grid-row:4;justify-self:end;align-self:end;width:112px;height:112px;border-radius:12px;
+  background:rgba(10,13,16,.7);box-shadow:inset 0 0 0 1px var(--line)}
+#banner{position:absolute;left:0;right:0;top:34%;text-align:center;font-family:var(--display);font-size:clamp(30px,7vw,64px);
+  letter-spacing:.03em;color:var(--gold);text-shadow:0 4px 0 #000,0 0 30px rgba(0,0,0,.6);pointer-events:none;opacity:0;transform:scale(.8);
+  transition:opacity .25s,transform .25s}
+#banner.on{opacity:1;transform:scale(1)}
+#banner.red{color:#ff6a55}
+#pausebtn{position:absolute;right:10px;top:86px;pointer-events:auto;width:38px;height:38px;border-radius:12px;border:0;
+  background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);color:var(--text);font:900 15px var(--body);cursor:pointer}
+
+/* ---------- screens */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:16px;text-align:center;background:radial-gradient(ellipse at center,rgba(8,10,12,.35),rgba(8,10,12,.82))}
+.logo{font-family:var(--display);font-size:clamp(52px,14vw,120px);line-height:.9;letter-spacing:.02em;color:var(--gold);
+  text-shadow:0 6px 0 #6b3a10,0 10px 30px rgba(0,0,0,.6);transform:rotate(-3deg);margin:0}
+.logo span{display:block;color:var(--goo);text-shadow:0 6px 0 #1f5a14,0 10px 30px rgba(0,0,0,.6);font-size:.55em}
+.sub{margin:0;font-weight:800;color:var(--dim);max-width:38ch;line-height:1.4}
+.btn{pointer-events:auto;font-family:var(--display);font-size:24px;letter-spacing:.05em;padding:14px 34px;border-radius:999px;border:0;cursor:pointer;
+  color:#2a1600;background:linear-gradient(#ffd85a,#ffb31f);box-shadow:0 6px 0 #a3600a,0 12px 24px rgba(0,0,0,.4)}
+.btn:active{transform:translateY(3px);box-shadow:0 3px 0 #a3600a}
+.btn:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.hint{font-size:13px;color:var(--dim);font-weight:700;max-width:44ch;line-height:1.5;margin:0}
+.best{font-family:var(--display);color:var(--sky);letter-spacing:.04em;font-size:18px;margin:0}
+h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:var(--gold);text-shadow:0 4px 0 #000;letter-spacing:.03em}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:min(760px,100%)}
+@media (max-width:640px){.cards{grid-template-columns:1fr}}
+.card{pointer-events:auto;cursor:pointer;display:grid;grid-template-columns:56px 1fr;gap:4px 12px;align-items:center;text-align:left;
+  padding:14px;border-radius:16px;background:rgba(20,26,32,.92);box-shadow:inset 0 0 0 2px rgba(255,255,255,.1),0 8px 20px rgba(0,0,0,.35);
+  border:0;color:var(--text);font:inherit;transition:transform .12s, box-shadow .12s}
+.card .ic{grid-row:1/3;width:56px;height:56px;border-radius:14px;background:#0e1317;display:grid;place-items:center}
+.card .ic svg{width:44px;height:44px}
+.card b{font-family:var(--display);font-size:20px;letter-spacing:.03em;font-weight:400}
+.card small{display:block;color:var(--gold);font-family:var(--display);font-size:13px;letter-spacing:.05em}
+.card p{margin:0;color:var(--dim);font-weight:700;font-size:14px;line-height:1.35}
+.card.sel,.card:hover{transform:translateY(-3px);box-shadow:inset 0 0 0 3px var(--gold),0 12px 26px rgba(0,0,0,.45)}
+.stats{display:grid;grid-template-columns:auto auto;gap:6px 18px;font-weight:800;font-size:16px;text-align:left}
+.stats dt{color:var(--dim)} .stats dd{margin:0;font-family:var(--display);letter-spacing:.04em;color:var(--text);font-variant-numeric:tabular-nums}
+
+/* ---------- touch deck (phones held upright) */
+#deck{display:none;position:relative;height:min(34vh,230px);background:linear-gradient(#12171c,#0b0e11);
+  border-top:1px solid rgba(255,255,255,.06);align-items:center;justify-content:space-between;padding:0 18px;touch-action:none}
+@media (pointer:coarse) and (orientation:portrait){#deck{display:flex}}
+#stick{position:relative;width:min(44vw,170px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle,#1d252c 0 55%,#161c22 56%);box-shadow:inset 0 0 0 2px rgba(255,255,255,.08)}
+#knob{position:absolute;left:50%;top:50%;width:42%;height:42%;margin:-21% 0 0 -21%;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ffe08a,#f2a91f 60%,#b86b0a);box-shadow:0 6px 14px rgba(0,0,0,.5)}
+.deckside{display:flex;flex-direction:column;align-items:center;gap:12px}
+.deckbtn{width:74px;height:74px;border-radius:50%;border:0;font-family:var(--display);font-size:16px;letter-spacing:.04em;color:#20140a;
+  background:radial-gradient(circle at 35% 30%,#a6f27a,#5fc22e 60%,#2f7d12);box-shadow:0 6px 0 #1d4f0b}
+.deckbtn.small{width:auto;height:auto;padding:8px 16px;border-radius:999px;font-size:13px;background:#232c34;color:var(--text);box-shadow:none}
+#pad{position:absolute;left:12px;bottom:12px;pointer-events:none;font:800 12px var(--body);color:var(--dim);
+  background:var(--panel);padding:6px 10px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--line)}
+#pad.on{color:var(--sky)}
+#float{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,255,255,.08) 0 55%,rgba(255,255,255,.04) 56%);display:none}
+#float i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,201,60,.8)}
+/* ---------- online menus */
+.menu{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(420px,100%)}
+.menu input{font:900 18px var(--body);text-align:center;color:var(--text);background:rgba(14,18,22,.85);border:0;border-radius:999px;
+  padding:12px 18px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.14);outline:none;pointer-events:auto;width:100%;box-sizing:border-box;-webkit-user-select:text;user-select:text}
+.menu input:focus{box-shadow:inset 0 0 0 2px var(--gold)}
+.split{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;width:100%}
+.joinrow{display:flex;gap:8px}
+.joinrow input{width:120px;letter-spacing:.2em;text-transform:uppercase}
+.btn.alt{font-size:18px;padding:11px 22px;background:linear-gradient(#a6f27a,#5fc22e);color:#13300a;box-shadow:0 5px 0 #2f7d12,0 10px 20px rgba(0,0,0,.35)}
+.btn.dark{font-size:17px;padding:10px 22px;background:#2a333b;color:var(--text);box-shadow:0 5px 0 #11161a}
+.btn:disabled{opacity:.5;cursor:default}
+.status{margin:0;min-height:1.3em;font-weight:800;color:var(--sky);font-size:14px}
+.status.err{color:#ff8a7a}
+.clock small{display:block;text-align:center;font-family:var(--display);font-size:13px;color:var(--sky);letter-spacing:.12em;margin-top:-2px}
+#team{display:flex;flex-direction:column;gap:4px}
+.mate{display:flex;align-items:center;gap:6px;font:800 12px var(--body);color:var(--text);text-shadow:0 1px 0 #000}
+.mate i{width:10px;height:10px;border-radius:50%;flex:none}
+.mate .mb{width:70px;height:6px;border-radius:999px;background:rgba(0,0,0,.55);overflow:hidden}
+.mate .mb b{display:block;height:100%;background:#ff5a4a}
+.mate.down{opacity:.55}
+@media (prefers-reduced-motion:reduce){#banner,.card{transition:none}}
+</style>
+
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <canvas id="fx"></canvas>
+    <div id="vign"></div>
+    <div id="hurt"></div>
+    <div id="float"><i></i></div>
+    <div id="hud" hidden>
+      <div class="xp"><span class="lvl">LV <span id="lvl">1</span></span><div class="bar"><i id="xpfill"></i></div></div>
+      <div class="left">
+        <div class="hp"><b id="hpt">100</b><div class="bar"><i id="hpfill" style="width:100%"></i></div></div>
+        <div id="gear"></div>
+        <div id="team"></div>
+      </div>
+      <div class="clock" id="clock">0:00<small id="room" hidden></small></div>
+      <div class="kills"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="6" ry="7" fill="#86e34b"/><circle cx="12" cy="6" r="3.5" fill="#86e34b"/><path d="M5 10l-3-2M5 14H1M5 18l-3 2M19 10l3-2M19 14h4M19 18l3 2" stroke="#86e34b" stroke-width="2" stroke-linecap="round"/></svg><span id="kills">0</span></div>
+      <div id="queen" hidden><div class="n" id="qname">ROACH QUEEN</div><div class="bar"><i id="qfill" style="width:100%"></i></div></div>
+      <canvas id="minimap" width="224" height="224"></canvas>
+      <button id="pausebtn" type="button" aria-label="Pause">II</button>
+    </div>
+    <div id="banner"></div>
+    <div id="pad">Controller: press any button</div>
+
+    <div class="screen" id="title">
+      <h1 class="logo">Pest<span>Panic</span></h1>
+      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive the Roach Queens.</p>
+      <div class="menu">
+        <input id="pname" maxlength="12" placeholder="Your name" autocomplete="off" aria-label="Your name">
+        <button class="btn" id="play" type="button">Play solo</button>
+        <div class="split">
+          <button class="btn alt" id="hostbtn" type="button">Host online</button>
+          <div class="joinrow"><input id="code" maxlength="5" placeholder="CODE" autocomplete="off" aria-label="Room code"><button class="btn alt" id="joinbtn" type="button">Join</button></div>
+        </div>
+        <p class="status" id="netstatus"></p>
+      </div>
+      <p class="best" id="best"></p>
+      <p class="hint">Move with the stick, WASD / arrows, or a controller. Your gear fires on its own. Grab coins to level up.</p>
+    </div>
+    <div class="screen" id="levelup" hidden>
+      <h2 class="t">Level up!</h2>
+      <div class="cards" id="cards"></div>
+      <p class="hint">Tap a card, or choose with the stick and press <b>Cross</b> / <b>Enter</b>.</p>
+    </div>
+    <div class="screen" id="paused" hidden>
+      <h2 class="t" id="pausedt">Paused</h2>
+      <p class="hint" id="pausenote" hidden>The game keeps running for your team while this menu is open.</p>
+      <button class="btn" id="resume" type="button">Resume</button>
+      <button class="btn dark" id="quit" type="button">Leave game</button>
+    </div>
+    <div class="screen" id="over" hidden>
+      <h2 class="t" id="overt">Bugged out!</h2>
+      <dl class="stats" id="ostats"></dl>
+      <button class="btn" id="again" type="button">Play again</button>
+      <p class="hint" id="waithost" hidden>Waiting for the host to start the next round…</p>
+      <button class="btn dark" id="leave2" type="button">Leave</button>
+    </div>
+    <div class="screen" id="netmsg" hidden>
+      <h2 class="t" id="netmsgt">Host left</h2>
+      <p class="sub" id="netmsgs">The host closed the game.</p>
+      <button class="btn" id="netok" type="button">Back to title</button>
+    </div>
+  </div>
+  <div id="deck">
+    <div id="stick"><div id="knob"></div></div>
+    <div class="deckside">
+      <button class="deckbtn" id="dbtn" type="button">GO</button>
+      <button class="deckbtn small" id="dpause" type="button">Pause</button>
+    </div>
+  </div>
+</div>
