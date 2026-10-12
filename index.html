@@ -1314,7 +1314,7 @@ const W = {
   citro: { r: [3.25, 4, 4.75, 5.5, 6.25], dmg: [2, 3, 3, 4, 5], tick: [30, 26, 22, 20, 16].map(f => f / 60) },
   paper: { cd: [80, 70, 60, 50, 40].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [10, 12, 14, 18, 22] },
   vac: [4.5, 7, 10, 14],
-  flip: { cd: [100, 90, 80, 70, 60].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [8, 10, 12, 15, 18], range: [9, 10, 11, 12, 13] },
+  flip: { cd: [108, 95, 80, 70, 60].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [7, 9, 12, 15, 18], range: [8.2, 9.5, 11, 12, 13] },
   lens: { dmg: [2, 3, 4, 5, 6], r: [1.1, 1.3, 1.5, 1.7, 1.9], spd: [9, 11, 13, 15, 17], n: [1, 1, 1, 1, 2], linger: [0, 0, 1, 1.5, 2], tick: 0.1 },
   roomba: { dmg: [4, 5, 7, 9, 12], spd: [7, 8, 9, 10, 11.5], r: [1.5, 1.7, 1.9, 2.2, 2.5], tick: 0.25 },
 };
@@ -2054,7 +2054,7 @@ function lens(p, dt, i, db) {
     let hitAny = false;
     for (const bm of p.beams) {
       near(bm.x, bm.z, R_, b => { if (dist2(b.x, b.z, bm.x, bm.z) < R_ * R_) { hitBug(b, dmg); hitAny = true; if (linger) p.burning.set(b, linger); if (Math.random() < 0.35) ev(['f', b.x, b.z]); } });
-      for (const q of S.bosses) if (dist2(q.x, q.z, bm.x, bm.z) < (R_ + BR(q)) ** 2) { hitQueen(dmg * 2, bm.x, bm.z, q); hitAny = true; }
+      for (const q of S.bosses) if (dist2(q.x, q.z, bm.x, bm.z) < (R_ + BR(q)) ** 2) { hitQueen(dmg * 1.4, bm.x, bm.z, q); hitAny = true; }   // was x2: toned down 30%
     }
     // bugs keep smouldering for a moment after the dot moves on (level 3+)
     for (const [b, t] of p.burning) { if (b.hp <= 0 || t <= 0) { p.burning.delete(b); continue; } hitBug(b, Math.max(1, dmg >> 1)); p.burning.set(b, t - W.lens.tick); if (Math.random() < 0.2) ev(['f', b.x, b.z]); }
