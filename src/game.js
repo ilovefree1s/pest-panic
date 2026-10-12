@@ -442,6 +442,52 @@ const SND = (() => {
     toggle() { muted = !muted; if (master) master.gain.setTargetAtTime(muted ? 0 : vol, ctx.currentTime, 0.02); save(); return muted; },
   };
 })();
+
+// ---------------------------------------------------------------- music: MP3s from the music/ folder next to the page
+// music/game.mp3 plays during runs; music/boss.mp3 (optional) during boss fights; music/menu.mp3 (optional) on the title screen.
+// Missing files fall back to game.mp3; if there is no music at all, nothing happens.
+const MUSIC = (() => {
+  const FILES = { game: 'music/game.mp3', boss: 'music/boss.mp3', menu: 'music/menu.mp3' };
+  const FALLBACK = { boss: 'game', menu: 'game', game: null };
+  const els = {}, ok = {}, cur = {};
+  let vol = 0.5, muted = false, unlocked = false;
+  try { const v = JSON.parse(localStorage.getItem('pestpanic-music') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
+  const save = () => { try { localStorage.setItem('pestpanic-music', JSON.stringify({ vol, muted })); } catch (e) {} };
+  function el(name) {
+    if (els[name]) return els[name];
+    const a = new Audio(); a.loop = true; a.preload = 'auto'; a.volume = 0;
+    a.addEventListener('error', () => { ok[name] = false; });
+    a.addEventListener('canplay', () => { ok[name] = true; });
+    a.src = FILES[name]; els[name] = a; cur[name] = 0;
+    return a;
+  }
+  function pick(name) {   // the track that will actually play for this situation
+    let n = name;
+    while (n) { el(n); if (ok[n] !== false) return n; n = FALLBACK[n]; }
+    return null;
+  }
+  return {
+    unlock() { unlocked = true; },
+    // called every frame with the situation ('menu' | 'game' | 'boss' | null) and how loud (0..1)
+    update(dt, want, level = 1) {
+      if (!unlocked) return;
+      const track = want ? pick(want) : null;
+      for (const name in els) {
+        const a = els[name], target = name === track && !muted ? vol * level : 0;
+        cur[name] += (target - cur[name]) * Math.min(1, dt * (target > cur[name] ? 1.2 : 2.2));   // gentle fades
+        if (Math.abs(cur[name] - target) < 0.002) cur[name] = target;
+        a.volume = Math.max(0, Math.min(1, cur[name]));
+        if (target > 0 && a.paused && ok[name] !== false) a.play().catch(() => {});
+        else if (cur[name] === 0 && !a.paused) { a.pause(); if (name === 'boss') a.currentTime = 0; }
+      }
+    },
+    get vol() { return vol; }, get muted() { return muted; },
+    setVol(v) { vol = Math.max(0, Math.min(1, v)); save(); },
+    toggle() { muted = !muted; save(); return muted; },
+    status() { return Object.fromEntries(Object.keys(FILES).map(k => [k, ok[k] === undefined ? 'loading' : ok[k] ? 'ready' : 'missing'])); },
+  };
+})();
+for (const e of ['pointerdown', 'keydown', 'touchstart']) addEventListener(e, () => MUSIC.unlock(), { capture: true, passive: true });
 // browsers only allow sound after the player clicks, taps or presses a key
 for (const e of ['pointerdown', 'keydown', 'touchstart']) addEventListener(e, () => SND.unlock(), { capture: true, passive: true });
 
@@ -1515,12 +1561,18 @@ $('quit').addEventListener('click', toTitle);
 $('leave2').addEventListener('click', toTitle);
 $('boardbtn').addEventListener('click', () => openBoard());
 function syncSoundUi() {
+  $('musbtn').textContent = MUSIC.muted ? '🎵 Music off' : '🎵 Music on';
+  $('mvol').value = Math.round(MUSIC.vol * 100); $('mvolv').textContent = MUSIC.muted ? 'Off' : Math.round(MUSIC.vol * 100) + '%';
+  $('mmutebtn').textContent = MUSIC.muted ? 'Turn on' : 'Turn off';
   $('sndbtn').textContent = SND.muted ? '🔇 Sound off' : '🔊 Sound on';
   $('vol').value = Math.round(SND.vol * 100); $('volv').textContent = SND.muted ? 'Muted' : Math.round(SND.vol * 100) + '%';
   $('mutebtn').textContent = SND.muted ? 'Unmute' : 'Mute';
 }
 $('sndbtn').addEventListener('click', () => { SND.unlock(); SND.toggle(); syncSoundUi(); SND.play('pick'); });
 $('mutebtn').addEventListener('click', () => { SND.unlock(); SND.toggle(); syncSoundUi(); });
+$('musbtn').addEventListener('click', () => { MUSIC.unlock(); MUSIC.toggle(); syncSoundUi(); });
+$('mmutebtn').addEventListener('click', () => { MUSIC.unlock(); MUSIC.toggle(); syncSoundUi(); });
+$('mvol').addEventListener('input', () => { MUSIC.setVol($('mvol').value / 100); if (MUSIC.muted) MUSIC.toggle(); syncSoundUi(); });
 $('vol').addEventListener('input', () => { SND.setVol($('vol').value / 100); if (SND.muted) SND.toggle(); syncSoundUi(); });
 $('vol').addEventListener('change', () => SND.play('coin'));
 syncSoundUi();
@@ -1908,6 +1960,11 @@ function frame(now) {
     for (const p of S.players) if (p.id !== me.id && p.seen && performance.now() - p.seen > 15000) removeRemote(p.id);
   }
   if (idle() || mode === 'pause' || mode === 'over') SND.hum(false, 0);
+  {
+    const boss = ((role === 'client' ? CL.bosses : S && S.bosses) || []).length > 0;
+    const want = idle() ? 'menu' : mode === 'over' || mode === 'join' ? null : boss ? 'boss' : 'game';
+    MUSIC.update(dt, want, mode === 'pause' || !$('paused').hidden ? 0.45 : mode === 'level' ? 0.7 : 1);
+  }
   if (!S) return;
   const fdt = mode === 'pause' ? 0 : dt;
   S.shake = Math.max(0, S.shake - dt * 2.5);
@@ -1940,6 +1997,6 @@ window.PP = {
   give(id, n = 1, pid = me.id) { const p = S.players.find(q => q.id === pid); for (let i = 0; i < n; i++) if (p.up[id] < UP.find(u => u.id === id).max) p.up[id]++; },
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
-  snd: SND, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
