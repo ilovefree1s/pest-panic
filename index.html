@@ -1211,6 +1211,7 @@ const BUG = [
 ];
 const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f / 60);
 const QUEEN_EVERY = 180, QUEEN_HP = 1000;
+const DIFF = 1.1;   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
 // a different boss every 3 minutes; once all four are beaten they come back in king-and-queen pairs
 const BOSSES = [
   { id: 'roach', bug: 'Roach', name: 'ROACH QUEEN', title: 'Roach Queen', r: 3.2, spd: 4.2, shadow: 9, hp: 1, goo: [0.42, 0.24, 0.1] },
@@ -1247,7 +1248,7 @@ const UP = [
   { id: 'paper', name: 'Newspaper', max: 5, d: 'Smacks through a whole line of bugs.', up: 'More papers, harder hits.' },
   { id: 'flip', name: 'Flip-Flop', max: 5, d: 'A boomerang sandal.', up: 'More sandals, harder hits.' },
   { id: 'roomba', name: 'Roomba', max: 5, d: 'A robot vacuum hunts bugs.', up: 'Faster, stronger, wider.' },
-  ...(CONCEPT ? [{ id: 'lens', name: 'Magnifying Glass', max: 5, d: 'A sunbeam burns bugs.', up: 'Hotter, bigger, faster.' }] : []),
+  { id: 'lens', name: 'Magnifying Glass', max: 5, d: 'A sunbeam burns bugs.', up: 'Hotter, bigger, faster.' },
   { id: 'shoes', name: 'Sneakers', max: 3, d: 'Move faster.', up: 'Even faster.' },
   { id: 'vac', name: 'Shop Vac', max: 3, d: 'Pulls coins in from farther away.', up: 'Longer reach.' },
   { id: 'str', name: 'Extra Strength', max: 3, d: 'All damage +1.', up: 'All damage +1.' },
@@ -1477,7 +1478,7 @@ function updateMinute() {
   const m = Math.floor(S.t / 60);
   if (m === S.minute) return;
   S.minute = m;
-  S.bugHp = BUG.map(b => b.hp + b.grow * m);
+  S.bugHp = BUG.map(b => (b.hp + b.grow * m) * DIFF);
 }
 function nearestPlayer(x, z) {
   let best = null, bd = Infinity;
@@ -1806,13 +1807,13 @@ function playEvent(e) {
 function roman(n) { return ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][Math.min(n, 10)] || n; }
 
 // ---------------------------------------------------------------- simulation (solo + host)
-function bugCap() { return Math.min(MAX_BUGS, Math.round(28 + S.t * 0.4 + (alivePlayers().length - 1) * (20 + S.t * 0.15))); }
+function bugCap() { return Math.min(MAX_BUGS, Math.round(DIFF * (28 + S.t * 0.4 + (alivePlayers().length - 1) * (20 + S.t * 0.15)))); }
 function spawnBug(type, x, z, force) {
   if (S.bugs.length >= (force ? MAX_BUGS : bugCap())) return;
   const m = S.minute;
   const spd = BUG[type].spd * (1 + (m >= 3 ? 0.3 : 0) + (m >= 8 ? 0.3 : 0)) * rand(0.9, 1.1);
   x = clamp(x, -ARENA - 1, ARENA + 1); z = clamp(z, -ARENA - 1, ARENA + 1);
-  S.bugs.push({ id: S.nextId++ & 0xffff, t: type, x, z, vx: 0, vz: 0, hp: S.bugHp[type], spd, flash: 0, icd: 0, stuck: 0, cd: rand(1.5, 3), ang: 0,
+  S.bugs.push({ id: S.nextId++ & 0xffff, t: type, x, z, vx: 0, vz: 0, hp: S.bugHp[type] || BUG[type].hp * DIFF, spd, flash: 0, icd: 0, stuck: 0, cd: rand(1.5, 3), ang: 0,
     walk: Math.random() * TAU, jit: rand(-0.5, 0.5), weave: Math.random() * TAU, spit: 0 });
 }
 function pickType() {
@@ -1831,7 +1832,7 @@ function director(dt) {
   S.spawnT -= dt;
   if (S.spawnT <= 0) {
     const ph = Math.min(14, Math.floor(S.t / 20));
-    S.spawnT = RATE[ph] * (S.queen ? 2 : 1);
+    S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF;
     const n = 1 + (ph >= 4 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
     for (let i = 0; i < n; i++) spawnAround(pickType(), spawnRadius() + rand(0, 4));
   }
@@ -1851,7 +1852,7 @@ function spawnQueen() {
   const a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
   plan.list.forEach(([kind, duo], i) => {
     const ang = a + i * Math.PI;   // a pair comes in from opposite sides
-    const hp = Math.round(QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
+    const hp = Math.round(DIFF * QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
     S.bosses.push({ n, kind, duo, tier, hp, max: hp, x: t.x + Math.cos(ang) * (spawnRadius() + 4), z: t.z + Math.sin(ang) * (spawnRadius() + 4),
       vx: 0, vz: 0, ang: 0, t: i * 0.7, ring: 2 + i, fan: 3 + i, a1: 2 + i * 1.1, a2: 1.5 + i, a3: 6 + i * 3, flash: 0, fcd: 0, icd: 0, walk: 0,
       rate: Math.max(0.4, (48 - 6 * (tier - 1)) / 60), spin: 0, acc: 0, numT: 0, state: 0, st: 0, ddx: 0, ddz: 0, orbitA: ang, spiral: 4 });
@@ -1938,7 +1939,7 @@ function dropCoin(x, z, v, big) {
 }
 function hurt(p, d) {
   if (p.inv > 0 || p.down || mode !== 'play' || window.__god) return;
-  p.hp -= d; p.inv = 0.8;
+  p.hp -= d * DIFF; p.inv = 0.8;
   if (p.hp <= 0) {
     p.hp = 0; p.down = true; p.rev = 0; p.vx = p.vz = 0;
     ev(['dn', p.id, p.name]);
@@ -2407,7 +2408,7 @@ function applySnapshot(s) {
   // players
   const ps = new Set();
   for (const r of s.P) {
-    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs] = r;
+    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms] = r;
     ps.add(id);
     let p = CL.players.get(id);
     if (!p) { p = { id, name, color, x: x / 10, z: z / 10, face: face / 100, walk: 0, vx: 0, vz: 0, citroA: 0, sprayPuff: 0 }; CL.players.set(id, p); }
@@ -2416,6 +2417,10 @@ function applySnapshot(s) {
     if (id !== me.id) { p.tx = x / 10; p.tz = z / 10; p.tface = face / 100; }
     if (flags & 4) p.sprayPuff = 0.12;
     p.slow = flags & 8 ? 0.2 : 0;
+    if (bms) {
+      if (!p.beams || p.beams.length !== bms.length) p.beams = bms.map(([bx, bz]) => ({ x: bx / 10, z: bz / 10 }));
+      bms.forEach(([bx, bz], k) => { p.beams[k].tx = bx / 10; p.beams[k].tz = bz / 10; });
+    } else p.beams = null;
     if (rbs) { if (!p.rb) p.rb = { x: rbs[0] / 10, z: rbs[1] / 10, ang: rbs[2] / 100, vx: 0, vz: 0 }; p.rb.tx = rbs[0] / 10; p.rb.tz = rbs[1] / 10; p.rb.ta = rbs[2] / 100; } else p.rb = null;
   }
   for (const id of CL.players.keys()) if (!ps.has(id)) { CL.players.delete(id); dropLook(id); }
@@ -2456,6 +2461,7 @@ function clientTick(dt) {
     p.x += (p.tx - p.x) * k; p.z += (p.tz - p.z) * k; p.face = lerpAng(p.face, p.tface, k);
     p.vx = (p.x - ox) / Math.max(dt, 1e-3); p.vz = (p.z - oz) / Math.max(dt, 1e-3);
   }
+  for (const p of CL.players.values()) if (p.beams) for (const bm of p.beams) if (bm.tx !== undefined) { bm.x += (bm.tx - bm.x) * k; bm.z += (bm.tz - bm.z) * k; }
   for (const p of CL.players.values()) if (p.rb && p.rb.tx !== undefined) {
     const rb = p.rb, ox = rb.x, oz = rb.z;
     rb.x += (rb.tx - rb.x) * k; rb.z += (rb.tz - rb.z) * k; rb.ang = lerpAng(rb.ang, rb.ta, k);
@@ -2580,13 +2586,14 @@ function drawPlayer(p, dt, t) {
   if (bms.length) {
     let ax = 0, az = 0; for (const bm of bms) { ax += bm.x; az += bm.z; } ax /= bms.length; az /= bms.length;
     const lx = p.x + (ax - p.x) * 0.08, lz = p.z + (az - p.z) * 0.08, ly = 7.4 + Math.sin(t * 1.7) * 0.15;
-    L.lens.position.set(lx, ly, lz); L.lens.scale.setScalar(0.9);
+    L.lens.position.set(lx, ly, lz); L.lens.scale.setScalar(0.75);
     // tilt the lens toward where it is aiming, handle trailing back toward the player
     L.lens.rotation.set(Math.atan2(az - lz, ly) * 0.6, Math.atan2(p.x - lx, p.z - lz) - Math.PI / 2, -Math.atan2(ax - lx, ly) * 0.6, 'YXZ');
     const hot = (W.lens.r[up.lens - 1] || 1.1);
+    if (role === 'client') { L.scorchT = (L.scorchT || 0) - dt; if (L.scorchT <= 0) { L.scorchT = 0.12; for (const bm of bms) addDecal(bm.x + rand(-0.2, 0.2), bm.z + rand(-0.2, 0.2), hot * rand(0.9, 1.3), [0.1, 0.07, 0.05], 7); } }
     bms.forEach((bm, k) => {
       const m = L.beams[k], dx = bm.x - lx, dy = 0.05 - ly, dz = bm.z - lz, len = Math.hypot(dx, dy, dz);
-      m.position.set(lx, ly, lz); m.scale.set(0.95, len, 0.95);
+      m.position.set(lx, ly, lz); m.scale.set(0.8, len, 0.8);
       m.quaternion.setFromUnitVectors(tmpV.set(0, -1, 0), tmpV2.set(dx / len, dy / len, dz / len));
       m.material.opacity = 0.13 + Math.sin(t * 9 + k) * 0.025;
       // the white-hot dot
@@ -2882,7 +2889,7 @@ $('mvol').addEventListener('input', () => { MUSIC.setVol($('mvol').value / 100);
 $('vol').addEventListener('input', () => { SND.setVol($('vol').value / 100); if (SND.muted) SND.toggle(); syncSoundUi(); });
 $('vol').addEventListener('change', () => SND.play('coin'));
 syncSoundUi();
-// concept preview: jump straight into a run with only the magnifying glass
+// concept preview page: jump straight into a run with only the magnifying glass
 if (CONCEPT) {
   const go = () => {
     saveName(); role = 'solo'; beginRound(); window.__god = true; S.need = 1e9;
@@ -3149,7 +3156,7 @@ function sendSnapshot() {
   const r = Math.round;
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
-  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0]);
+  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0]);
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 300); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
