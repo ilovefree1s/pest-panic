@@ -227,14 +227,32 @@ function subwayTexture() {
   }
   return tex(c, true);
 }
-function cerealTexture() {
-  const [c, x] = cnv(256, 256), r = rng(5);
-  for (let i = 0; i < 110; i++) {
-    const a = r() * TAU, d = Math.pow(r(), 0.6) * 110;
-    const px = 128 + Math.cos(a) * d, py = 128 + Math.sin(a) * d;
-    x.fillStyle = ['#e2a33b', '#c97c23', '#f0c35b'][i % 3];
-    x.beginPath(); x.ellipse(px, py, 7, 6, r() * 3, 0, TAU); x.fill();
-    x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.arc(px + 1, py + 1, 2.2, 0, TAU); x.fill();
+// food crumbs spilled on the floor (irregular bits with soft shadows, nothing round and gold)
+function crumbTexture(kind, seed) {
+  const S = 256, [c, x] = cnv(S, S), r = rng(seed);
+  const blob = (px, py, rad, col, edge) => {
+    const n = 5 + ((r() * 4) | 0), pts = [];
+    for (let k = 0; k < n; k++) { const a = k / n * TAU + r() * 0.5, d = rad * (0.55 + r() * 0.6); pts.push([px + Math.cos(a) * d, py + Math.sin(a) * d]); }
+    x.fillStyle = 'rgba(0,0,0,.28)'; x.beginPath(); pts.forEach(([u, v], k) => k ? x.lineTo(u + 1.6, v + 2) : x.moveTo(u + 1.6, v + 2)); x.closePath(); x.fill();
+    x.fillStyle = col; x.beginPath(); pts.forEach(([u, v], k) => k ? x.lineTo(u, v) : x.moveTo(u, v)); x.closePath(); x.fill();
+    if (edge) { x.strokeStyle = edge; x.lineWidth = 1; x.stroke(); }
+    x.fillStyle = 'rgba(255,255,255,.18)'; x.beginPath(); x.arc(px - rad * 0.25, py - rad * 0.25, rad * 0.3, 0, TAU); x.fill();
+  };
+  const spot = () => { const a = r() * TAU, d = Math.pow(r(), 0.7) * 112; return [128 + Math.cos(a) * d, 128 + Math.sin(a) * d]; };
+  if (kind === 'bread') {
+    for (let i = 0; i < 90; i++) { const [px, py] = spot(); blob(px, py, 1.5 + r() * 4.5, ['#e6cc98', '#d6ad72', '#c8945a', '#efdcb4'][i % 4], 'rgba(120,80,30,.35)'); }
+    for (let i = 0; i < 3; i++) { const [px, py] = spot(); blob(px, py, 9 + r() * 5, '#b97a3c', '#8a5424'); blob(px, py, 6 + r() * 3, '#efdcb4'); }   // crust bits
+  } else if (kind === 'cookie') {
+    { const px = 110, py = 120; blob(px, py, 34, '#a8723e', '#7a4c22'); for (let k = 0; k < 7; k++) blob(px + (r() - 0.5) * 40, py + (r() - 0.5) * 40, 3 + r() * 3, '#3b2214'); }
+    for (let i = 0; i < 70; i++) { const [px, py] = spot(); blob(px, py, 1.5 + r() * 4, i % 5 === 0 ? '#3b2214' : ['#a8723e', '#93602f', '#bd8a52'][i % 3], 'rgba(60,30,10,.3)'); }
+  } else {   // sprinkles: little coloured rods
+    for (let i = 0; i < 120; i++) {
+      const [px, py] = spot(), a = r() * Math.PI, L = 5 + r() * 4;
+      x.lineCap = 'round'; x.lineWidth = 3.2;
+      x.strokeStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.moveTo(px + 1.5, py + 2); x.lineTo(px + 1.5 + Math.cos(a) * L, py + 2 + Math.sin(a) * L); x.stroke();
+      x.strokeStyle = ['#ff6fa8', '#4fb3ff', '#7ddc5a', '#fff4e6', '#b78cff', '#ff8a3c'][i % 6];
+      x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * L, py + Math.sin(a) * L); x.stroke();
+    }
   }
   return tex(c, true);
 }
@@ -353,7 +371,7 @@ function glueTexture() {
 
 export const TEX = {
   floor: floorTextures(), rug: rugTexture(), runner: runnerTexture(), cab: cabinetTexture(), top: counterTopTexture(),
-  subway: subwayTexture(), cereal: cerealTexture(),
+  subway: subwayTexture(), crumbs: [crumbTexture('bread', 11), crumbTexture('cookie', 23), crumbTexture('sprinkles', 37), crumbTexture('bread', 41)],
   soft: softTex(), puff: puffTex(), splat: [splatTex(1), splatTex(2), splatTex(3)], ring: ringTex(), flame: flameTex(),
   spark: sparkTex(), drop: dropTex(), paper: newspaperTexture(), swat: swatTexture(), glue: glueTexture(),
 };
@@ -375,8 +393,11 @@ export function buildKitchen() {
   rug.rotation.x = -Math.PI / 2; rug.position.set(-18, 0.03, 12); rug.receiveShadow = true; g.add(rug);
   const run = new THREE.Mesh(new THREE.PlaneGeometry(7, 26), std({ map: TEX.runner, roughness: 0.95, envMapIntensity: 0.2 }));
   run.rotation.x = -Math.PI / 2; run.rotation.z = 0.12; run.position.set(20, 0.03, -14); run.receiveShadow = true; g.add(run);
-  const cer = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), std({ map: TEX.cereal, transparent: true, roughness: 0.7, envMapIntensity: 0.3 }));
-  cer.rotation.x = -Math.PI / 2; cer.position.set(14, 0.04, 20); g.add(cer);
+  // crumbs from snacks, scattered around the floor
+  for (const [k, x, z, s, rot] of [[1, 14, 20, 6, 0.4], [0, -26, -8, 6.5, 1.1], [2, 8, -27, 5.5, 2.2], [3, -8, 31, 4.5, 0.2], [1, 32, 4, 4.5, 2.8], [2, -33, 24, 4.5, 1.7], [0, 27, -32, 5, 0.9]]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(s, s), std({ map: TEX.crumbs[k], transparent: true, roughness: 0.85, envMapIntensity: 0.15, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.rotation.z = rot; m.position.set(x, 0.04, z); m.receiveShadow = true; g.add(m);
+  }
   // counters on three sides, a low baseboard on the camera side
   const cabMat = std({ map: TEX.cab, roughness: 0.6, envMapIntensity: 0.5 });
   const topMat = std({ map: TEX.top, roughness: 0.25, envMapIntensity: 1.0 });

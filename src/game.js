@@ -285,7 +285,189 @@ const spawnRadius = () => Math.max(view.spawnR, role === 'solo' ? 0 : 30);
 // ---------------------------------------------------------------- events (played locally, and sent to clients by the host)
 function ev(e) { playEvent(e); if (role === 'host') S.ev.push(e); }
 const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25]];
+// ---------------------------------------------------------------- sound effects (all synthesized with Web Audio, no files)
+const SND = (() => {
+  let ctx = null, master = null, noiseBuf = null, hum = null;
+  let vol = 0.7, muted = false;
+  try { const v = JSON.parse(localStorage.getItem('pestpanic-sound') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
+  const save = () => { try { localStorage.setItem('pestpanic-sound', JSON.stringify({ vol, muted })); } catch (e) {} };
+  const last = {}, R = (a, b) => a + Math.random() * (b - a);
+  function init() {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    ctx = new AC();
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 5;
+    master = ctx.createGain(); master.gain.value = muted ? 0 : vol;
+    master.connect(comp); comp.connect(ctx.destination);
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return ctx;
+  }
+  function unlock() { if (!init()) return; if (ctx.state === 'suspended') ctx.resume(); }
+  const ready = () => ctx && ctx.state === 'running' && !muted && vol > 0;
+  // limit how often one kind of sound can start (so 50 squashes in a frame stay musical)
+  function gate(key, ms) { const now = performance.now(); if (last[key] && now - last[key] < ms) return false; last[key] = now; return true; }
+  // a voice output: gain + optional stereo pan
+  function out(g, pan = 0) {
+    const n = ctx.createGain(); n.gain.value = g;
+    if (pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); n.connect(p); p.connect(master); }
+    else n.connect(master);
+    return n;
+  }
+  function env(g, t, a, dur, peak = 1) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(peak * 0.35, t + a + (dur - a) * 0.45); g.gain.linearRampToValueAtTime(0, t + dur); }
+  function tone(dest, type, f0, f1, t, dur, a = 0.005, peak = 1) {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    env(g, t, a, dur, peak); o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.02);
+    return o;
+  }
+  function noise(dest, t, dur, type, f0, f1, q = 1, a = 0.004, peak = 1) {
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(f0, t); if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = ctx.createGain(); env(g, t, a, dur, peak);
+    s.connect(f); f.connect(g); g.connect(dest); s.start(t, Math.random() * 0.8); s.stop(t + dur + 0.02);
+  }
+  function notes(dest, type, list, step, len, t0) { list.forEach((f, i) => tone(dest, type, f, f, t0 + i * step, len, 0.008)); }
+  // how loud a sound at (x, z) is for this player, and where it sits left/right
+  function where(x, z) {
+    if (x === undefined) return [1, 0];
+    let cx = 0, cz = 0; try { cx = camX; cz = camZ; } catch (e) {}
+    const d = Math.hypot(x - cx, z - cz), k = Math.max(0, 1 - d / 42);
+    return [k * k, (x - cx) / 26];
+  }
+  const S_ = {
+    squash(x, z, t) {
+      if (!gate('sq', 32)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(1.5 * k, pan), big = t === 2, p = R(0.85, 1.2);
+      noise(o, n, big ? 0.16 : 0.09, 'bandpass', (big ? 700 : 1300) * p, (big ? 160 : 320) * p, 1.4);
+      tone(o, 'sine', (big ? 150 : 260) * p, (big ? 45 : 80) * p, n, big ? 0.14 : 0.08, 0.003, 0.7);
+    },
+    coin(x, z) {
+      if (!gate('coin', 28)) return;
+      const now = performance.now(); S_.combo = now - (S_.coinT || 0) < 400 ? Math.min(14, (S_.combo || 0) + 1) : 0; S_.coinT = now;
+      const n = ctx.currentTime, o = out(0.3), f = 880 * Math.pow(2, S_.combo / 14);
+      tone(o, 'triangle', f, f, n, 0.06, 0.003); tone(o, 'triangle', f * 1.5, f * 1.5, n + 0.045, 0.08, 0.003);
+    },
+    hit(x, z) {
+      if (!gate('hit', 45)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(0.9 * k, pan);
+      noise(o, n, 0.045, 'highpass', 1800, 1800, 0.7); tone(o, 'sine', R(150, 190), 60, n, 0.07, 0.002, 0.8);
+    },
+    spray(mine) {
+      if (!gate(mine ? 'sp' : 'sp2', 70)) return;
+      const n = ctx.currentTime, o = out(mine ? 0.3 : 0.1);
+      noise(o, n, 0.13, 'highpass', 3500, 6500, 0.6, 0.01);
+    },
+    bomb(x, z) {
+      const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(2.4 * k, pan);
+      noise(o, n, 0.55, 'lowpass', 300, 2200, 0.8, 0.02); noise(o, n + 0.05, 0.4, 'bandpass', 900, 300, 1, 0.01, 0.5);
+    },
+    zap(x, z) {
+      if (!gate('zap', 55)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(0.8 * k, pan), osc = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+      osc.type = 'sawtooth'; f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 0.8;
+      for (let i = 0; i < 12; i++) osc.frequency.setValueAtTime(R(300, 2600), n + i * 0.015);
+      env(g, n, 0.003, 0.18); osc.connect(f); f.connect(g); g.connect(o); osc.start(n); osc.stop(n + 0.2);
+      noise(o, n, 0.06, 'highpass', 5000, 5000, 0.5, 0.002, 1.2);
+    },
+    snap(x, z) {
+      const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(1.2 * k, pan);
+      noise(o, n, 0.03, 'highpass', 3000, 3000, 0.7, 0.001, 1.3); tone(o, 'square', 320, 90, n + 0.01, 0.09, 0.002, 0.35);
+      noise(o, n + 0.02, 0.2, 'lowpass', 900, 200, 1, 0.01, 0.4);
+    },
+    fire(x, z) {
+      if (!gate('fire', 85)) return; const [k, pan] = where(x, z); if (k < 0.05) return;
+      noise(out(0.9 * k, pan), ctx.currentTime, 0.08, 'bandpass', R(1200, 2200), 800, 1.5);
+    },
+    thwip(x, z) {
+      if (!gate('thw', 60)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(0.5 * k, pan);
+      tone(o, 'sine', 420, 980, n, 0.12, 0.004); noise(o, n, 0.12, 'bandpass', 800, 2400, 2, 0.01, 0.6);
+    },
+    whoosh(x, z) {
+      if (!gate('wh', 60)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
+      noise(out(1.6 * k, pan), ctx.currentTime, 0.2, 'bandpass', 500, 2000, 1.2, 0.03);
+    },
+    splash(x, z) {
+      if (!gate('ph', 50)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(1.2 * k, pan);
+      noise(o, n, 0.14, 'bandpass', 1400, 350, 2, 0.003); tone(o, 'sine', 600, 200, n, 0.08, 0.002, 0.4);
+    },
+    hurt() {
+      if (!gate('hurt', 120)) return;
+      const n = ctx.currentTime, o = out(1.0);
+      tone(o, 'sine', 190, 70, n, 0.2, 0.003); noise(o, n, 0.1, 'lowpass', 700, 300, 1, 0.003, 0.5);
+    },
+    down() { const n = ctx.currentTime, o = out(0.18); notes(o, 'triangle', [523, 415, 330, 247], 0.17, 0.22, n); },
+    revive() { const n = ctx.currentTime, o = out(0.2); notes(o, 'triangle', [392, 523, 659, 784, 1047], 0.07, 0.16, n); },
+    levelup() { const n = ctx.currentTime, o = out(0.17); notes(o, 'triangle', [523, 659, 784, 1047, 1319], 0.06, 0.22, n); notes(o, 'sine', [2093, 2637], 0.05, 0.12, n + 0.3); },
+    pick() { const n = ctx.currentTime, o = out(0.26); tone(o, 'triangle', 784, 784, n, 0.18); tone(o, 'triangle', 1175, 1175, n + 0.04, 0.22); },
+    tick() { if (!gate('tick', 40)) return; tone(out(0.25), 'sine', 1300, 1300, ctx.currentTime, 0.035, 0.002); },
+    warn() { const n = ctx.currentTime, o = out(0.2); for (let i = 0; i < 6; i++) tone(o, 'square', i % 2 ? 440 : 660, i % 2 ? 440 : 660, n + i * 0.16, 0.14, 0.004); },
+    roar() {
+      const n = ctx.currentTime, o = out(0.3), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700; f.connect(o);
+      tone(f, 'sawtooth', 120, 48, n, 1.0, 0.04); tone(f, 'sawtooth', 123, 50, n + 0.02, 1.0, 0.04, 0.7);
+      noise(o, n, 0.9, 'lowpass', 900, 200, 0.8, 0.05, 0.5);
+    },
+    bossdie(x, z) {
+      const n = ctx.currentTime, o = out(0.4);
+      noise(o, n, 0.6, 'lowpass', 1500, 120, 0.8, 0.005); tone(o, 'sine', 120, 35, n, 0.5, 0.004);
+      notes(out(0.2), 'triangle', [523, 659, 784], 0.11, 0.14, n + 0.35); tone(out(0.22), 'triangle', 1047, 1047, n + 0.68, 0.5, 0.01);
+    },
+    over() { const n = ctx.currentTime, o = out(0.18); notes(o, 'triangle', [392, 349, 311, 262], 0.22, 0.3, n); tone(o, 'sine', 131, 98, n + 0.88, 0.8, 0.02, 0.6); },
+    join() { const n = ctx.currentTime, o = out(0.14); tone(o, 'sine', 660, 660, n, 0.08); tone(o, 'sine', 990, 990, n + 0.09, 0.12); },
+  };
+  return {
+    unlock,
+    play(name, ...a) { try { if (ready() && S_[name]) S_[name](...a); } catch (e) {} },
+    // my roomba's motor: a soft hum that rises with speed
+    hum(on, speed) {
+      try {
+        if (!ready()) { if (hum) hum.g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); return; }
+        if (!hum) {
+          const o = ctx.createOscillator(), o2 = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+          o.type = 'sawtooth'; o2.type = 'square'; o.frequency.value = 62; o2.frequency.value = 124.5; f.type = 'lowpass'; f.frequency.value = 380; g.gain.value = 0;
+          o.connect(f); o2.connect(f); f.connect(g); g.connect(master); o.start(); o2.start(); hum = { o, o2, f, g };
+        }
+        const t = ctx.currentTime, s = Math.min(1, speed / 10);
+        hum.g.gain.setTargetAtTime(on ? 0.025 + 0.035 * s : 0, t, 0.08);
+        hum.o.frequency.setTargetAtTime(58 + 18 * s, t, 0.1); hum.o2.frequency.setTargetAtTime(117 + 36 * s, t, 0.1);
+      } catch (e) {}
+    },
+    get vol() { return vol; }, get muted() { return muted; },
+    setVol(v) { vol = Math.max(0, Math.min(1, v)); if (master) master.gain.setTargetAtTime(muted ? 0 : vol, ctx.currentTime, 0.02); save(); },
+    toggle() { muted = !muted; if (master) master.gain.setTargetAtTime(muted ? 0 : vol, ctx.currentTime, 0.02); save(); return muted; },
+  };
+})();
+// browsers only allow sound after the player clicks, taps or presses a key
+for (const e of ['pointerdown', 'keydown', 'touchstart']) addEventListener(e, () => SND.unlock(), { capture: true, passive: true });
+
+function eventSound(e) {
+  switch (e[0]) {
+    case 'k': SND.play('squash', e[1], e[2], e[3]); break;
+    case 'c': SND.play('coin'); break;
+    case 'h': SND.play('hit', e[1], e[2]); break;
+    case 'b': SND.play('bomb', e[1], e[2]); break;
+    case 'z': SND.play('zap', e[4], e[6]); break;
+    case 'g': SND.play('snap', e[1], e[2]); break;
+    case 'f': SND.play('fire', e[1], e[2]); break;
+    case 'ff': SND.play('thwip', e[1], e[2]); break;
+    case 'pp': SND.play('whoosh', e[1], e[2]); break;
+    case 'ph': SND.play('splash', e[1], e[2]); break;
+    case 'w': SND.play('warn'); break;
+    case 'qs': SND.play('roar'); break;
+    case 'qk': SND.play('bossdie', e[1], e[2]); break;
+    case 'dn': SND.play('down'); break;
+    case 'rv': SND.play('revive'); break;
+    case 'tp': SND.play(e[1] === 'aid' || e[3] ? 'pick' : 'tick'); break;
+    case 'j': SND.play('join'); break;
+  }
+}
 function playEvent(e) {
+  eventSound(e);
   switch (e[0]) {
     case 'k': { // bug squashed
       const [, x, z, t] = e, c = GOOC[t] || GOOC[0];
@@ -510,11 +692,13 @@ function weapons(p, dt) {
   if (L.paper && p.cd.paper <= 0) {
     const i = L.paper - 1; p.cd.paper = W.paper.cd[i];
     const n = W.paper.n[i];
+    ev(['pp', p.x, p.z]);
     for (let k = 0; k < n; k++) fire(p, 'paper', p.face + (k - (n - 1) / 2) * 0.2, 52, 0.6, W.paper.dmg[i] + db, { hit: new Set() });
   }
   if (L.flip && p.cd.flip <= 0) {
     const i = L.flip - 1; p.cd.flip = W.flip.cd[i];
     const tgt = nearestBug(p, 16), ang = tgt ? Math.atan2(tgt.x - p.x, tgt.z - p.z) : p.face, n = W.flip.n[i], spd = 24;
+    ev(['ff', p.x, p.z]);
     for (let k = 0; k < n; k++) fire(p, 'flip', ang + (k - (n - 1) / 2) * 0.55, spd, 4, W.flip.dmg[i] + db, { hit: new Set(), owner: p.id, out: W.flip.range[i] / spd, t: 0, back: false });
   }
   if (L.roomba) roomba(p, dt, L.roomba - 1, db);
@@ -811,7 +995,7 @@ function showCards() {
   if (!r || !r.cards) return;
   $('levelup').hidden = false; $('banner').classList.remove('on'); bannerT = 0;
   if (shownRound !== r.n || !cards.length) {
-    shownRound = r.n; voteSig = ''; cards = r.cards.map(id => UP.find(u => u.id === id)); sel = 0;
+    shownRound = r.n; voteSig = ''; SND.play('levelup'); cards = r.cards.map(id => UP.find(u => u.id === id)); sel = 0;
     const pl = (role === 'client' ? CL.me : meP()) || { up: {}, hp: 100 };
     $('cards').innerHTML = cards.map((u, i) => cardHtml(u, pl, i)).join('');
     $('cards').querySelectorAll('.card').forEach(c => c.addEventListener('click', () => choose(+c.dataset.i)));
@@ -847,7 +1031,7 @@ function hideCards() { $('levelup').hidden = true; cards = []; voteSig = ''; }
 function choose(i) {
   const u = cards[i]; if (!u) return;
   const r = roundNow(); if (!r) return;
-  sel = i;
+  sel = i; SND.play('tick');
   $('cards').querySelectorAll('.card').forEach((c, k) => c.classList.toggle('sel', k === sel));
   myVote.n = r.n; myVote.up = u.id; myVote.sentAt = 0;
   if (role === 'client') sendVote();
@@ -864,6 +1048,7 @@ function sendVote() {
 }
 function moveSel(d) {
   if (!cards.length) return;
+  SND.play('tick');
   sel = (sel + d + cards.length) % cards.length;
   $('cards').querySelectorAll('.card').forEach((c, i) => c.classList.toggle('sel', i === sel));
 }
@@ -1051,9 +1236,13 @@ function drawPlayer(p, dt, t) {
     const a = p.swatA + k / ns * TAU;
     s.position.set(p.x + Math.cos(a) * 2.2, 0.7, p.z + Math.sin(a) * 2.2); s.rotation.set(0, Math.PI / 2 - a, 0);   // head sits on the 3.1 hit circle
   });
+  // spray hiss when a puff starts
+  if (p.sprayPuff > 0 && !L.puffing) SND.play('spray', p.id === me.id);
+  L.puffing = p.sprayPuff > 0;
   // roomba
   const rbv = up.roomba > 0 && p.rb;
   L.roomba.visible = !!rbv;
+  if (p.id === me.id) SND.hum(!!rbv && mode === 'play', rbv ? Math.hypot(p.rb.vx || 0, p.rb.vz || 0) : 0);
   if (rbv) {
     const rb = p.rb, sc = 0.85 + up.roomba * 0.12;
     L.roomba.position.set(rb.x, 0, rb.z); L.roomba.rotation.y = rb.ang; L.roomba.scale.setScalar(sc);
@@ -1225,7 +1414,7 @@ function updateHud(dt) {
   const p = myView(); if (!p) return;
   $('xpfill').style.width = (S.xp / S.need * 100).toFixed(1) + '%';
   $('hpfill').style.width = Math.max(0, p.hp) + '%';
-  if (p.hp < lastHp - 0.5 && mode === 'play') { $('hurt').style.opacity = 1; setTimeout(() => $('hurt').style.opacity = 0, 140); S.shake = Math.max(S.shake, 0.45); }
+  if (p.hp < lastHp - 0.5 && mode === 'play') { SND.play('hurt'); $('hurt').style.opacity = 1; setTimeout(() => $('hurt').style.opacity = 0, 140); S.shake = Math.max(S.shake, 0.45); }
   lastHp = p.hp;
   const qs = (role === 'client' ? CL.bosses : S.bosses) || [];
   $('queen').hidden = !qs.length;
@@ -1288,6 +1477,7 @@ function endRound() {
 }
 function showOver(st) {
   mode = 'over'; $('banner').classList.remove('on'); bannerT = 0;
+  SND.play('over'); SND.hum(false, 0);
   overBoardKey = ''; $('oboard').hidden = true; $('oboard').innerHTML = '';
   const newBest = st.t > best.t;
   if (newBest) best = { t: st.t, k: st.k };
@@ -1324,6 +1514,16 @@ $('resume').addEventListener('click', () => pause(false));
 $('quit').addEventListener('click', toTitle);
 $('leave2').addEventListener('click', toTitle);
 $('boardbtn').addEventListener('click', () => openBoard());
+function syncSoundUi() {
+  $('sndbtn').textContent = SND.muted ? '🔇 Sound off' : '🔊 Sound on';
+  $('vol').value = Math.round(SND.vol * 100); $('volv').textContent = SND.muted ? 'Muted' : Math.round(SND.vol * 100) + '%';
+  $('mutebtn').textContent = SND.muted ? 'Unmute' : 'Mute';
+}
+$('sndbtn').addEventListener('click', () => { SND.unlock(); SND.toggle(); syncSoundUi(); SND.play('pick'); });
+$('mutebtn').addEventListener('click', () => { SND.unlock(); SND.toggle(); syncSoundUi(); });
+$('vol').addEventListener('input', () => { SND.setVol($('vol').value / 100); if (SND.muted) SND.toggle(); syncSoundUi(); });
+$('vol').addEventListener('change', () => SND.play('coin'));
+syncSoundUi();
 $('boardback').addEventListener('click', closeBoard);
 $('netok').addEventListener('click', toTitle);
 $('pausebtn').addEventListener('click', () => pause(true));
@@ -1609,6 +1809,7 @@ addEventListener('keydown', e => {
   if (mode === 'level') { if (['arrowleft', 'arrowup', 'a', 'w'].includes(k)) moveSel(-1); if (['arrowright', 'arrowdown', 'd', 's'].includes(k)) moveSel(1); }
   if (k === 'enter' || k === ' ') confirmAction();
   if (k === 'escape' || k === 'p') pause($('paused').hidden);
+  if (k === 'm') { SND.unlock(); SND.toggle(); syncSoundUi(); }
 });
 addEventListener('keyup', e => input.keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => input.keys.clear());
@@ -1706,6 +1907,7 @@ function frame(now) {
     snapT -= dt; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); }
     for (const p of S.players) if (p.id !== me.id && p.seen && performance.now() - p.seen > 15000) removeRemote(p.id);
   }
+  if (idle() || mode === 'pause' || mode === 'over') SND.hum(false, 0);
   if (!S) return;
   const fdt = mode === 'pause' ? 0 : dt;
   S.shake = Math.max(0, S.shake - dt * 2.5);
@@ -1738,6 +1940,6 @@ window.PP = {
   give(id, n = 1, pid = me.id) { const p = S.players.find(q => q.id === pid); for (let i = 0; i < n; i++) if (p.up[id] < UP.find(u => u.id === id).max) p.up[id]++; },
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
-  queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  snd: SND, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };

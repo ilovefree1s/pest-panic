@@ -165,6 +165,11 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 #boardbtn{margin-top:4px}
 @media (max-width:480px){.lb li{grid-template-columns:24px minmax(0,1fr) auto auto;gap:8px}.lb .ks{display:none}}
 @media (max-height:600px){#over{justify-content:flex-start;overflow-y:auto;padding-top:14px;gap:8px}}
+.split2{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.volrow{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:14px;background:rgba(20,26,32,.85);font-weight:800;pointer-events:auto}
+.volrow input{width:min(180px,40vw);accent-color:var(--gold)}
+.volrow b{min-width:52px;font-family:var(--display);color:var(--gold);letter-spacing:.04em}
+.volrow .btn.dark{font-size:14px;padding:7px 14px}
 @media (prefers-reduced-motion:reduce){#banner,.card{transition:none}}
 </style>
 
@@ -202,10 +207,10 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
           <div class="joinrow"><input id="code" maxlength="5" placeholder="CODE" autocomplete="off" aria-label="Room code"><button class="btn alt" id="joinbtn" type="button">Join</button></div>
         </div>
         <p class="status" id="netstatus"></p>
-        <button class="btn dark" id="boardbtn" type="button">🏆 Leaderboard</button>
+        <div class="split2"><button class="btn dark" id="boardbtn" type="button">🏆 Leaderboard</button><button class="btn dark" id="sndbtn" type="button">🔊 Sound on</button></div>
       </div>
       <p class="best" id="best"></p>
-      <p class="hint">Move with the stick, WASD / arrows, or a controller. Your gear fires on its own. Grab coins to level up.</p>
+      <p class="hint">Move with the stick, WASD / arrows, or a controller. Press M to mute. Your gear fires on its own. Grab coins to level up.</p>
     </div>
     <div class="screen" id="levelup" hidden>
       <h2 class="t" id="lvtitle">Level up!</h2>
@@ -216,6 +221,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
     <div class="screen" id="paused" hidden>
       <h2 class="t" id="pausedt">Paused</h2>
       <p class="hint" id="pausenote" hidden>The game keeps running for your team while this menu is open.</p>
+      <div class="volrow"><span>Sound</span><input type="range" id="vol" min="0" max="100" step="5" aria-label="Sound volume"><b id="volv"></b><button class="btn dark" id="mutebtn" type="button">Mute</button></div>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
     </div>
