@@ -196,6 +196,10 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
   .card .vt{font-size:12px}
   #lvhint{display:none}
 }
+body.menu #deck{display:none!important}
+.screen{overflow-y:auto;justify-content:safe center}
+@media (pointer:coarse){#title > .hint{display:none}}
+@media (max-height:700px){#title{gap:9px}#title .logo{font-size:clamp(44px,12vw,80px)}#title .menu{gap:9px}}
 @media (prefers-reduced-motion:reduce){#banner,.card{transition:none}}
 </style>
 

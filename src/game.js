@@ -2119,6 +2119,8 @@ function frame(now) {
     for (const p of S.players) if (p.id !== me.id && p.seen && performance.now() - p.seen > 15000) removeRemote(p.id);
   }
   if (idle() || mode === 'pause' || mode === 'over') { SND.hum(false, 0); SND.laser(false); }
+  // phone controls only show during a run; menus get the whole screen
+  { const menu = idle() || mode === 'over' || mode === 'join'; if (document.body.classList.contains('menu') !== menu) document.body.classList.toggle('menu', menu); }
   if (mm.classList.contains('indeck')) mm.style.visibility = $('hud').hidden ? 'hidden' : '';
   {
     const boss = ((role === 'client' ? CL.bosses : S && S.bosses) || []).length > 0;
