@@ -446,6 +446,7 @@ const SND = (() => {
   };
   return {
     unlock,
+    away(on) { try { if (!ctx) return; if (on) ctx.suspend(); else if (!muted) ctx.resume(); } catch (e) {} },
     play(name, ...a) { try { if (ready() && S_[name]) S_[name](...a); } catch (e) {} },
     // my magnifying glass beam: a buzzing sci-fi hum that swells while it is burning something
     laser(on) {
@@ -492,7 +493,7 @@ const MUSIC = (() => {
   const FILES = { game: 'music/game.mp3', boss: 'music/boss.mp3', menu: 'music/menu.mp3' };
   const FALLBACK = { boss: 'game', menu: 'game', game: null };
   const els = {}, ok = {}, cur = {};
-  let vol = 0.15, muted = false, unlocked = false, blocked = false, tried = false;
+  let vol = 0.15, muted = false, unlocked = false, blocked = false, tried = false, isAway = false;
   try { const v = JSON.parse(localStorage.getItem('pestpanic-music2') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
   const save = () => { try { localStorage.setItem('pestpanic-music2', JSON.stringify({ vol, muted })); } catch (e) {} };
   function el(name) {
@@ -510,11 +511,12 @@ const MUSIC = (() => {
   }
   return {
     unlock() { unlocked = true; blocked = false; },
+    away(on) { isAway = on; if (on) for (const n in els) els[n].pause(); },
     get blocked() { return blocked; },
     // called every frame with the situation ('menu' | 'game' | 'boss' | null) and how loud (0..1)
     update(dt, want, level = 1) {
       // before the first click we still try once: browsers allow it on sites you play often
-      if (!unlocked && (tried || blocked)) return;
+      if (isAway || (!unlocked && (tried || blocked))) return;
       const track = want ? pick(want) : null;
       for (const name in els) {
         const a = els[name], target = name === track && !muted ? vol * level : 0;
@@ -1720,6 +1722,21 @@ $('netok').addEventListener('click', toTitle);
 $('pausebtn').addEventListener('click', () => pause(true));
 $('dpause').addEventListener('click', () => { if ($('paused').hidden) pause(true); else pause(false); });
 $('dbtn').addEventListener('click', () => confirmAction());
+// phones held upright: the map sits in the control deck (where GO was) instead of covering the play area
+{
+  const q = matchMedia('(pointer:coarse) and (orientation:portrait)'), home = mm.parentNode, homeNext = mm.nextSibling;
+  const place = () => {
+    if (q.matches) { $('dbtn').before(mm); $('dbtn').hidden = true; mm.classList.add('indeck'); }
+    else { home.insertBefore(mm, homeNext); $('dbtn').hidden = false; mm.classList.remove('indeck'); }
+  };
+  (q.addEventListener ? q.addEventListener('change', place) : q.addListener(place)); place();
+}
+// switching to another app or tab: silence everything, and pause a solo run
+document.addEventListener('visibilitychange', () => {
+  const away = document.hidden;
+  SND.away(away); MUSIC.away(away);
+  if (away && role === 'solo' && mode === 'play') pause(true);
+});
 $('hostbtn').addEventListener('click', () => { saveName(); hostGame(); });
 $('joinbtn').addEventListener('click', () => { saveName(); joinGame($('code').value); });
 $('code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.stopPropagation(); saveName(); joinGame($('code').value); } });
@@ -2100,6 +2117,7 @@ function frame(now) {
     for (const p of S.players) if (p.id !== me.id && p.seen && performance.now() - p.seen > 15000) removeRemote(p.id);
   }
   if (idle() || mode === 'pause' || mode === 'over') { SND.hum(false, 0); SND.laser(false); }
+  if (mm.classList.contains('indeck')) mm.style.visibility = $('hud').hidden ? 'hidden' : '';
   {
     const boss = ((role === 'client' ? CL.bosses : S && S.bosses) || []).length > 0;
     const want = idle() ? 'menu' : mode === 'over' || mode === 'join' ? null : boss ? 'boss' : 'game';
