@@ -42,8 +42,9 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-fami
 .g svg{position:absolute;inset:3px;width:24px;height:24px}
 .g em{position:absolute;right:-3px;bottom:-4px;font-style:normal;font-family:var(--display);font-size:11px;color:var(--gold);text-shadow:0 1px 0 #000}
 #queen{grid-column:1/4;grid-row:3;align-self:start;justify-self:center;width:min(420px,70vw);text-align:center;margin-top:2px}
+#queen .bar+.n{margin-top:4px}
 #queen .n{font-family:var(--display);font-size:15px;letter-spacing:.06em;color:#ffb3a8;text-shadow:0 2px 0 #000}
-#qfill{background:linear-gradient(90deg,#b2161a,#ff5a3c)}
+#queen .bar i{background:linear-gradient(90deg,#b2161a,#ff5a3c)}
 #minimap{grid-column:3;grid-row:4;justify-self:end;align-self:end;width:112px;height:112px;border-radius:12px;
   background:rgba(10,13,16,.7);box-shadow:inset 0 0 0 1px var(--line)}
 #banner{position:absolute;left:0;right:0;top:34%;text-align:center;font-family:var(--display);font-size:clamp(30px,7vw,64px);
@@ -51,6 +52,7 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-fami
   transition:opacity .25s,transform .25s}
 #banner.on{opacity:1;transform:scale(1)}
 #banner.red{color:#ff6a55}
+#banner.long{font-size:clamp(24px,5vw,46px);padding:0 16px}
 #pausebtn{position:absolute;right:10px;top:86px;pointer-events:auto;width:38px;height:38px;border-radius:12px;border:0;
   background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);color:var(--text);font:900 15px var(--body);cursor:pointer}
 
@@ -164,7 +166,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
       </div>
       <div class="clock" id="clock">0:00<small id="room" hidden></small></div>
       <div class="kills"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="6" ry="7" fill="#86e34b"/><circle cx="12" cy="6" r="3.5" fill="#86e34b"/><path d="M5 10l-3-2M5 14H1M5 18l-3 2M19 10l3-2M19 14h4M19 18l3 2" stroke="#86e34b" stroke-width="2" stroke-linecap="round"/></svg><span id="kills">0</span></div>
-      <div id="queen" hidden><div class="n" id="qname">ROACH QUEEN</div><div class="bar"><i id="qfill" style="width:100%"></i></div></div>
+      <div id="queen" hidden></div>
       <canvas id="minimap" width="224" height="224"></canvas>
       <button id="pausebtn" type="button" aria-label="Pause">II</button>
     </div>
@@ -173,7 +175,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 
     <div class="screen" id="title">
       <h1 class="logo">Pest<span>Panic</span></h1>
-      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 5 minutes.</p>
+      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 3 minutes.</p>
       <div class="menu">
         <input id="pname" maxlength="12" placeholder="Your name" autocomplete="off" aria-label="Your name">
         <button class="btn" id="play" type="button">Play solo</button>

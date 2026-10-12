@@ -50,8 +50,9 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-fami
 .g svg{position:absolute;inset:3px;width:24px;height:24px}
 .g em{position:absolute;right:-3px;bottom:-4px;font-style:normal;font-family:var(--display);font-size:11px;color:var(--gold);text-shadow:0 1px 0 #000}
 #queen{grid-column:1/4;grid-row:3;align-self:start;justify-self:center;width:min(420px,70vw);text-align:center;margin-top:2px}
+#queen .bar+.n{margin-top:4px}
 #queen .n{font-family:var(--display);font-size:15px;letter-spacing:.06em;color:#ffb3a8;text-shadow:0 2px 0 #000}
-#qfill{background:linear-gradient(90deg,#b2161a,#ff5a3c)}
+#queen .bar i{background:linear-gradient(90deg,#b2161a,#ff5a3c)}
 #minimap{grid-column:3;grid-row:4;justify-self:end;align-self:end;width:112px;height:112px;border-radius:12px;
   background:rgba(10,13,16,.7);box-shadow:inset 0 0 0 1px var(--line)}
 #banner{position:absolute;left:0;right:0;top:34%;text-align:center;font-family:var(--display);font-size:clamp(30px,7vw,64px);
@@ -59,6 +60,7 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-fami
   transition:opacity .25s,transform .25s}
 #banner.on{opacity:1;transform:scale(1)}
 #banner.red{color:#ff6a55}
+#banner.long{font-size:clamp(24px,5vw,46px);padding:0 16px}
 #pausebtn{position:absolute;right:10px;top:86px;pointer-events:auto;width:38px;height:38px;border-radius:12px;border:0;
   background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);color:var(--text);font:900 15px var(--body);cursor:pointer}
 
@@ -172,7 +174,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
       </div>
       <div class="clock" id="clock">0:00<small id="room" hidden></small></div>
       <div class="kills"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="6" ry="7" fill="#86e34b"/><circle cx="12" cy="6" r="3.5" fill="#86e34b"/><path d="M5 10l-3-2M5 14H1M5 18l-3 2M19 10l3-2M19 14h4M19 18l3 2" stroke="#86e34b" stroke-width="2" stroke-linecap="round"/></svg><span id="kills">0</span></div>
-      <div id="queen" hidden><div class="n" id="qname">ROACH QUEEN</div><div class="bar"><i id="qfill" style="width:100%"></i></div></div>
+      <div id="queen" hidden></div>
       <canvas id="minimap" width="224" height="224"></canvas>
       <button id="pausebtn" type="button" aria-label="Pause">II</button>
     </div>
@@ -181,7 +183,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 
     <div class="screen" id="title">
       <h1 class="logo">Pest<span>Panic</span></h1>
-      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 5 minutes.</p>
+      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 3 minutes.</p>
       <div class="menu">
         <input id="pname" maxlength="12" placeholder="Your name" autocomplete="off" aria-label="Your name">
         <button class="btn" id="play" type="button">Play solo</button>
@@ -1089,18 +1091,30 @@ const BUG = [
   { name: 'spider', hp: 14, grow: 7, spd: 3.3, xp: 4, r: 1.0, dmg: 7 },
 ];
 const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f / 60);
-const QUEEN_EVERY = 300, QUEEN_HP = 1000;
-// a different boss every 5 minutes; after the fourth the cycle repeats, tougher
+const QUEEN_EVERY = 180, QUEEN_HP = 1000;
+// a different boss every 3 minutes; once all four are beaten they come back in king-and-queen pairs
 const BOSSES = [
-  { id: 'roach', name: 'ROACH QUEEN', title: 'Roach Queen', r: 3.2, spd: 4.2, shadow: 9, hp: 1, goo: [0.42, 0.24, 0.1] },
-  { id: 'spider', name: 'SPIDER KING', title: 'Spider King', r: 2.9, spd: 3.6, shadow: 9, hp: 1.1, goo: [0.45, 0.22, 0.6] },
-  { id: 'ant', name: 'ANT PRINCE', title: 'Ant Prince', r: 2.6, spd: 5.0, shadow: 7, hp: 0.95, goo: [0.62, 0.16, 0.1] },
-  { id: 'fly', name: 'FLY LORD', title: 'Fly Lord', r: 2.4, spd: 9, shadow: 6, hp: 0.9, goo: [0.42, 0.56, 0.2] },
+  { id: 'roach', bug: 'Roach', name: 'ROACH QUEEN', title: 'Roach Queen', r: 3.2, spd: 4.2, shadow: 9, hp: 1, goo: [0.42, 0.24, 0.1] },
+  { id: 'spider', bug: 'Spider', name: 'SPIDER KING', title: 'Spider King', r: 2.9, spd: 3.6, shadow: 9, hp: 1.1, goo: [0.45, 0.22, 0.6] },
+  { id: 'ant', bug: 'Ant', name: 'ANT PRINCE', title: 'Ant Prince', r: 2.6, spd: 5.0, shadow: 7, hp: 0.95, goo: [0.62, 0.16, 0.1] },
+  { id: 'fly', bug: 'Fly', name: 'FLY LORD', title: 'Fly Lord', r: 2.4, spd: 9, shadow: 6, hp: 0.9, goo: [0.42, 0.56, 0.2] },
 ];
+// king-and-queen pairs after the first lap: [queen kind, king kind]
+const DUOS = [[0, 1], [3, 2], [1, 0], [2, 3], [0, 2], [1, 3]];
+function bossTitle(kind, duo, tier) {
+  const b = BOSSES[kind || 0];
+  return (duo ? b.bug + (duo === 1 ? ' Queen' : ' King') : b.title) + ((tier || 1) > 1 ? ' ' + roman(tier) : '');
+}
+function bossPlan(n) {   // which bosses the n-th boss fight brings
+  const L = BOSSES.length;
+  if (n <= L) return { tier: 1, list: [[n - 1, 0]] };
+  const i = n - L - 1, pair = DUOS[i % DUOS.length];
+  return { tier: Math.floor(i / DUOS.length) + 1, list: [[pair[0], 1], [pair[1], 2]] };
+}
+const planText = n => { const pl = bossPlan(n); return pl.list.map(([k, d]) => bossTitle(k, d, pl.tier)).join(' & '); };
 const EB_DMG = [12, 12, 6, 8, 8];                       // goo, fire, venom, web, fly spit
 const EB_COL = [[0.5, 1.3, 0.3], [1.4, 0.6, 0.15], [0.5, 1.3, 0.3], [1.3, 1.3, 1.3], [1.4, 1.2, 0.25]];
 const EB_CORE = [[0.55, 0.95, 0.3], [1, 0.55, 0.2], [0.55, 0.95, 0.3], [0.95, 0.95, 0.95], [1, 0.9, 0.3]];
-const bossTitle = q => BOSSES[q.kind].title + (q.tier > 1 ? ' ' + roman(q.tier) : '');
 const COLORS = [['#3a86bd', '#d43a2b'], ['#e0782a', '#2a5fd4'], ['#4fae3c', '#f0c53d'], ['#8b5cc9', '#ff6fa8']];
 const CSS_COL = ['#5fb0ea', '#ff9a4a', '#7ddc5a', '#b78cff'];
 
@@ -1305,12 +1319,13 @@ function newPlayer(id, name, color) {
 function newWorld() {
   S = {
     t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], ebul: [], decals: [], nums: [], rings: [],
-    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, queen: null, bank: 0,
+    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, queen: null, bosses: [], bossKills: 0, bank: 0,
     shake: 0, pendingLevels: 0, bugHp: [3, 2, 14], minute: -1, round: null, nextId: 1, ev: [], warned: false,
   };
   updateMinute();
 }
 function xpNeed(l) { return Math.round((2 + l * 2 + l * l * 0.25) * (1 + 0.35 * Math.max(0, alivePlayers().length - 1))); }
+function roundPlayersCount() { return role === 'client' ? CL.players.size : S ? S.players.length : 1; }
 function alivePlayers() { return S ? S.players.filter(p => !p.down) : []; }
 function meP() { return S && S.players.find(p => p.id === me.id); }
 function updateMinute() {
@@ -1351,8 +1366,8 @@ function playEvent(e) {
     case 'c': FX.glow.spawn({ x: e[1], y: 0.8, z: e[2], vy: 3, life: 0.3, s0: 0.8, s1: 0.2, c: [1.2, 0.9, 0.3] }); break;
     case 'b': for (let k = 0; k < 10; k++) FX.smoke.spawn({ x: e[1], y: 0.8, z: e[2], vx: rand(-3, 3), vy: rand(0, 2), vz: rand(-3, 3), life: 0.8, s0: 1, s1: 3, c: [0.75, 0.9, 0.7], a0: 0.5, a1: 0, drag: 3 }); break;
     case 'f': FX.fire.spawn({ x: e[1], y: 0.5, z: e[2], vy: 2, life: 0.3, s0: 0.9, s1: 0.3, c: [1, 0.5, 0.1] }); break;
-    case 'w': banner(BOSSES[e[1] || 0].title + ' incoming!', true); break;
-    case 'qs': banner(BOSSES[e[2] || 0].title + (e[3] > 1 ? ' ' + roman(e[3]) : '') + '!', true); S.shake = Math.max(S.shake, 0.8); break;
+    case 'w': banner(e[1] + ' incoming!', true); break;
+    case 'qs': banner(e[1] + '!', true); S.shake = Math.max(S.shake, 0.8); break;
     case 'ph': { const c = EB_CORE[e[3]] || EB_CORE[0]; for (let i = 0; i < 8; i++) { const a = Math.random() * TAU, sp = rand(2, 5); FX.goo.spawn({ x: e[1], y: 0.9, z: e[2], vx: Math.cos(a) * sp, vy: rand(1, 4), vz: Math.sin(a) * sp, life: 0.45, s0: 0.25, s1: 0.1, c, grav: 14 }); } FX.glow.spawn({ x: e[1], y: 0.9, z: e[2], life: 0.15, s0: 1.2, s1: 2, c: EB_COL[e[3]] || EB_COL[0], a0: 0.7, a1: 0 }); break; }
     case 'qk': {
       const [, x, z, kind] = e, gc = BOSSES[kind || 0].goo;
@@ -1362,7 +1377,7 @@ function playEvent(e) {
         FX.glow.spawn({ x: x + rand(-2, 2), y: rand(0.5, 3), z: z + rand(-2, 2), life: 0.6, s0: 2.5, s1: 6, c: [1, 0.7, 0.3], a0: 1, a1: 0 });
       }
       for (let i = 0; i < 6; i++) addDecal(x + rand(-3, 3), z + rand(-3, 3), rand(3, 5), gc);
-      S.shake = 1.2; banner(BOSSES[kind || 0].title + ' squashed!  +40 HP');
+      S.shake = 1.2; banner((e[4] || BOSSES[kind || 0].title) + ' squashed!  +40 HP');
       break;
     }
     case 'lv': {
@@ -1371,9 +1386,14 @@ function playEvent(e) {
       S.rings.push({ x: p.x, z: p.z, r0: 1, r1: 9, life: 0.4, max: 0.4, c: [1, 0.85, 0.3] });
       break;
     }
-    case 'tp': if (e[3]) { const u = UP.find(q => q.id === e[1]); banner('Team got ' + (u ? u.name : e[1]) + (e[2] ? ' — ' + e[2] + '\'s tiebreak' : '')); } break;
-    case 'dn': banner((e[1] === me.id ? 'You are' : e[2] + ' is') + ' down!', true); break;
-    case 'rv': banner('Team revived!'); break;
+    case 'tp': if (e[3] === 2) banner('Level ' + S.lvl + ' — all gear maxed!'); else if (!e[3] && e[1] === 'aid') banner('Med kit!  +50 HP'); else if (e[3]) { const u = UP.find(q => q.id === e[1]); banner('Team got ' + (u ? u.name : e[1]) + (e[2] ? ' — ' + e[2] + '\'s tiebreak' : '')); } break;
+    case 'dn': banner(e[1] === me.id ? (roundPlayersCount() > 1 ? 'You are down! A teammate can revive you' : 'You are down!') : e[2] + ' is down! Stand still on them to revive', true); break;
+    case 'rv': {
+      banner(e[1] === me.id ? e[3] + ' revived you!' : e[2] + ' is back up!');
+      const p = role === 'client' ? CL.players.get(e[1]) : S.players.find(q => q.id === e[1]);
+      if (p) { S.rings.push({ x: p.x, z: p.z, r0: 1, r1: 7, life: 0.5, max: 0.5, c: [0.5, 1, 0.5] }); for (let k = 0; k < 24; k++) { const a = k / 24 * TAU; FX.glow.spawn({ x: p.x, y: 0.6, z: p.z, vx: Math.cos(a) * 6, vy: rand(2, 5), vz: Math.sin(a) * 6, life: 0.6, s0: 0.6, s1: 0.1, c: [0.6, 1.3, 0.5], drag: 2 }); } }
+      break;
+    }
     case 'j': banner(e[1] + ' joined'); break;
     case 'x': banner(e[1] + ' left'); break;
   }
@@ -1417,21 +1437,29 @@ function director(dt) {
       for (let i = 0; i < n; i++) { const a = i / n * TAU; spawnBug(0, p.x + Math.cos(a) * R, p.z + Math.sin(a) * R, true); }
     }
   }
-  if (!S.queen && S.t >= S.nextQueen - 5 && !S.warned) { S.warned = true; ev(['w', S.queens % BOSSES.length]); }
-  if (!S.queen && S.t >= S.nextQueen) spawnQueen();
+  if (!S.bosses.length && S.t >= S.nextQueen - 5 && !S.warned) { S.warned = true; ev(['w', planText(S.queens + 1)]); }
+  if (!S.bosses.length && S.t >= S.nextQueen) spawnQueen();
 }
 function spawnQueen() {
   S.queens++; S.nextQueen += QUEEN_EVERY; S.warned = false;
-  const n = S.queens, kind = (n - 1) % BOSSES.length, tier = Math.floor((n - 1) / BOSSES.length) + 1;
+  const n = S.queens, plan = bossPlan(n), tier = plan.tier;
   const a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
-  const hp = Math.round(QUEEN_HP * n * BOSSES[kind].hp * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
-  S.queen = { n, kind, tier, hp, max: hp, x: t.x + Math.cos(a) * (spawnRadius() + 4), z: t.z + Math.sin(a) * (spawnRadius() + 4),
-    vx: 0, vz: 0, ang: 0, t: 0, ring: 2, fan: 3, a1: 2, a2: 1.5, a3: 6, flash: 0, fcd: 0, icd: 0, walk: 0,
-    rate: Math.max(0.4, (48 - 6 * (tier - 1)) / 60), spin: 0, acc: 0, numT: 0, state: 0, st: 0, ddx: 0, ddz: 0, orbitA: a, spiral: 4 };
-  ev(['qs', n, kind, tier]);
+  plan.list.forEach(([kind, duo], i) => {
+    const ang = a + i * Math.PI;   // a pair comes in from opposite sides
+    const hp = Math.round(QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
+    S.bosses.push({ n, kind, duo, tier, hp, max: hp, x: t.x + Math.cos(ang) * (spawnRadius() + 4), z: t.z + Math.sin(ang) * (spawnRadius() + 4),
+      vx: 0, vz: 0, ang: 0, t: i * 0.7, ring: 2 + i, fan: 3 + i, a1: 2 + i * 1.1, a2: 1.5 + i, a3: 6 + i * 3, flash: 0, fcd: 0, icd: 0, walk: 0,
+      rate: Math.max(0.4, (48 - 6 * (tier - 1)) / 60), spin: 0, acc: 0, numT: 0, state: 0, st: 0, ddx: 0, ddz: 0, orbitA: ang, spiral: 4 });
+  });
+  S.queen = S.bosses[0];
+  ev(['qs', planText(n)]);
 }
 function bossShot(q, ang, spd, k, life = 5) { S.ebul.push({ x: q.x, z: q.z, vx: Math.cos(ang) * spd, vz: Math.sin(ang) * spd, life, k }); }
 function updateQueen(dt) {
+  for (const b of S.bosses.slice()) { S.queen = b; updateBoss1(dt); if (!S.queen) S.bosses.splice(S.bosses.indexOf(b), 1); }
+  S.queen = S.bosses[0] || null;
+}
+function updateBoss1(dt) {
   const q = S.queen; if (!q) return;
   q.t += dt; q.flash = Math.max(0, q.flash - dt); q.fcd = Math.max(0, q.fcd - dt); q.icd = Math.max(0, q.icd - dt);
   const tp = nearestPlayer(q.x, q.z); if (!tp) return;
@@ -1478,20 +1506,20 @@ function updateQueen(dt) {
   if (q.hp <= 0) {
     for (let i = 0; i < 10 + S.players.length * 3; i++) dropCoin(q.x + rand(-3, 3), q.z + rand(-3, 3), 12, true);
     for (const p of S.players) if (!p.down) p.hp = Math.min(100, p.hp + 40);
-    S.kills++;
-    ev(['qk', q.x, q.z, q.kind]);
+    S.kills++; S.bossKills++;
+    ev(['qk', q.x, q.z, q.kind, bossTitle(q.kind, q.duo, q.tier)]);
     S.queen = null;
   }
 }
-function hitQueen(dmg, x, z) {
-  const q = S.queen; if (!q) return;
+function hitQueen(dmg, x, z, q = S.queen) {
+  if (!q) return;
   q.hp -= dmg;
   if (q.flash <= 0 && q.fcd <= 0) { q.flash = 0.05; q.fcd = 0.18; }
   q.acc += dmg;
   if (S.t - q.numT > 0.25) { q.numT = S.t; ev(['n', x ?? q.x, z ?? q.z, Math.round(q.acc), 1]); q.acc = 0; }
 }
-function queenNear(p, r) { const q = S.queen; return q && dist2(q.x, q.z, p.x, p.z) < r * r; }
-const BR = () => S.queen ? BOSSES[S.queen.kind].r : 3;
+function queenNear(p, r) { let best = null, bd = r * r; for (const q of S.bosses) { const d = dist2(q.x, q.z, p.x, p.z); if (d < bd) { bd = d; best = q; } } return best; }
+const BR = (q = S.queen) => q ? BOSSES[q.kind].r : 3;
 function hitBug(b, dmg, kx = 0, kz = 0) {
   if (b.hp <= 0) return;
   b.hp -= dmg; b.flash = 0.09; b.x += kx; b.z += kz;
@@ -1507,14 +1535,14 @@ function hurt(p, d) {
   if (p.inv > 0 || p.down || mode !== 'play' || window.__god) return;
   p.hp -= d; p.inv = 0.8;
   if (p.hp <= 0) {
-    p.hp = 0; p.down = true;
+    p.hp = 0; p.down = true; p.rev = 0; p.vx = p.vz = 0;
     ev(['dn', p.id, p.name]);
     if (!alivePlayers().length) endRound();
   }
 }
 
 function nearestBug(p, maxR) {
-  if (queenNear(p, 18)) return S.queen;
+  { const q = queenNear(p, 18); if (q) return q; }
   let best = null, bd = maxR * maxR;
   near(p.x, p.z, maxR, b => { const d = dist2(b.x, b.z, p.x, p.z); if (d < bd) { bd = d; best = b; } });
   return best;
@@ -1550,7 +1578,7 @@ function weapons(p, dt) {
     const i = L.zap - 1; p.cd.zap = W.zap.cd[i];
     const dmg = W.zap.dmg[i] + db, fx = p.x - Math.cos(p.face) * 0.9, fz = p.z + Math.sin(p.face) * 0.9;
     let n = W.zap.n[i];
-    if (queenNear(p, 20)) { const q = S.queen; ev(['z', fx, 2.6, fz, q.x, 2, q.z]); hitQueen(dmg * 2, q.x, q.z); n--; }
+    const qz = queenNear(p, 20); if (qz) { const q = qz; ev(['z', fx, 2.6, fz, q.x, 2, q.z]); hitQueen(dmg * 2, q.x, q.z, q); n--; }
     const pool = [];
     near(p.x, p.z, 20, b => { pool.push(b); });
     for (let k = 0; k < n && pool.length; k++) {
@@ -1565,7 +1593,7 @@ function weapons(p, dt) {
     for (let k = 0; k < ns; k++) {
       const a = p.swatA + k / ns * TAU, x = p.x + Math.cos(a) * 3.1, z = p.z + Math.sin(a) * 3.1;
       near(x, z, 1.4, b => { if (b.icd <= 0 && dist2(b.x, b.z, x, z) < 1.96) { b.icd = 0.33; hitBug(b, dmg, Math.cos(a) * 0.5, Math.sin(a) * 0.5); if (Math.random() < 0.5) ev(['h', b.x, b.z]); } });
-      if (S.queen && S.queen.icd <= 0 && dist2(S.queen.x, S.queen.z, x, z) < (BR() + 0.8) ** 2) { S.queen.icd = 0.15; hitQueen(dmg * 2, x, z); }
+      for (const q of S.bosses) if (q.icd <= 0 && dist2(q.x, q.z, x, z) < (BR(q) + 0.8) ** 2) { q.icd = 0.15; hitQueen(dmg * 2, x, z, q); }
     }
   }
   if (L.citro) {
@@ -1578,7 +1606,7 @@ function weapons(p, dt) {
         const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz) || 1;
         if (d < R) { hitBug(b, dmg, dx / d * 0.75, dz / d * 0.75); if (Math.random() < 0.3) ev(['f', b.x, b.z]); }
       });
-      if (queenNear(p, R + 3)) hitQueen(dmg * 2);
+      for (const q of S.bosses) if (dist2(q.x, q.z, p.x, p.z) < (R + 3) ** 2) hitQueen(dmg * 2, undefined, undefined, q);
     }
   }
 }
@@ -1590,11 +1618,11 @@ function updateShots(dt) {
     if (!dead) {
       if (s.kind === 'paper') {
         near(s.x, s.z, 1.3, b => { if (!s.hit.has(b) && dist2(b.x, b.z, s.x, s.z) < 1.69) { s.hit.add(b); hitBug(b, s.dmg, s.vx * 0.02, s.vz * 0.02); ev(['h', b.x, b.z]); } });
-        if (S.queen && !s.hitQ && dist2(S.queen.x, S.queen.z, s.x, s.z) < (BR() + 0.5) ** 2) { s.hitQ = true; hitQueen(s.dmg, s.x, s.z); }
+        if (!s.hitQ) for (const q of S.bosses) if (dist2(q.x, q.z, s.x, s.z) < (BR(q) + 0.5) ** 2) { s.hitQ = true; hitQueen(s.dmg, s.x, s.z, q); break; }
       } else {
         const r = s.kind === 'bomb' ? 1.3 : 1.0;
         if (near(s.x, s.z, r, b => { if (dist2(b.x, b.z, s.x, s.z) < r * r) { hitBug(b, s.dmg, s.vx * 0.01, s.vz * 0.01); return true; } })) dead = true;
-        else if (S.queen && dist2(S.queen.x, S.queen.z, s.x, s.z) < BR() ** 2) { hitQueen(s.dmg, s.x, s.z); dead = true; }
+        else { const q = S.bosses.find(q => dist2(q.x, q.z, s.x, s.z) < BR(q) ** 2); if (q) { hitQueen(s.dmg, s.x, s.z, q); dead = true; } }
       }
     }
     if (!dead) keep.push(s);
@@ -1604,10 +1632,10 @@ function updateShots(dt) {
   for (const t of S.traps) {
     t.life -= dt; t.drop = Math.max(0, t.drop - dt);
     let boom = t.life <= 0;
-    if (!boom && t.drop <= 0) boom = near(t.x, t.z, 1.6, b => dist2(b.x, b.z, t.x, t.z) < 2.56) || !!(S.queen && dist2(S.queen.x, S.queen.z, t.x, t.z) < (BR() + 0.5) ** 2);
+    if (!boom && t.drop <= 0) boom = near(t.x, t.z, 1.6, b => dist2(b.x, b.z, t.x, t.z) < 2.56) || S.bosses.some(q => dist2(q.x, q.z, t.x, t.z) < (BR(q) + 0.5) ** 2);
     if (boom && t.life > 0) {
       near(t.x, t.z, t.r, b => { if (dist2(b.x, b.z, t.x, t.z) < t.r * t.r) { b.stuck = 1.5; hitBug(b, t.dmg); } });
-      if (S.queen && dist2(S.queen.x, S.queen.z, t.x, t.z) < (t.r + 2.5) ** 2) hitQueen(t.dmg * 2, t.x, t.z);
+      for (const q of S.bosses) if (dist2(q.x, q.z, t.x, t.z) < (t.r + 2.5) ** 2) hitQueen(t.dmg * 2, t.x, t.z, q);
       ev(['g', t.x, t.z, t.r]);
     }
     if (!boom) tk.push(t);
@@ -1677,6 +1705,22 @@ function updateCoins(dt) {
   S.coins = keep;
   while (S.xp >= S.need) { S.xp -= S.need; S.lvl++; S.need = xpNeed(S.lvl); S.pendingLevels++; }
 }
+// a teammate standing still next to a downed player brings them back after 5 seconds
+const REVIVE_TIME = 5, REVIVE_R = 2.2;
+function revives(dt) {
+  for (const p of S.players) {
+    if (!p.down) { p.rev = 0; continue; }
+    let helper = null;
+    for (const h of S.players) {
+      if (h === p || h.down) continue;
+      if (dist2(h.x, h.z, p.x, p.z) < REVIVE_R * REVIVE_R && Math.hypot(h.vx, h.vz) < 1.2) { helper = h; break; }
+    }
+    if (helper) {
+      p.rev = (p.rev || 0) + dt / REVIVE_TIME; p.revBy = helper.id;
+      if (p.rev >= 1) { p.down = false; p.hp = 50; p.inv = 2; p.rev = 0; ev(['rv', p.id, p.name, helper.name]); }
+    } else { p.rev = Math.max(0, (p.rev || 0) - dt / 1.5); p.revBy = null; }   // step away and it drains
+  }
+}
 function movePlayer(p, mv, dt) {
   const spd = (PLAYER_SPEED + p.up.shoes * 3.75) * ((p.slow || 0) > 0 ? 0.55 : 1), k = 1 - Math.exp(-dt * 14);
   const m = p.down ? { x: 0, z: 0 } : mv;
@@ -1697,6 +1741,7 @@ function step(dt) {
     p.inv = Math.max(0, p.inv - dt); p.slow = Math.max(0, (p.slow || 0) - dt);
     if (!p.down) p.hp = Math.min(100, p.hp + dt * 0.4);
   }
+  revives(dt);
   director(dt);
   updateBugs(dt);
   for (const p of S.players) if (!p.down) weapons(p, dt);
@@ -1711,7 +1756,7 @@ const VOTE_MS = 10000;
 function teamCards() {
   const pool = UP.filter(u => u.id !== 'aid' && S.players.some(p => p.up[u.id] < u.max)).map(u => u.id), pick = [];
   while (pick.length < 3 && pool.length) pick.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
-  if (pick.length < 3) pick.push('aid');
+  if (pick.length < 3 && S.lvl % 5 === 0) pick.push('aid');   // med kit only every 5th level
   return pick;
 }
 // players who can actually vote right now (skips anyone whose connection has gone quiet)
@@ -1721,13 +1766,12 @@ function voters() {
 }
 function startLevelRound() {
   S.pendingLevels--;
-  // a level-up revives anyone who is down
-  let revived = false;
-  for (const p of S.players) if (p.down) { p.down = false; p.hp = 50; p.inv = 2; revived = true; }
-  if (revived) ev(['rv']);
+  const cards = teamCards();
+  if (!cards.length) { ev(['tp', '', '', 2]); return; }                               // everything maxed: nothing this level
+  if (cards.length === 1 && cards[0] === 'aid') { applyTeamUp('aid', ''); return; }   // maxed, 5th level: med kit for everyone
   const vs = voters();
   S.roundN = (S.roundN || 0) + 1;
-  S.round = { n: S.roundN * 1000 + ((Math.random() * 1000) | 0), cards: teamCards(), votes: {}, until: performance.now() + VOTE_MS, tb: vs.length ? vs[(S.tbTurn || 0) % vs.length].id : me.id };
+  S.round = { n: S.roundN * 1000 + ((Math.random() * 1000) | 0), cards, votes: {}, until: performance.now() + VOTE_MS, tb: vs.length ? vs[(S.tbTurn || 0) % vs.length].id : me.id };
   mode = 'level';
   showCards();
 }
@@ -1756,16 +1800,19 @@ function checkRound() {
     if (vs.length > 1 && tp) breaker = tp.name;
     S.tbTurn = (S.tbTurn || 0) + 1;   // next tie goes to the next player
   }
+  applyTeamUp(win, breaker);
+  mode = 'play'; S.round = null; hideCards();
+}
+function applyTeamUp(win, breaker) {
   const u = UP.find(x => x.id === win);
   for (const p of S.players) {
-    if (win === 'aid') p.hp = Math.min(100, p.hp + 50);
+    if (win === 'aid') { if (!p.down) p.hp = Math.min(100, p.hp + 50); }
     else if (p.up[win] < u.max) p.up[win]++;
     if (win === 'bomb') p.cd.bomb = 0.3;
     p.inv = Math.max(p.inv, 1);
     ev(['lv', p.id]);
   }
   ev(['tp', win, breaker, S.players.length > 1 ? 1 : 0]);
-  mode = 'play'; S.round = null; hideCards();
 }
 
 // ---------------------------------------------------------------- level-up UI (local player)
@@ -1850,7 +1897,7 @@ function zapBurst(x, z) {
 }
 
 // ---------------------------------------------------------------- client mirror
-const CL = { bugs: new Map(), players: new Map(), queen: null, coins: [], shots: [], traps: [], ebul: [], snapAt: 0, round: null, roundAt: 0, me: null, mode: 'play', stats: null, hostSeen: 0, t: 0 };
+const CL = { bugs: new Map(), players: new Map(), queen: null, bosses: [], coins: [], shots: [], traps: [], ebul: [], snapAt: 0, round: null, roundAt: 0, me: null, mode: 'play', stats: null, hostSeen: 0, t: 0 };
 function applySnapshot(s) {
   const now = performance.now();
   CL.hostSeen = now; CL.snapAt = now;
@@ -1868,11 +1915,11 @@ function applySnapshot(s) {
   // players
   const ps = new Set();
   for (const r of s.P) {
-    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf] = r;
+    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv] = r;
     ps.add(id);
     let p = CL.players.get(id);
     if (!p) { p = { id, name, color, x: x / 10, z: z / 10, face: face / 100, walk: 0, vx: 0, vz: 0, citroA: 0, sprayPuff: 0 }; CL.players.set(id, p); }
-    Object.assign(p, { name, color, hp, down: !!(flags & 1), inv: flags & 2 ? 0.5 : 0, swatA: swatA / 100, citroFlash: cf / 10,
+    Object.assign(p, { name, color, hp, down: !!(flags & 1), inv: flags & 2 ? 0.5 : 0, swatA: swatA / 100, citroFlash: cf / 10, rev: (rv || 0) / 100,
       up: Object.fromEntries(UPIDS.map((k, i) => [k, ups[i]])) });
     if (id !== me.id) { p.tx = x / 10; p.tz = z / 10; p.tface = face / 100; }
     if (flags & 4) p.sprayPuff = 0.12;
@@ -1881,11 +1928,14 @@ function applySnapshot(s) {
   for (const id of CL.players.keys()) if (!ps.has(id)) { CL.players.delete(id); dropLook(id); }
   CL.me = CL.players.get(me.id) || null;
   // queen
-  if (s.Q) {
-    const [x, z, a, hp, max, n, fl, kind, state, tier] = s.Q;
-    if (!CL.queen || CL.queen.kind !== kind) CL.queen = { x: x / 10, z: z / 10, ang: a / 100, walk: 0 };
-    Object.assign(CL.queen, { tx: x / 10, tz: z / 10, ta: a / 100, hp, max, n, flash: fl ? 0.05 : 0, kind, state, tier });
-  } else CL.queen = null;
+  const nb = [];
+  for (const [x, z, a, hp, max, n, fl, kind, state, tier, duo] of (s.Q || [])) {
+    let q = CL.bosses.find(o => o.kind === kind && o.n === n);
+    if (!q) q = { x: x / 10, z: z / 10, ang: a / 100, walk: 0 };
+    Object.assign(q, { tx: x / 10, tz: z / 10, ta: a / 100, hp, max, n, flash: fl ? 0.05 : 0, kind, state, tier, duo });
+    nb.push(q);
+  }
+  CL.bosses = nb; CL.queen = nb[0] || null;
   CL.coins = [];
   for (let i = 0; i < s.C.length; i += 3) CL.coins.push({ x: s.C[i] / 10, z: s.C[i + 1] / 10, big: !!s.C[i + 2], y: 0.45, t: (i * 0.37) + now / 250 });
   CL.shots = s.S.map(r => ({ kind: ['spray', 'bomb', 'paper'][r[0]], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10, ang: r[5] / 100, spin: Math.random() * 6, life: r[6] / 100, max: r[7] / 100 }));
@@ -1912,8 +1962,7 @@ function clientTick(dt) {
     p.x += (p.tx - p.x) * k; p.z += (p.tz - p.z) * k; p.face = lerpAng(p.face, p.tface, k);
     p.vx = (p.x - ox) / Math.max(dt, 1e-3); p.vz = (p.z - oz) / Math.max(dt, 1e-3);
   }
-  const q = CL.queen;
-  if (q) { const ox = q.x, oz = q.z; q.x += (q.tx - q.x) * k; q.z += (q.tz - q.z) * k; q.ang = lerpAng(q.ang, q.ta, k); q.walk += Math.hypot(q.x - ox, q.z - oz) * 2.2 + dt * 3; }
+  for (const q of CL.bosses) { const ox = q.x, oz = q.z; q.x += (q.tx - q.x) * k; q.z += (q.tz - q.z) * k; q.ang = lerpAng(q.ang, q.ta, k); q.walk += Math.hypot(q.x - ox, q.z - oz) * 2.2 + dt * 3; }
   for (const s of CL.shots) { s.x += s.vx * dt; s.z += s.vz * dt; s.spin += dt * 18; s.life -= dt; }
   for (const e of CL.ebul) { e.x += e.vx * dt; e.z += e.vz * dt; }
   if (CL.me) CL.ebul = CL.ebul.filter(e => dist2(e.x, e.z, CL.me.x, CL.me.z) >= 1.3);
@@ -1990,6 +2039,10 @@ function drawPlayer(p, dt, t) {
   B.shadow.add(p.x, 0.02, p.z, 2.6, 0, 0, 0, 0, 0.4);
   const col = new THREE.Color(CSS_COL[p.color % 4]);
   if (!idle()) B.ring.add(p.x, 0.05, p.z, 3.4, 0, col.r, col.g, col.b, p.down ? 0.25 : 0.5);
+  if (!idle() && p.down) {   // revive zone, and a green ring that closes in as it fills
+    B.ring.add(p.x, 0.06, p.z, REVIVE_R * 2, 0, 1, 1, 1, 0.35 + Math.sin(t * 5) * 0.12);
+    if (p.rev > 0) B.ring.add(p.x, 0.07, p.z, REVIVE_R * 2 * (1 - p.rev * 0.8), 0, 0.45, 1, 0.4, 0.9);
+  }
   if ((p.slow || 0) > 0) B.ring.add(p.x, 0.07, p.z, 2.6, t * 2, 1, 1, 1, 0.6);
   if ((p.sprayPuff || 0) > 0) {
     p.sprayPuff -= dt;
@@ -2048,9 +2101,9 @@ function drawWorld(t, dt) {
   const players = role === 'client' ? [...CL.players.values()] : (S.players || []);
   if (!idle()) for (const p of players) drawPlayer(p, dt, t);
   for (const [id, L] of looks) if (!players.some(p => p.id === id)) dropLook(id);
-  const q = role === 'client' ? CL.queen : S.queen;
-  bossMeshes.forEach((m, i) => m.visible = !!q && q.kind === i);
-  if (q) drawBoss(q, t, dt);
+  const qs = (role === 'client' ? CL.bosses : S.bosses) || [];
+  bossMeshes.forEach((m, i) => m.visible = qs.some(q => q.kind === i));
+  for (const q of qs) drawBoss(q, t, dt);
   drawBugs(role === 'client' ? CL.bugs.values() : S.bugs, t);
   let ci = 0, cb = 0;
   for (const c of (role === 'client' ? CL.coins : S.coins)) {
@@ -2133,6 +2186,14 @@ function drawOverlay(dt) {
     fctx.font = '800 13px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.8)';
     const label = p.down ? p.name + ' (down)' : p.name;
     fctx.strokeText(label, sx, sy); fctx.fillStyle = CSS_COL[p.color % 4]; fctx.fillText(label, sx, sy);
+    if (p.down) {
+      const rv = clamp(p.rev || 0, 0, 1), w = 64, y = sy + 9;
+      fctx.fillStyle = 'rgba(0,0,0,.7)'; fctx.fillRect(sx - w / 2 - 2, y - 2, w + 4, 11);
+      fctx.fillStyle = '#7ddc5a'; fctx.fillRect(sx - w / 2, y, w * rv, 7);
+      fctx.font = '800 12px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3;
+      const tip = rv > 0 ? 'Reviving… ' + Math.ceil((1 - rv) * REVIVE_TIME) + 's' : (p.id === me.id ? 'Wait for a teammate' : 'Stand here to revive');
+      fctx.strokeText(tip, sx, y + 24); fctx.fillStyle = '#fff'; fctx.fillText(tip, sx, y + 24);
+    }
   }
 }
 function drawMinimap() {
@@ -2146,8 +2207,7 @@ function drawMinimap() {
   mctx.fillStyle = '#ffd24a';
   const coins = role === 'client' ? CL.coins : S.coins;
   for (let i = 0; i < coins.length; i += 3) { const c = coins[i]; mctx.fillRect(o + c.x * k - 1, o + c.z * k - 1, 2, 2); }
-  const q = role === 'client' ? CL.queen : S.queen;
-  if (q) { mctx.fillStyle = '#ff3b30'; mctx.beginPath(); mctx.arc(o + q.x * k, o + q.z * k, 7 + Math.sin(performance.now() / 120) * 2, 0, TAU); mctx.fill(); }
+  for (const q of (role === 'client' ? CL.bosses : S.bosses) || []) { mctx.fillStyle = '#ff3b30'; mctx.beginPath(); mctx.arc(o + q.x * k, o + q.z * k, 7 + Math.sin(performance.now() / 120) * 2, 0, TAU); mctx.fill(); }
   const players = role === 'client' ? [...CL.players.values()] : S.players;
   for (const p of players) { mctx.fillStyle = p.id === me.id ? '#fff' : CSS_COL[p.color % 4]; mctx.beginPath(); mctx.arc(o + p.x * k, o + p.z * k, p.id === me.id ? 5 : 4, 0, TAU); mctx.fill(); }
 }
@@ -2162,9 +2222,11 @@ function updateHud(dt) {
   $('hpfill').style.width = Math.max(0, p.hp) + '%';
   if (p.hp < lastHp - 0.5 && mode === 'play') { $('hurt').style.opacity = 1; setTimeout(() => $('hurt').style.opacity = 0, 140); S.shake = Math.max(S.shake, 0.45); }
   lastHp = p.hp;
-  const q = role === 'client' ? CL.queen : S.queen;
-  $('queen').hidden = !q;
-  if (q) { $('qfill').style.width = Math.max(0, q.hp / q.max * 100).toFixed(1) + '%'; $('qname').textContent = BOSSES[q.kind || 0].name + ((q.tier || 1) > 1 ? ' ' + roman(q.tier) : ''); }
+  const qs = (role === 'client' ? CL.bosses : S.bosses) || [];
+  $('queen').hidden = !qs.length;
+  const qsig = qs.map(q => bossTitle(q.kind, q.duo, q.tier).toUpperCase()).join('|');
+  if ($('queen').dataset.v !== qsig) { $('queen').dataset.v = qsig; $('queen').innerHTML = qsig ? qsig.split('|').map(n => `<div class="n">${n}</div><div class="bar"><i></i></div>`).join('') : ''; }
+  $('queen').querySelectorAll('.bar i').forEach((el, i) => { const q = qs[i]; if (q) el.style.width = Math.max(0, q.hp / q.max * 100).toFixed(1) + '%'; });
   hudT -= dt; if (hudT > 0) return; hudT = 0.1;
   $('lvl').textContent = S.lvl; $('hpt').textContent = Math.max(0, Math.ceil(p.hp));
   $('clock').firstChild.textContent = fmt(S.t); $('kills').textContent = S.kills.toLocaleString();
@@ -2176,7 +2238,7 @@ function updateHud(dt) {
   drawMinimap();
 }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.add('on'); bannerT = 2.2; }
+function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.toggle('long', text.length > 20); b.classList.add('on'); bannerT = 2.2; }
 
 // ---------------------------------------------------------------- modes and screens
 const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby'];
@@ -2215,7 +2277,7 @@ function removeRemote(id) {
 }
 function endRound() {
   mode = 'over';
-  const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.queens - (S.queen ? 1 : 0) };
+  const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills };
   showOver(st);
 }
 function showOver(st) {
@@ -2234,7 +2296,7 @@ function pause(on) {
 }
 function toTitle() {
   if (net) { net.close(); net = null; }
-  role = 'solo'; mode = 'title'; roster.clear(); CL.players.clear(); CL.bugs.clear(); CL.queen = null;
+  role = 'solo'; mode = 'title'; roster.clear(); CL.players.clear(); CL.bugs.clear(); CL.queen = null; CL.bosses = [];
   screen('title'); $('hud').hidden = true;
   showBest(); demo();
 }
@@ -2368,7 +2430,7 @@ async function joinGame(raw) {
   }
   $('hostbtn').disabled = $('joinbtn').disabled = false;
   role = 'client'; mode = 'join';
-  newWorld(); CL.players.clear(); CL.bugs.clear(); CL.queen = null; CL.hostSeen = performance.now();
+  newWorld(); CL.players.clear(); CL.bugs.clear(); CL.queen = null; CL.bosses = []; CL.hostSeen = performance.now();
   let gotSnap = false;
   net.on('snap', s => {
     if (s.m === 'lobby') {
@@ -2421,18 +2483,18 @@ function sendSnapshot() {
   const r = Math.round;
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
-  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10)]);
+  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100)]);
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 300); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
     t: +S.t.toFixed(2), lv: S.lvl, xp: S.xp, nd: S.need, k: S.kills, qn: S.queens, m: mode === 'pause' ? 'play' : mode,
-    B, P, C, Q: q ? [r(q.x * 10), r(q.z * 10), r(q.ang * 100), r(q.hp), r(q.max), q.n, q.flash > 0 ? 1 : 0, q.kind, q.state, q.tier] : 0,
+    B, P, C, Q: S.bosses.map(q => [r(q.x * 10), r(q.z * 10), r(q.ang * 100), r(q.hp), r(q.max), q.n, q.flash > 0 ? 1 : 0, q.kind, q.state, q.tier, q.duo]),
     S: S.shots.slice(0, 80).map(s => [s.kind === 'spray' ? 0 : s.kind === 'bomb' ? 1 : 2, r(s.x * 10), r(s.z * 10), r(s.vx * 10), r(s.vz * 10), r(s.ang * 100), r(s.life * 100), r(s.max * 100)]),
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
     E: S.ebul.slice(0, 120).map(e => [e.k, r(e.x * 10), r(e.z * 10), r(e.vx * 10), r(e.vz * 10)]),
     ev: S.ev.splice(0, S.ev.length).slice(-120).map(e => e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)),
     R: S.round ? { n: S.round.n, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
-    st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.queens - (S.queen ? 1 : 0) } : null,
+    st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills } : null,
   };
   net.send('snap', snap);
 }
@@ -2581,7 +2643,7 @@ window.PP = {
   give(id, n = 1, pid = me.id) { const p = S.players.find(q => q.id === pid); for (let i = 0; i < n; i++) if (p.up[id] < UP.find(u => u.id === id).max) p.up[id]++; },
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
-  queen() { spawnQueen(); }, start: () => startGame(), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
 
