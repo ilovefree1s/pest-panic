@@ -172,7 +172,7 @@ const IM = {
   spider: instanced(GEO.spider ? GEO.spider : GEO.spiderBody, MAT.bug, MAX_BUGS),
   spiderLeg: instanced(GEO.spiderLeg, MAT.leg, MAX_BUGS * 8),
   coin: instanced(GEO.coin, MAT.coin, 400),
-  coinBig: instanced(GEO.coin, MAT.coinBig, 80),
+  coinBig: instanced(GEO.coin, MAT.coinBig, 400),
   paper: instanced(GEO.paper, MAT.paper, 60, true),
   flip: instanced(GEO.flip, MAT.flip, 60, true),
   glue: instanced(GEO.glue, MAT.glue, 60),
@@ -1005,8 +1005,7 @@ function updateCoins(dt) {
     const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz);
     if (d < 1.3) { S.xp += c.v; ev(['c', c.x, c.z]); continue; }
     if (d < W.vac[p.up.vac] || c.pull) { c.pull = true; const s = Math.max(14, d * 8) * dt; c.x += dx / d * Math.min(d, s); c.z += dz / d * Math.min(d, s); }
-    // coins never vanish: ones left far behind slowly drift back toward the nearest player
-    else if (d > 32) { const s = 5 * dt; c.x += dx / d * s; c.z += dz / d * s; }
+    // coins stay exactly where they dropped until someone picks them up
     keep.push(c);
   }
   S.coins = keep;
@@ -1473,7 +1472,7 @@ function drawWorld(t, dt) {
   for (const c of (role === 'client' ? CL.coins : S.coins)) {
     if (role === 'client') c.t += dt * 4;
     const m = c.big ? IM.coinBig : IM.coin;
-    if ((c.big ? cb : ci) >= (c.big ? 80 : 400)) continue;
+    if ((c.big ? cb : ci) >= 400) continue;
     setI(m, c.big ? cb++ : ci++, c.x, c.y + Math.sin(c.t) * 0.08, c.z, c.t, c.big ? 1.6 : 1);
     B.shadow.add(c.x, 0.02, c.z, c.big ? 0.9 : 0.6, 0, 0, 0, 0, 0.3);
     if (Math.random() < dt * 1.2) FX.glow.spawn({ x: c.x + rand(-0.2, 0.2), y: c.y + 0.3, z: c.z, life: 0.35, s0: 0.5, s1: 0.1, c: [1.4, 1.1, 0.5] });
@@ -1989,7 +1988,7 @@ function sendSnapshot() {
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
   const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0]);
-  const C = []; for (let i = 0; i < Math.min(S.coins.length, 300); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
+  const C = []; for (let i = 0; i < Math.min(S.coins.length, 400); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
     t: +S.t.toFixed(2), A: ARENA, lv: S.lvl, xp: S.xp, nd: S.need, k: S.kills, qn: S.queens, m: mode === 'pause' ? 'play' : mode,
