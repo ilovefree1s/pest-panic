@@ -11,7 +11,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const V3 = THREE.Vector3;
 const TAU = Math.PI * 2;
-const ARENA = 46;
+const ARENA_BASE = 46;
+let ARENA = ARENA_BASE;   // grows 10% per extra player (see setArena)
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches;
 
 // ---------------------------------------------------------------- renderer
@@ -49,6 +50,7 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.4, 0.9);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
+export function setArena(a) { ARENA = a; }
 export const view = { w: 1, h: 1, dist: 40, pitch: 0.98, spawnR: 26, visR: 22, bloomOn: true, shadowsOn: true };
 
 export function resize() {
@@ -745,6 +747,30 @@ export function buildRoomba() {
   scene.add(g);
   return g;
 }
+// magnifying glass: brass rim, clear lens, wooden handle. The lens faces local -y (down at the floor).
+export function buildMagnifier() {
+  const g = new THREE.Group();
+  const rimM = std({ color: '#c9a24a', metalness: 0.9, roughness: 0.28, envMapIntensity: 1.2 });
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.13, 12, 40), rimM); rim.rotation.x = Math.PI / 2; rim.castShadow = true; g.add(rim);
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(1.08, 1.08, 0.08, 40), new THREE.MeshStandardMaterial({ color: '#cfeaff', transparent: true, opacity: 0.28, roughness: 0.02, metalness: 0.1, envMapIntensity: 2.2, depthWrite: false }));
+  g.add(glass);
+  const shine = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.04, 6, 24, 1.2), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.55 }));
+  shine.rotation.x = Math.PI / 2; shine.rotation.z = 2.3; shine.position.y = 0.06; g.add(shine);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.5, 10), rimM); neck.rotation.z = Math.PI / 2; neck.position.x = 1.45; g.add(neck);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 1.7, 12), std({ color: '#7a4a24', roughness: 0.55 })); handle.rotation.z = Math.PI / 2; handle.position.x = 2.5; handle.castShadow = true; g.add(handle);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), rimM); cap.position.x = 3.35; g.add(cap);
+  g.visible = false;
+  scene.add(g);
+  return g;
+}
+// the light cone from lens to floor: unit height along +y, scaled per frame
+export function buildBeam() {
+  const geo = new THREE.CylinderGeometry(1, 0.08, 1, 32, 1, true); geo.translate(0, -0.5, 0);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#fff3c4', transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  m.renderOrder = 16; m.visible = false; m.frustumCulled = false;
+  scene.add(m);
+  return m;
+}
 export function buildZapper() {
   const g = new THREE.Group();
   const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.6, 16), std({ color: '#b48cff', emissive: '#8a5cff', emissiveIntensity: 2.4, roughness: 0.2 }));
@@ -875,4 +901,4 @@ export class Arcs {
   }
 }
 
-export { THREE, scene, camera, renderer, ARENA, TAU, IS_TOUCH, stage };
+export { THREE, scene, camera, renderer, ARENA, ARENA_BASE, TAU, IS_TOUCH, stage };

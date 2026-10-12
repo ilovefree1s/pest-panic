@@ -2,6 +2,7 @@
 //  PEST PANIC ONLINE  -  game logic (host-authoritative co-op), weapons, HUD,
 //  input and networking over Supabase Realtime
 // ============================================================================
+const CONCEPT = !!window.__CONCEPT;   // concept preview page: shows gear that isn't in the game yet
 const SUPABASE_URL = 'https://ljrnzpqepssnkidlcgha.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_DWik0p9owlUHmoh2v1U9lA_pDlntvoc';
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
@@ -58,6 +59,7 @@ const UP = [
   { id: 'paper', name: 'Newspaper', max: 5, d: 'Smacks through a whole line of bugs.', up: 'More papers, harder hits.' },
   { id: 'flip', name: 'Flip-Flop', max: 5, d: 'A boomerang sandal.', up: 'More sandals, harder hits.' },
   { id: 'roomba', name: 'Roomba', max: 5, d: 'A robot vacuum hunts bugs.', up: 'Faster, stronger, wider.' },
+  ...(CONCEPT ? [{ id: 'lens', name: 'Magnifying Glass', max: 5, d: 'A sunbeam burns bugs.', up: 'Hotter, bigger, faster.' }] : []),
   { id: 'shoes', name: 'Sneakers', max: 3, d: 'Move faster.', up: 'Even faster.' },
   { id: 'vac', name: 'Shop Vac', max: 3, d: 'Pulls coins in from farther away.', up: 'Longer reach.' },
   { id: 'str', name: 'Extra Strength', max: 3, d: 'All damage +1.', up: 'All damage +1.' },
@@ -74,6 +76,7 @@ const HOW = {
   paper: 'Throws a rolled-up newspaper the way you are moving. It flies through every bug in its path.',
   flip: 'Throws a flip-flop at the nearest bug. It flies out through every bug in its path, then spins back to you and hits them all again.',
   roomba: 'A robot vacuum drives around near you hunting bugs, sucking up and bumping everything it rolls over. You only get one, but every level makes it faster, stronger and bigger.',
+  lens: 'A magnifying glass floats over you and focuses a sunbeam into a white-hot dot that hunts the toughest bugs nearby. Great on spiders and bosses.',
   shoes: 'You move faster.',
   vac: 'Coins fly to you from farther away.',
   str: 'Every weapon you have does 1 more damage.',
@@ -94,6 +97,7 @@ function stats(id, L, p) {
     case 'paper': return [['Papers', v(() => W.paper.n[i])], ['Damage', v(() => W.paper.dmg[i] + s)], ['Every', v(() => sec(W.paper.cd[i]))]];
     case 'flip': return [['Flip-flops', v(() => W.flip.n[i])], ['Damage', v(() => W.flip.dmg[i] + s)], ['Every', v(() => sec(W.flip.cd[i]))]];
     case 'roomba': return [['Damage', v(() => W.roomba.dmg[i] + s)], ['Speed', v(() => W.roomba.spd[i])], ['Suction size', v(() => W.roomba.r[i].toFixed(1))]];
+    case 'lens': return [['Burn damage', v(() => W.lens.dmg[i] + s + '/tick')], ['Dot size', v(() => W.lens.r[i].toFixed(1))], ['Beams', v(() => W.lens.n[i])]];
     case 'shoes': return [['Speed', Math.round(100 + L * 25) + '%']];
     case 'vac': return [['Coin reach', W.vac[L].toFixed(1)]];
     case 'str': return [['Bonus damage', '+' + L]];
@@ -122,6 +126,7 @@ const W = {
   paper: { cd: [80, 70, 60, 50, 40].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [10, 12, 14, 18, 22] },
   vac: [4.5, 7, 10, 14],
   flip: { cd: [100, 90, 80, 70, 60].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [8, 10, 12, 15, 18], range: [9, 10, 11, 12, 13] },
+  lens: { dmg: [2, 3, 4, 5, 6], r: [1.1, 1.3, 1.5, 1.7, 1.9], spd: [9, 11, 13, 15, 17], n: [1, 1, 1, 1, 2], linger: [0, 0, 1, 1.5, 2], tick: 0.1 },
   roomba: { dmg: [4, 5, 7, 9, 12], spd: [7, 8, 9, 10, 11.5], r: [1.5, 1.7, 1.9, 2.2, 2.5], tick: 0.25 },
 };
 
@@ -134,6 +139,7 @@ const ICON = {
   citro: '<svg viewBox="0 0 48 48"><rect x="13" y="24" width="22" height="18" rx="4" fill="#e9dca0"/><rect x="13" y="29" width="22" height="4" fill="#c7ad55"/><rect x="23" y="18" width="2" height="7" fill="#333"/><path d="M24 2c6 7 8 11 4 16-2 2-6 2-8 0-4-5 0-9 4-16z" fill="#ff9a2a"/><path d="M24 8c3 4 4 7 2 9-1 1-3 1-4 0-2-3 0-5 2-9z" fill="#ffe27a"/></svg>',
   paper: '<svg viewBox="0 0 48 48"><rect x="8" y="17" width="34" height="14" rx="7" transform="rotate(-25 24 24)" fill="#e8e3d3"/><path d="M14 27l22-10M15 31l22-10" stroke="#555" stroke-width="2"/><rect x="21" y="14" width="4" height="20" transform="rotate(-25 24 24)" fill="#c0392b"/></svg>',
   flip: '<svg viewBox="0 0 48 48"><ellipse cx="24" cy="25" rx="11" ry="19" fill="#ff4f93"/><ellipse cx="24" cy="25" rx="9" ry="16.5" fill="#ffd3e6"/><path d="M24 12l-8 17M24 12l8 17" stroke="#2b9cff" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="12" r="2.4" fill="#1e7fe0"/><path d="M41 9a12 12 0 0 1-3 13" stroke="#fff" stroke-width="2" fill="none" stroke-dasharray="3 3"/></svg>',
+  lens: '<svg viewBox="0 0 48 48"><circle cx="19" cy="19" r="13" fill="#cfeaff" opacity=".55"/><circle cx="19" cy="19" r="13" fill="none" stroke="#c9a24a" stroke-width="4"/><path d="M13 12a8 8 0 0 1 8-3" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/><rect x="30" y="28" width="7" height="17" rx="3" transform="rotate(-45 33 36)" fill="#7a4a24"/><circle cx="40" cy="42" r="3" fill="#ffd36a"/><circle cx="40" cy="42" r="6" fill="#ffd36a" opacity=".35"/></svg>',
   roomba: '<svg viewBox="0 0 48 48"><circle cx="24" cy="25" r="19" fill="#2a2e34"/><path d="M5 25a19 19 0 0 1 38 0" stroke="#111316" stroke-width="4" fill="none"/><circle cx="24" cy="25" r="13" fill="#454c55"/><circle cx="24" cy="25" r="11" fill="none" stroke="#9aa3ad" stroke-width="1.5"/><circle cx="24" cy="25" r="3.5" fill="#d7dbe0"/><circle cx="24" cy="15" r="1.6" fill="#6dff7a"/><path d="M36 11l4-4M38 13l5-1M35 9l1-5" stroke="#c9b27a" stroke-width="1.6"/></svg>',
   shoes: '<svg viewBox="0 0 48 48"><path d="M6 30c0-6 4-12 8-12l6 6 6-2 6 6 8 2c3 1 4 4 4 6H6z" fill="#3a86bd"/><rect x="6" y="36" width="38" height="5" rx="2" fill="#f4efe4"/><path d="M20 24l3-3M24 27l3-3" stroke="#fff" stroke-width="2"/></svg>',
   vac: '<svg viewBox="0 0 48 48"><rect x="6" y="20" width="22" height="20" rx="6" fill="#f2c53d"/><rect x="9" y="16" width="16" height="6" rx="2" fill="#333"/><path d="M28 28c8 0 10-8 14-14" stroke="#333" stroke-width="4" fill="none"/><circle cx="12" cy="42" r="3" fill="#333"/><circle cx="24" cy="42" r="3" fill="#333"/><circle cx="40" cy="22" r="3" fill="#ffd96a"/><circle cx="36" cy="30" r="2.4" fill="#ffd96a"/></svg>',
@@ -143,7 +149,17 @@ const ICON = {
 
 // ---------------------------------------------------------------- world objects
 resize();
-scene.add(buildKitchen());
+let kitchen = buildKitchen(); scene.add(kitchen);
+// the kitchen is 10% bigger for each extra player (4 players = 30% bigger); it never shrinks mid-run
+function applyArena(a) {
+  if (Math.abs(a - ARENA) < 0.01) return;
+  setArena(a);
+  scene.remove(kitchen);
+  kitchen.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
+  kitchen = buildKitchen(); scene.add(kitchen);
+}
+const arenaFor = n => +(ARENA_BASE * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
+function growArena(quiet) { const a = arenaFor(S.players.length); if (a > ARENA + 0.01) { applyArena(a); if (!quiet) ev(['ar', S.players.length]); } }
 const queenMesh = buildQueen(); queenMesh.visible = false; scene.add(queenMesh);
 const bossMeshes = [queenMesh, buildBugBoss('spider'), buildBugBoss('ant'), buildBugBoss('fly')];
 
@@ -213,7 +229,7 @@ function lookFor(p) {
   let L = looks.get(p.id);
   if (!L) {
     const c = COLORS[p.color % COLORS.length];
-    L = { body: buildPlayer(c[0], c[1]), swats: [0, 1, 2, 3].map(() => { const s = buildSwatter(); s.visible = false; return s; }), zap: buildZapper(), roomba: buildRoomba(), walk: 0 };
+    L = { body: buildPlayer(c[0], c[1]), swats: [0, 1, 2, 3].map(() => { const s = buildSwatter(); s.visible = false; return s; }), zap: buildZapper(), roomba: buildRoomba(), lens: buildMagnifier(), beams: [buildBeam(), buildBeam()], walk: 0 };
     scene.add(L.body);
     looks.set(p.id, L);
   }
@@ -221,7 +237,7 @@ function lookFor(p) {
 }
 function dropLook(id) {
   const L = looks.get(id); if (!L) return;
-  scene.remove(L.body); L.swats.forEach(s => scene.remove(s)); scene.remove(L.zap); scene.remove(L.roomba);
+  scene.remove(L.body); L.swats.forEach(s => scene.remove(s)); scene.remove(L.zap); scene.remove(L.roomba); scene.remove(L.lens); L.beams.forEach(b => scene.remove(b));
   looks.delete(id);
 }
 
@@ -255,7 +271,7 @@ $('pname').value = me.name;
 function newPlayer(id, name, color) {
   return { id, name: name || 'Player', color, x: rand(-2, 2), z: rand(-2, 2), vx: 0, vz: 0, face: 0, hp: 100, inv: 1.5, down: false,
     up: Object.fromEntries(UPIDS.map(k => [k, k === 'spray' ? 1 : 0])),
-    cd: { spray: 0.3, bomb: 1, zap: 0.5, glue: 0.5, citro: 0.5, paper: 0.5, flip: 0.6, rb: 0 }, swatA: 0, citroA: 0, citroFlash: 0, sprayPuff: 0, walk: 0, seen: 0 };
+    cd: { spray: 0.3, bomb: 1, zap: 0.5, glue: 0.5, citro: 0.5, paper: 0.5, flip: 0.6, rb: 0, lens: 0, scorch: 0 }, swatA: 0, citroA: 0, citroFlash: 0, sprayPuff: 0, walk: 0, seen: 0 };
 }
 function newWorld() {
   S = {
@@ -382,6 +398,13 @@ const SND = (() => {
       if (!gate('fire', 85)) return; const [k, pan] = where(x, z); if (k < 0.05) return;
       noise(out(0.9 * k, pan), ctx.currentTime, 0.08, 'bandpass', R(1200, 2200), 800, 1.5);
     },
+    sizzle(x, z) {   // laser burn: a quick falling "pew" with a crackle
+      S_.laserHitT = performance.now();
+      if (!gate('sz', 140)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(0.28 * k, pan), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 3200; f.connect(o);
+      tone(f, 'square', R(1700, 2100), 520, n, 0.11, 0.002, 0.5); tone(f, 'sawtooth', R(2300, 2600), 700, n + 0.01, 0.09, 0.002, 0.3);
+      noise(o, n, 0.07, 'highpass', 5000, 7000, 0.6, 0.002, 0.5);
+    },
     thwip(x, z) {
       if (!gate('thw', 60)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
       const n = ctx.currentTime, o = out(0.5 * k, pan);
@@ -423,6 +446,24 @@ const SND = (() => {
   return {
     unlock,
     play(name, ...a) { try { if (ready() && S_[name]) S_[name](...a); } catch (e) {} },
+    // my magnifying glass beam: a buzzing sci-fi hum that swells while it is burning something
+    laser(on) {
+      try {
+        if (!ready()) { if (S_.lz) S_.lz.g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); return; }
+        if (!S_.lz) {
+          const a = ctx.createOscillator(), b = ctx.createOscillator(), hi = ctx.createOscillator(), lfo = ctx.createOscillator(), lg = ctx.createGain();
+          const f = ctx.createBiquadFilter(), g = ctx.createGain(), hg = ctx.createGain();
+          a.type = 'sawtooth'; b.type = 'sawtooth'; hi.type = 'sine'; a.frequency.value = 196; b.frequency.value = 199.5; hi.frequency.value = 1568;
+          lfo.frequency.value = 7; lg.gain.value = 260; lfo.connect(lg); lg.connect(f.frequency);
+          f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 2.2; hg.gain.value = 0.25; g.gain.value = 0;
+          a.connect(f); b.connect(f); hi.connect(hg); hg.connect(g); f.connect(g); g.connect(master);
+          [a, b, hi, lfo].forEach(o => o.start()); S_.lz = { g, f, hi };
+        }
+        const t = ctx.currentTime, hot = performance.now() - (S_.laserHitT || 0) < 250;
+        S_.lz.g.gain.setTargetAtTime(on ? (hot ? 0.07 : 0.035) : 0, t, on ? 0.06 : 0.12);
+        S_.lz.hi.frequency.setTargetAtTime(hot ? 1760 : 1568, t, 0.08);
+      } catch (e) {}
+    },
     // my roomba's motor: a soft hum that rises with speed
     hum(on, speed) {
       try {
@@ -506,6 +547,7 @@ function eventSound(e) {
     case 'g': SND.play('snap', e[1], e[2]); break;
     case 'f': SND.play('fire', e[1], e[2]); break;
     case 'ff': SND.play('thwip', e[1], e[2]); break;
+    case 'sz': SND.play('sizzle', e[1], e[2]); break;
     case 'pp': SND.play('whoosh', e[1], e[2]); break;
     case 'ph': SND.play('splash', e[1], e[2]); break;
     case 'w': SND.play('warn'); break;
@@ -569,6 +611,7 @@ function playEvent(e) {
       break;
     }
     case 'j': banner(e[1] + ' joined'); break;
+    case 'ar': setTimeout(() => banner('The kitchen got bigger!'), 1600); break;
     case 'x': banner(e[1] + ' left'); break;
   }
 }
@@ -728,7 +771,7 @@ function fire(p, kind, ang, spd, life, dmg, extra = {}) {
 function weapons(p, dt) {
   const L = p.up, db = L.str;
   for (const k in p.cd) p.cd[k] -= dt;
-  if (p.cd.spray <= 0) {
+  if (L.spray && p.cd.spray <= 0) {
     const i = L.spray - 1; p.cd.spray = W.spray.cd[i];
     const tgt = nearestBug(p, 22), ang = tgt ? Math.atan2(tgt.x - p.x, tgt.z - p.z) : p.face, n = W.spray.n[i];
     for (let k = 0; k < n; k++) fire(p, 'spray', ang + (k - (n - 1) / 2) * 0.29, 30, 0.8, W.spray.dmg[i] + db);
@@ -753,6 +796,7 @@ function weapons(p, dt) {
     for (let k = 0; k < n; k++) fire(p, 'flip', ang + (k - (n - 1) / 2) * 0.55, spd, 4, W.flip.dmg[i] + db, { hit: new Set(), owner: p.id, out: W.flip.range[i] / spd, t: 0, back: false });
   }
   if (L.roomba) roomba(p, dt, L.roomba - 1, db);
+  if (L.lens) lens(p, dt, L.lens - 1, db);
   if (L.glue && p.cd.glue <= 0) {
     const i = L.glue - 1; p.cd.glue = W.glue.cd[i];
     if (S.traps.length < 40) S.traps.push({ x: p.x, z: p.z, life: 10, dmg: W.glue.dmg[i] + db, r: W.glue.r[i], rot: Math.random() * TAU, drop: 0.25 });
@@ -792,6 +836,42 @@ function weapons(p, dt) {
       for (const q of S.bosses) if (dist2(q.x, q.z, p.x, p.z) < (R + 3) ** 2) hitQueen(dmg * 2, undefined, undefined, q);
     }
   }
+}
+// the magnifying glass: each beam's hot dot drifts toward the toughest bug near its owner and burns what it touches
+function lens(p, dt, i, db) {
+  const n = W.lens.n[i], R_ = W.lens.r[i], spd = W.lens.spd[i];
+  p.beams = p.beams || [];
+  while (p.beams.length < n) p.beams.push({ x: p.x + 3 * (p.beams.length ? -1 : 1), z: p.z - 2, vx: 0, vz: 0, tgt: null });
+  p.beams.length = n;
+  p.burning = p.burning || new Map();
+  const taken = new Set();
+  for (const bm of p.beams) {
+    // pick a target: bosses first, then the biggest bug, ties to the nearest
+    let best = null, score = -Infinity;
+    for (const q of S.bosses) if (dist2(q.x, q.z, p.x, p.z) < 15 * 15 && !taken.has(q)) { const sc = 1e6 - dist2(q.x, q.z, bm.x, bm.z); if (sc > score) { score = sc; best = q; } }
+    if (!best) near(p.x, p.z, 14, b => { if (taken.has(b) || b.hp <= 0) return; const sc = b.hp * 40 - dist2(b.x, b.z, bm.x, bm.z); if (sc > score) { score = sc; best = b; } });
+    if (best) taken.add(best);
+    bm.tgt = best;
+    const tx = best ? best.x : p.x + Math.sin(S.t * 0.9 + i) * 4, tz = best ? best.z : p.z + Math.cos(S.t * 0.7) * 3 - 1;
+    const dx = tx - bm.x, dz = tz - bm.z, d = Math.hypot(dx, dz) || 1, want = Math.min(spd, d * 4), k = Math.min(1, dt * 6);
+    bm.vx += (dx / d * want - bm.vx) * k; bm.vz += (dz / d * want - bm.vz) * k;
+    bm.x += bm.vx * dt; bm.z += bm.vz * dt;
+    // keep the beam within reach of the lens
+    const ox = bm.x - p.x, oz = bm.z - p.z, od = Math.hypot(ox, oz); if (od > 15) { bm.x = p.x + ox / od * 15; bm.z = p.z + oz / od * 15; }
+  }
+  if (p.cd.lens <= 0) {
+    p.cd.lens = W.lens.tick;
+    const dmg = W.lens.dmg[i] + db, linger = W.lens.linger[i];
+    let hitAny = false;
+    for (const bm of p.beams) {
+      near(bm.x, bm.z, R_, b => { if (dist2(b.x, b.z, bm.x, bm.z) < R_ * R_) { hitBug(b, dmg); hitAny = true; if (linger) p.burning.set(b, linger); if (Math.random() < 0.35) ev(['f', b.x, b.z]); } });
+      for (const q of S.bosses) if (dist2(q.x, q.z, bm.x, bm.z) < (R_ + BR(q)) ** 2) { hitQueen(dmg * 2, bm.x, bm.z, q); hitAny = true; }
+    }
+    // bugs keep smouldering for a moment after the dot moves on (level 3+)
+    for (const [b, t] of p.burning) { if (b.hp <= 0 || t <= 0) { p.burning.delete(b); continue; } hitBug(b, Math.max(1, dmg >> 1)); p.burning.set(b, t - W.lens.tick); if (Math.random() < 0.2) ev(['f', b.x, b.z]); }
+    if (hitAny) ev(['sz', p.beams[0].x, p.beams[0].z]);
+  }
+  if (p.cd.scorch <= 0) { p.cd.scorch = 0.12; for (const bm of p.beams) addDecal(bm.x + rand(-0.2, 0.2), bm.z + rand(-0.2, 0.2), R_ * rand(0.9, 1.3), [0.1, 0.07, 0.05], 7); }
 }
 // the Roomba: one per player, hunts the bug nearest to it (within reach of its owner)
 function roomba(p, dt, i, db) {
@@ -908,7 +988,8 @@ function updateBugs(dt, demo) {
     b.walk += dt * (Math.hypot(b.vx, b.vz) * (b.t === 2 ? 2.2 : 4.5) + 0.5);
     if (!demo && d < BUG[b.t].r + 0.55 && tp.hp !== undefined) hurt(tp, BUG[b.t].dmg);
   }
-  if (S.bugs.some(b => b.hp <= 0)) S.bugs = S.bugs.filter(b => b.hp > 0);
+  // drop dead bugs and rebuild the grid so weapons this frame never look up a bug that is gone
+  if (S.bugs.some(b => b.hp <= 0)) { S.bugs = S.bugs.filter(b => b.hp > 0); buildGrid(); }
 }
 function updateCoins(dt) {
   const keep = [];
@@ -1123,6 +1204,7 @@ const CL = { bugs: new Map(), players: new Map(), queen: null, bosses: [], coins
 function applySnapshot(s) {
   const now = performance.now();
   CL.hostSeen = now; CL.snapAt = now;
+  if (s.A) applyArena(s.A);
   S.t = s.t; S.lvl = s.lv; S.xp = s.xp; S.need = s.nd; S.kills = s.k; S.queens = s.qn;
   // bugs
   const seen = new Set();
@@ -1204,6 +1286,7 @@ function clientTick(dt) {
 }
 
 // ---------------------------------------------------------------- drawing
+const tmpV2 = new THREE.Vector3();
 const tmpM = new THREE.Matrix4(), tmpM2 = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpV = new THREE.Vector3(), ONE = new THREE.Vector3(1, 1, 1);
 const posV = new THREE.Vector3(), sclV = new THREE.Vector3(), baseM = new THREE.Matrix4(), legLocal = new THREE.Matrix4();
 const white = new THREE.Color(1, 1, 1), flashC = new THREE.Color(5, 5, 5), stuckC = new THREE.Color(1.6, 1.4, 0.5);
@@ -1300,6 +1383,32 @@ function drawPlayer(p, dt, t) {
     L.roomba.userData.brush.rotation.y += dt * 22;
     B.shadow.add(rb.x, 0.02, rb.z, 2.4 * sc, 0, 0, 0, 0, 0.35);
     if (Math.hypot(rb.vx || 0, rb.vz || 0) > 1 && Math.random() < dt * 14) FX.smoke.spawn({ x: rb.x - Math.sin(rb.ang) * 0.9 * sc, y: 0.2, z: rb.z - Math.cos(rb.ang) * 0.9 * sc, vy: 0.6, life: 0.45, s0: 0.3, s1: 0.8, c: [0.7, 0.68, 0.62], a0: 0.35, a1: 0 });
+  }
+  // magnifying glass + sunbeams
+  const bms = up.lens > 0 && !p.down && p.beams ? p.beams : [];
+  L.lens.visible = bms.length > 0;
+  if (p.id === me.id) SND.laser(bms.length > 0 && mode === 'play');
+  L.beams.forEach((m, k) => m.visible = k < bms.length);
+  if (bms.length) {
+    let ax = 0, az = 0; for (const bm of bms) { ax += bm.x; az += bm.z; } ax /= bms.length; az /= bms.length;
+    const lx = p.x + (ax - p.x) * 0.08, lz = p.z + (az - p.z) * 0.08, ly = 7.4 + Math.sin(t * 1.7) * 0.15;
+    L.lens.position.set(lx, ly, lz); L.lens.scale.setScalar(0.9);
+    // tilt the lens toward where it is aiming, handle trailing back toward the player
+    L.lens.rotation.set(Math.atan2(az - lz, ly) * 0.6, Math.atan2(p.x - lx, p.z - lz) - Math.PI / 2, -Math.atan2(ax - lx, ly) * 0.6, 'YXZ');
+    const hot = (W.lens.r[up.lens - 1] || 1.1);
+    bms.forEach((bm, k) => {
+      const m = L.beams[k], dx = bm.x - lx, dy = 0.05 - ly, dz = bm.z - lz, len = Math.hypot(dx, dy, dz);
+      m.position.set(lx, ly, lz); m.scale.set(0.95, len, 0.95);
+      m.quaternion.setFromUnitVectors(tmpV.set(0, -1, 0), tmpV2.set(dx / len, dy / len, dz / len));
+      m.material.opacity = 0.13 + Math.sin(t * 9 + k) * 0.025;
+      // the white-hot dot
+      const fl = 1 + Math.sin(t * 23 + k * 2) * 0.08;
+      B.glow.add(bm.x, 0.12, bm.z, hot * 3.2 * fl, 0, 1.0, 0.75, 0.35, 0.55);
+      B.glow.add(bm.x, 0.14, bm.z, hot * 1.5 * fl, 0, 1.6, 1.45, 1.1, 1);
+      B.ring.add(bm.x, 0.06, bm.z, hot * 2.4, t * 2, 1, 0.6, 0.2, 0.35);
+      if (Math.random() < dt * 22) FX.smoke.spawn({ x: bm.x + rand(-0.3, 0.3), y: 0.3, z: bm.z + rand(-0.3, 0.3), vy: rand(1.2, 2.4), life: 0.9, s0: 0.3, s1: 1.4, c: [0.55, 0.52, 0.5], a0: 0.4, a1: 0, drag: 1 });
+      if (Math.random() < dt * 30) { const a = Math.random() * TAU, s2 = rand(2, 5); FX.glow.spawn({ x: bm.x, y: 0.2, z: bm.z, vx: Math.cos(a) * s2, vy: rand(1, 4), vz: Math.sin(a) * s2, life: 0.35, s0: 0.25, s1: 0.05, c: [1.4, 0.9, 0.35], grav: 9 }); }
+    });
   }
   // zapper lantern
   L.zap.visible = up.zap > 0 && !p.down;
@@ -1498,9 +1607,11 @@ function enterGameUi() {
 }
 function beginRound() {   // solo and host
   newWorld();
+  applyArena(ARENA_BASE);
   const id = me.id;
   S.players.push(newPlayer(id, me.name || 'You', 0));
   if (role === 'host') for (const r of roster.values()) if (r.id !== id) addRemote(r.id, r.name);
+  growArena(true);
   mode = 'play'; lastHp = 100;
   enterGameUi(); banner("Squash 'em!");
 }
@@ -1513,6 +1624,7 @@ function addRemote(id, name) {
   if (host && host.id !== id) p.up = { ...host.up };   // the team shares one build, so latecomers catch up
   S.players.push(p);
   ev(['j', name]);
+  if (mode === 'play' || mode === 'level') growArena();
 }
 function removeRemote(id) {
   const i = S.players.findIndex(p => p.id === id); if (i < 0) return;
@@ -1551,6 +1663,7 @@ function toTitle() {
 function showBest() { $('best').textContent = best.t > 0 ? `Best: ${fmt(best.t)}  ·  ${best.k.toLocaleString()} bugs` : ''; }
 function demo() {
   newWorld();
+  applyArena(ARENA_BASE);
   for (let i = 0; i < 40; i++) spawnBug(i % 7 === 0 ? 2 : i % 3 === 0 ? 1 : 0, rand(-20, 20), rand(-16, 16), true);
   S.bugs.forEach(b => b.spd *= 0.5);
 }
@@ -1581,6 +1694,20 @@ $('mvol').addEventListener('input', () => { MUSIC.setVol($('mvol').value / 100);
 $('vol').addEventListener('input', () => { SND.setVol($('vol').value / 100); if (SND.muted) SND.toggle(); syncSoundUi(); });
 $('vol').addEventListener('change', () => SND.play('coin'));
 syncSoundUi();
+// concept preview: jump straight into a run with only the magnifying glass
+if (CONCEPT) {
+  const go = () => {
+    saveName(); role = 'solo'; beginRound(); window.__god = true; S.need = 1e9;
+    const pl = meP(); pl.up.spray = 0; pl.up.lens = 1; $('banner').classList.remove('on'); bannerT = 0;
+    setLv(1);
+  };
+  const setLv = L => { const pl = meP(); if (pl) pl.up.lens = L; document.querySelectorAll('#cpanel [data-lv]').forEach(b => b.classList.toggle('on', +b.dataset.lv === L)); };
+  document.querySelectorAll('#cpanel [data-lv]').forEach(b => b.addEventListener('click', () => setLv(+b.dataset.lv)));
+  $('cspiders').addEventListener('click', () => { const pl = meP(); for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; spawnBug(2, pl.x + Math.cos(a) * 12, pl.z + Math.sin(a) * 12, true); } });
+  $('cboss').addEventListener('click', () => { if (!S.bosses.length) { S.queens = 1; spawnQueen(); } });
+  $('cgear').addEventListener('click', () => { const pl = meP(); const on = !pl.up.spray; pl.up.spray = on ? 3 : 0; pl.up.swat = on ? 2 : 0; $('cgear').classList.toggle('on', on); });
+  setTimeout(go, 50);
+}
 $('boardback').addEventListener('click', closeBoard);
 $('netok').addEventListener('click', toTitle);
 $('pausebtn').addEventListener('click', () => pause(true));
@@ -1730,7 +1857,7 @@ async function localNet(code, meta) {
   const hb = setInterval(() => {
     bc.postMessage({ ev: '_hello', payload: { id: me.id, ...meta } });
     let changed = false;
-    for (const [id, p] of peers) if (performance.now() - p.seen > 4000) { peers.delete(id); changed = true; }
+    for (const [id, p] of peers) if (performance.now() - p.seen > 10000) { peers.delete(id); changed = true; }
     if (changed) emitPresence();
   }, 1000);
   bc.postMessage({ ev: '_hello', payload: { id: me.id, ...meta } });
@@ -1829,7 +1956,7 @@ function hostGone() {
   $('hud').hidden = true; screen('netmsg'); demo();
 }
 // host -> clients: the whole world, 10 times a second
-let snapT = 0;
+let snapT = 0, lastSnapAt = 0;
 function sendSnapshot() {
   const r = Math.round;
   const B = [];
@@ -1838,7 +1965,7 @@ function sendSnapshot() {
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 300); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
-    t: +S.t.toFixed(2), lv: S.lvl, xp: S.xp, nd: S.need, k: S.kills, qn: S.queens, m: mode === 'pause' ? 'play' : mode,
+    t: +S.t.toFixed(2), A: ARENA, lv: S.lvl, xp: S.xp, nd: S.need, k: S.kills, qn: S.queens, m: mode === 'pause' ? 'play' : mode,
     B, P, C, Q: S.bosses.map(q => [r(q.x * 10), r(q.z * 10), r(q.ang * 100), r(q.hp), r(q.max), q.n, q.flash > 0 ? 1 : 0, q.kind, q.state, q.tier, q.duo]),
     S: S.shots.slice(0, 80).map(s => [SHOT_KINDS.indexOf(s.kind), r(s.x * 10), r(s.z * 10), r(s.vx * 10), r(s.vz * 10), r(s.ang * 100), r(s.life * 100), r(s.max * 100)]),
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
@@ -1850,7 +1977,7 @@ function sendSnapshot() {
   net.send('snap', snap);
 }
 // client -> host: my position, 15 times a second
-let inT = 0;
+let inT = 0, lastInAt = 0;
 function sendInput() {
   const p = CL.me; if (!p) return;
   net.send('input', { id: me.id, x: +p.x.toFixed(2), z: +p.z.toFixed(2), vx: +p.vx.toFixed(2), vz: +p.vz.toFixed(2), face: +p.face.toFixed(2) });
@@ -1952,19 +2079,20 @@ function frame(now) {
   if (role === 'client') {
     if (mode === 'play' || mode === 'level' || mode === 'over') {
       clientTick(dt);
-      inT -= dt; if (inT <= 0 && net) { inT = 1 / 15; sendInput(); }
+      if (net && now - lastInAt >= 66) { lastInAt = now; sendInput(); }
       if (mode === 'level') { sendVote(); renderVotes(); }
       if (performance.now() - CL.hostSeen > 8000) hostGone();
     } else if (mode === 'lobby' && performance.now() - CL.hostSeen > 8000) hostGone();
   } else if (mode === 'play') step(dt);
   else if (mode === 'level') { checkRound(); renderVotes(); }
   else if (idle() && S) { S.t += dt; S.demoX = Math.sin(S.t * 0.2) * 6; S.demoZ = Math.cos(S.t * 0.15) * 4; updateBugs(dt, true); }
-  if (role === 'host' && net && mode === 'lobby') { snapT -= dt; if (snapT <= 0) { snapT = 0.4; net.send('snap', { m: 'lobby', L: lobbyList() }); } }
+  // network sends run on the real clock, so a slow frame rate never starves friends of updates
+  if (role === 'host' && net && mode === 'lobby' && now - lastSnapAt >= 400) { lastSnapAt = now; net.send('snap', { m: 'lobby', L: lobbyList() }); }
   if (role === 'host' && net && !idle()) {
-    snapT -= dt; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); }
+    if (now - lastSnapAt >= 100) { lastSnapAt = now; sendSnapshot(); }
     for (const p of S.players) if (p.id !== me.id && p.seen && performance.now() - p.seen > 15000) removeRemote(p.id);
   }
-  if (idle() || mode === 'pause' || mode === 'over') SND.hum(false, 0);
+  if (idle() || mode === 'pause' || mode === 'over') { SND.hum(false, 0); SND.laser(false); }
   {
     const boss = ((role === 'client' ? CL.bosses : S && S.bosses) || []).length > 0;
     const want = idle() ? 'menu' : mode === 'over' || mode === 'join' ? null : boss ? 'boss' : 'game';
@@ -2004,6 +2132,6 @@ window.PP = {
   give(id, n = 1, pid = me.id) { const p = S.players.find(q => q.id === pid); for (let i = 0; i < n; i++) if (p.up[id] < UP.find(u => u.id === id).max) p.up[id]++; },
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
-  snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  arena: () => ARENA,   snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
