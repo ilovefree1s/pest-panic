@@ -1392,13 +1392,13 @@ function drawPlayer(p, dt, t) {
   if (bms.length) {
     let ax = 0, az = 0; for (const bm of bms) { ax += bm.x; az += bm.z; } ax /= bms.length; az /= bms.length;
     const lx = p.x + (ax - p.x) * 0.08, lz = p.z + (az - p.z) * 0.08, ly = 7.4 + Math.sin(t * 1.7) * 0.15;
-    L.lens.position.set(lx, ly, lz); L.lens.scale.setScalar(0.9);
+    L.lens.position.set(lx, ly, lz); L.lens.scale.setScalar(0.75);
     // tilt the lens toward where it is aiming, handle trailing back toward the player
     L.lens.rotation.set(Math.atan2(az - lz, ly) * 0.6, Math.atan2(p.x - lx, p.z - lz) - Math.PI / 2, -Math.atan2(ax - lx, ly) * 0.6, 'YXZ');
     const hot = (W.lens.r[up.lens - 1] || 1.1);
     bms.forEach((bm, k) => {
       const m = L.beams[k], dx = bm.x - lx, dy = 0.05 - ly, dz = bm.z - lz, len = Math.hypot(dx, dy, dz);
-      m.position.set(lx, ly, lz); m.scale.set(0.95, len, 0.95);
+      m.position.set(lx, ly, lz); m.scale.set(0.8, len, 0.8);
       m.quaternion.setFromUnitVectors(tmpV.set(0, -1, 0), tmpV2.set(dx / len, dy / len, dz / len));
       m.material.opacity = 0.13 + Math.sin(t * 9 + k) * 0.025;
       // the white-hot dot
