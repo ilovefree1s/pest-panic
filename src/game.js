@@ -283,7 +283,7 @@ function newWorld() {
   updateMinute();
 }
 // early levels get an extra cost that fades out by about level 10, so the start isn't a flood of level-ups
-function xpNeed(l) { return Math.round((2 + l * 2 + l * l * 0.25 + 11 * Math.exp(-l / 7)) * (1 + 0.35 * Math.max(0, alivePlayers().length - 1))); }
+function xpNeed(l) { return Math.round((2 + l * 2 + l * l * 0.25 + 30 * Math.exp(-l / 12)) * (1 + 0.75 * Math.max(0, alivePlayers().length - 1))); }
 function roundPlayersCount() { return role === 'client' ? CL.players.size : S ? S.players.length : 1; }
 function alivePlayers() { return S ? S.players.filter(p => !p.down) : []; }
 function meP() { return S && S.players.find(p => p.id === me.id); }
