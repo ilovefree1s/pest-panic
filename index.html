@@ -1516,9 +1516,11 @@ const spawnRadius = () => Math.max(view.spawnR, role === 'solo' ? 0 : 30);
 function ev(e) { playEvent(e); if (role === 'host') S.ev.push(e); }
 const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25]];
 // ---------------------------------------------------------------- sound effects (all synthesized with Web Audio, no files)
+// sliders follow how ears hear loudness (squared), with a little headroom off the top
+const loud = v => v * v * 0.7;
 const SND = (() => {
   let ctx = null, master = null, noiseBuf = null, hum = null;
-  let vol = 0.15, muted = false;
+  let vol = 0.2, muted = false;
   try { const v = JSON.parse(localStorage.getItem('pestpanic-sfx') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
   const save = () => { try { localStorage.setItem('pestpanic-sfx', JSON.stringify({ vol, muted })); } catch (e) {} };
   const last = {}, R = (a, b) => a + Math.random() * (b - a);
@@ -1527,7 +1529,7 @@ const SND = (() => {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
     ctx = new AC();
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 5;
-    master = ctx.createGain(); master.gain.value = muted ? 0 : vol;
+    master = ctx.createGain(); master.gain.value = muted ? 0 : loud(vol);
     master.connect(comp); comp.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -1694,8 +1696,8 @@ const SND = (() => {
       } catch (e) {}
     },
     get vol() { return vol; }, get muted() { return muted; },
-    setVol(v) { vol = Math.max(0, Math.min(1, v)); if (master) master.gain.setTargetAtTime(muted ? 0 : vol, ctx.currentTime, 0.02); save(); },
-    toggle() { muted = !muted; if (master) master.gain.setTargetAtTime(muted ? 0 : vol, ctx.currentTime, 0.02); save(); return muted; },
+    setVol(v) { vol = Math.max(0, Math.min(1, v)); if (master) master.gain.setTargetAtTime(muted ? 0 : loud(vol), ctx.currentTime, 0.02); save(); },
+    toggle() { muted = !muted; if (master) master.gain.setTargetAtTime(muted ? 0 : loud(vol), ctx.currentTime, 0.02); save(); return muted; },
   };
 })();
 
@@ -1706,7 +1708,7 @@ const MUSIC = (() => {
   const FILES = { game: 'music/game.mp3', boss: 'music/boss.mp3', menu: 'music/menu.mp3' };
   const FALLBACK = { boss: 'game', menu: 'game', game: null };
   const els = {}, ok = {}, cur = {};
-  let vol = 0.15, muted = false, unlocked = false, blocked = false, tried = false, isAway = false;
+  let vol = 0.2, muted = false, unlocked = false, blocked = false, tried = false, isAway = false;
   try { const v = JSON.parse(localStorage.getItem('pestpanic-music2') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
   const save = () => { try { localStorage.setItem('pestpanic-music2', JSON.stringify({ vol, muted })); } catch (e) {} };
   function el(name) {
@@ -1732,7 +1734,7 @@ const MUSIC = (() => {
       if (isAway || (!unlocked && (tried || blocked))) return;
       const track = want ? pick(want) : null;
       for (const name in els) {
-        const a = els[name], target = name === track && !muted ? vol * level : 0;
+        const a = els[name], target = name === track && !muted ? loud(vol) * level : 0;
         cur[name] += (target - cur[name]) * Math.min(1, dt * (target > cur[name] ? 1.2 : 2.2));   // gentle fades
         if (Math.abs(cur[name] - target) < 0.002) cur[name] = target;
         a.volume = Math.max(0, Math.min(1, cur[name]));
