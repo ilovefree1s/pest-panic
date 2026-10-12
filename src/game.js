@@ -110,7 +110,7 @@ const ICON = {
   swat: '<svg viewBox="0 0 48 48"><rect x="7" y="5" width="20" height="22" rx="4" fill="#d23a2c"/><path d="M11 9h12M11 14h12M11 19h12M15 7v18M20 7v18" stroke="#7a1710" stroke-width="2"/><rect x="21" y="25" width="4" height="20" rx="2" transform="rotate(-30 23 35)" fill="#f0ece2"/></svg>',
   bomb: '<svg viewBox="0 0 48 48"><rect x="14" y="16" width="20" height="26" rx="5" fill="#d8dce2"/><rect x="14" y="24" width="20" height="8" fill="#e04a3a"/><rect x="20" y="10" width="8" height="7" fill="#7b828c"/><circle cx="12" cy="10" r="6" fill="#a7d98a" opacity=".7"/><circle cx="36" cy="8" r="5" fill="#a7d98a" opacity=".6"/><circle cx="24" cy="5" r="4" fill="#a7d98a" opacity=".6"/></svg>',
   zap: '<svg viewBox="0 0 48 48"><rect x="14" y="12" width="20" height="28" rx="5" fill="#2a2d33"/><rect x="17" y="15" width="14" height="22" rx="3" fill="#b48cff"/><path d="M26 6l-8 18h7l-4 18 12-22h-7l5-14z" fill="#fff6a6"/></svg>',
-  glue: '<svg viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="30" rx="3" fill="#c9a36b"/><rect x="11" y="15" width="26" height="20" rx="3" fill="#f6d64a"/><ellipse cx="20" cy="21" rx="5" ry="3" fill="#fff6b8"/></svg>',
+  glue: '<svg viewBox="0 0 48 48"><rect x="8" y="8" width="32" height="32" fill="#e4e4df"/><rect x="8" y="8" width="32" height="32" fill="none" stroke="#9a9a94" stroke-width="2"/></svg>',
   citro: '<svg viewBox="0 0 48 48"><rect x="13" y="24" width="22" height="18" rx="4" fill="#e9dca0"/><rect x="13" y="29" width="22" height="4" fill="#c7ad55"/><rect x="23" y="18" width="2" height="7" fill="#333"/><path d="M24 2c6 7 8 11 4 16-2 2-6 2-8 0-4-5 0-9 4-16z" fill="#ff9a2a"/><path d="M24 8c3 4 4 7 2 9-1 1-3 1-4 0-2-3 0-5 2-9z" fill="#ffe27a"/></svg>',
   paper: '<svg viewBox="0 0 48 48"><rect x="8" y="17" width="34" height="14" rx="7" transform="rotate(-25 24 24)" fill="#e8e3d3"/><path d="M14 27l22-10M15 31l22-10" stroke="#555" stroke-width="2"/><rect x="21" y="14" width="4" height="20" transform="rotate(-25 24 24)" fill="#c0392b"/></svg>',
   shoes: '<svg viewBox="0 0 48 48"><path d="M6 30c0-6 4-12 8-12l6 6 6-2 6 6 8 2c3 1 4 4 4 6H6z" fill="#3a86bd"/><rect x="6" y="36" width="38" height="5" rx="2" fill="#f4efe4"/><path d="M20 24l3-3M24 27l3-3" stroke="#fff" stroke-width="2"/></svg>',
@@ -273,9 +273,9 @@ function playEvent(e) {
     case 'z': arcs.spawn(new THREE.Vector3(e[1], e[2], e[3]), new THREE.Vector3(e[4], e[5], e[6])); zapBurst(e[4], e[6]); break;
     case 'g': {
       const [, x, z, r] = e;
-      addDecal(x, z, r * 1.6, [0.95, 0.8, 0.25], 6);
-      for (let k = 0; k < 16; k++) { const a = k / 16 * TAU; FX.goo.spawn({ x, y: 0.3, z, vx: Math.cos(a) * r * 2.2, vy: rand(2, 5), vz: Math.sin(a) * r * 2.2, life: 0.5, s0: 0.35, s1: 0.2, c: [1, 0.85, 0.3], grav: 16 }); }
-      S.rings.push({ x, z, r0: 0.5, r1: r * 2, life: 0.3, max: 0.3, c: [1, 0.85, 0.3] });
+      addDecal(x, z, r * 1.6, [0.8, 0.8, 0.77], 6);
+      for (let k = 0; k < 16; k++) { const a = k / 16 * TAU; FX.goo.spawn({ x, y: 0.3, z, vx: Math.cos(a) * r * 2.2, vy: rand(2, 5), vz: Math.sin(a) * r * 2.2, life: 0.5, s0: 0.35, s1: 0.2, c: [0.85, 0.85, 0.82], grav: 16 }); }
+      S.rings.push({ x, z, r0: 0.5, r1: r * 2, life: 0.3, max: 0.3, c: [0.7, 0.7, 0.68] });
       break;
     }
     case 'n': addNum(e[1], e[2], e[3], e[4]); break;
@@ -303,6 +303,7 @@ function playEvent(e) {
       S.rings.push({ x: p.x, z: p.z, r0: 1, r1: 9, life: 0.4, max: 0.4, c: [1, 0.85, 0.3] });
       break;
     }
+    case 'tp': if (e[3]) { const u = UP.find(q => q.id === e[1]); banner('Team got ' + (u ? u.name : e[1]) + (e[2] ? ' — ' + e[2] + '\'s tiebreak' : '')); } break;
     case 'dn': banner((e[1] === me.id ? 'You are' : e[2] + ' is') + ' down!', true); break;
     case 'rv': banner('Team revived!'); break;
     case 'j': banner(e[1] + ' joined'); break;
@@ -637,12 +638,18 @@ function step(dt) {
   if (S.pendingLevels > 0 && mode === 'play') startLevelRound();
 }
 
-// ---------------------------------------------------------------- level-up rounds (everyone picks, the world waits)
-function cardsFor(p) {
-  const pool = UP.filter(u => u.id !== 'aid' && p.up[u.id] < u.max).map(u => u.id), pick = [];
+// ---------------------------------------------------------------- level-up rounds (team vote, one upgrade for everyone)
+const VOTE_MS = 10000;
+function teamCards() {
+  const pool = UP.filter(u => u.id !== 'aid' && S.players.some(p => p.up[u.id] < u.max)).map(u => u.id), pick = [];
   while (pick.length < 3 && pool.length) pick.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
   if (pick.length < 3) pick.push('aid');
   return pick;
+}
+// players who can actually vote right now (skips anyone whose connection has gone quiet)
+function voters() {
+  const now = performance.now();
+  return S.players.filter(p => p.id === me.id || now - Math.max(p.seen || 0, p.joinT || 0) < 5000);
 }
 function startLevelRound() {
   S.pendingLevels--;
@@ -650,51 +657,109 @@ function startLevelRound() {
   let revived = false;
   for (const p of S.players) if (p.down) { p.down = false; p.hp = 50; p.inv = 2; revived = true; }
   if (revived) ev(['rv']);
-  S.round = { n: (S.round?.n || 0) + 1, cards: {}, picked: {}, until: performance.now() + 20000 };
-  for (const p of S.players) S.round.cards[p.id] = cardsFor(p);
+  const vs = voters();
+  S.roundN = (S.roundN || 0) + 1;
+  S.round = { n: S.roundN * 1000 + ((Math.random() * 1000) | 0), cards: teamCards(), votes: {}, until: performance.now() + VOTE_MS, tb: vs.length ? vs[(S.tbTurn || 0) % vs.length].id : me.id };
   mode = 'level';
   showCards();
 }
-function applyPick(pid, upId) {
-  const r = S.round; if (!r || r.picked[pid]) return;
-  const p = S.players.find(q => q.id === pid); if (!p) return;
-  if (!r.cards[pid] || !r.cards[pid].includes(upId)) upId = r.cards[pid]?.[0] || 'aid';
-  r.picked[pid] = upId;
-  if (upId === 'aid') p.hp = Math.min(100, p.hp + 50); else if (p.up[upId] < UP.find(u => u.id === upId).max) p.up[upId]++;
-  if (upId === 'bomb') p.cd.bomb = 0.3;
-  ev(['lv', pid]);
+function applyVote(pid, n, upId) {
+  const r = S.round; if (!r || (n != null && n !== r.n) || !r.cards.includes(upId)) return;
+  if (!S.players.some(p => p.id === pid)) return;
+  r.votes[pid] = upId;
 }
 function checkRound() {
   const r = S.round; if (!r || mode !== 'level') return;
-  const waiting = S.players.filter(p => !r.picked[p.id]);
-  if (performance.now() > r.until) waiting.forEach(p => applyPick(p.id, r.cards[p.id]?.[0] || 'aid'));
-  if (S.players.every(p => r.picked[p.id])) {
-    mode = 'play'; S.round = null; hideCards();
-    for (const p of S.players) p.inv = Math.max(p.inv, 1);
+  const vs = voters(), count = {};
+  for (const id of r.cards) count[id] = 0;
+  for (const p of vs) if (r.votes[p.id]) count[r.votes[p.id]]++;
+  const cast = vs.filter(p => r.votes[p.id]).length;
+  const majority = r.cards.some(id => count[id] > vs.length / 2);
+  if (!majority && cast < vs.length && performance.now() < r.until) return;
+  // decide
+  const top = Math.max(...r.cards.map(id => count[id]));
+  const tied = r.cards.filter(id => count[id] === top);
+  let win = tied[0], breaker = '';
+  if (tied.length > 1) {
+    if (!vs.some(p => p.id === r.tb)) r.tb = vs.length ? vs[(S.tbTurn || 0) % vs.length].id : me.id;
+    const tp = S.players.find(p => p.id === r.tb);
+    const theirs = r.votes[r.tb];
+    win = tied.includes(theirs) ? theirs : tied[(Math.random() * tied.length) | 0];
+    if (vs.length > 1 && tp) breaker = tp.name;
+    S.tbTurn = (S.tbTurn || 0) + 1;   // next tie goes to the next player
   }
+  const u = UP.find(x => x.id === win);
+  for (const p of S.players) {
+    if (win === 'aid') p.hp = Math.min(100, p.hp + 50);
+    else if (p.up[win] < u.max) p.up[win]++;
+    if (win === 'bomb') p.cd.bomb = 0.3;
+    p.inv = Math.max(p.inv, 1);
+    ev(['lv', p.id]);
+  }
+  ev(['tp', win, breaker, S.players.length > 1 ? 1 : 0]);
+  mode = 'play'; S.round = null; hideCards();
 }
 
 // ---------------------------------------------------------------- level-up UI (local player)
-let cards = [], sel = 0, shownRound = 0;
+let cards = [], sel = 0, shownRound = 0, voteSig = '';
+const myVote = { n: 0, up: null, sentAt: 0 };
+function roundNow() { return role === 'client' ? CL.round : S.round; }
+function roundPlayers() { return role === 'client' ? [...CL.players.values()] : S.players; }
 function showCards() {
-  const r = role === 'client' ? CL.round : S.round;
-  if (!r) return;
-  const mine = r.cards[me.id];
+  const r = roundNow();
+  if (!r || !r.cards) return;
   $('levelup').hidden = false; $('banner').classList.remove('on'); bannerT = 0;
-  if (!mine || r.picked[me.id] || (role === 'client' && CL.picked === r.n)) { $('cards').innerHTML = '<p class="sub">Waiting for your team to pick…</p>'; cards = []; return; }
-  if (shownRound === r.n && cards.length) return;
-  shownRound = r.n; cards = mine.map(id => UP.find(u => u.id === id)); sel = 0;
-  const pl = (role === 'client' ? CL.me : meP()) || { up: {}, hp: 100 };
-  $('cards').innerHTML = cards.map((u, i) => cardHtml(u, pl, i)).join('');
-  $('cards').querySelectorAll('.card').forEach(c => c.addEventListener('click', () => choose(+c.dataset.i)));
+  if (shownRound !== r.n || !cards.length) {
+    shownRound = r.n; voteSig = ''; cards = r.cards.map(id => UP.find(u => u.id === id)); sel = 0;
+    const pl = (role === 'client' ? CL.me : meP()) || { up: {}, hp: 100 };
+    $('cards').innerHTML = cards.map((u, i) => cardHtml(u, pl, i)).join('');
+    $('cards').querySelectorAll('.card').forEach(c => c.addEventListener('click', () => choose(+c.dataset.i)));
+  }
+  renderVotes();
 }
-function hideCards() { $('levelup').hidden = true; cards = []; }
+function renderVotes() {
+  const r = roundNow(); if (!r || !r.cards || !cards.length) return;
+  const ps = roundPlayers(), multi = ps.length > 1;
+  const votes = { ...(r.votes || {}) };
+  if (myVote.n === r.n && myVote.up) votes[me.id] = myVote.up;   // show my click instantly
+  const left = role === 'client' ? Math.max(0, Math.ceil((r.left || 0) - (performance.now() - CL.roundAt) / 1000)) : Math.max(0, Math.ceil((r.until - performance.now()) / 1000));
+  const tbp = ps.find(p => p.id === r.tb);
+  const sig = JSON.stringify([votes, left, r.tb, multi, ps.length]);
+  if (sig === voteSig) return; voteSig = sig;
+  $('lvtitle').textContent = multi ? 'Team level up!' : 'Level up!';
+  $('lvnote').hidden = !multi;
+  if (multi) {
+    const n = ps.filter(p => votes[p.id]).length;
+    $('lvnote').innerHTML = `Vote for the power-up your <b>whole team</b> gets · ${n}/${ps.length} voted · <b>${left}s</b>` +
+      (tbp ? `<br><span class="tb">Tie? <i style="background:${CSS_COL[tbp.color % 4]}"></i>${esc(tbp.id === me.id ? 'You' : tbp.name)} ${tbp.id === me.id ? 'break' : 'breaks'} it this time</span>` : '');
+  }
+  $('lvhint').innerHTML = multi ? 'Tap a card to vote (you can change it). Most votes wins; ties take turns.' : 'Tap a card, or choose with the stick and press <b>Cross</b> / <b>Enter</b>.';
+  $('cards').querySelectorAll('.card').forEach((c, i) => {
+    const id = cards[i].id;
+    c.classList.toggle('mine', votes[me.id] === id);
+    let vt = c.querySelector('.vt');
+    if (!vt) { vt = document.createElement('span'); vt.className = 'vt'; c.appendChild(vt); }
+    vt.innerHTML = multi ? ps.filter(p => votes[p.id] === id).map(p => `<i style="background:${CSS_COL[p.color % 4]}" title="${esc(p.name)}"></i><em>${esc(p.id === me.id ? 'You' : p.name)}</em>`).join('') : '';
+  });
+}
+function hideCards() { $('levelup').hidden = true; cards = []; voteSig = ''; }
 function choose(i) {
   const u = cards[i]; if (!u) return;
-  cards = [];
-  $('cards').innerHTML = '<p class="sub">Waiting for your team to pick…</p>';
-  if (role === 'client') { CL.picked = CL.round?.n; net && net.send('pick', { id: me.id, n: CL.round?.n, up: u.id }); }
-  else { applyPick(me.id, u.id); checkRound(); }
+  const r = roundNow(); if (!r) return;
+  sel = i;
+  $('cards').querySelectorAll('.card').forEach((c, k) => c.classList.toggle('sel', k === sel));
+  myVote.n = r.n; myVote.up = u.id; myVote.sentAt = 0;
+  if (role === 'client') sendVote();
+  else { applyVote(me.id, r.n, u.id); checkRound(); }
+  renderVotes();
+}
+// broadcasts can drop, so a client keeps re-sending its vote until the host has it
+function sendVote() {
+  const r = CL.round; if (!net || !r || myVote.n !== r.n || !myVote.up) return;
+  if ((r.votes || {})[me.id] === myVote.up) return;
+  const now = performance.now(); if (now - myVote.sentAt < 350) return;
+  myVote.sentAt = now;
+  net.send('pick', { id: me.id, n: r.n, up: myVote.up });
 }
 function moveSel(d) {
   if (!cards.length) return;
@@ -717,7 +782,7 @@ function zapBurst(x, z) {
 }
 
 // ---------------------------------------------------------------- client mirror
-const CL = { bugs: new Map(), players: new Map(), queen: null, coins: [], shots: [], traps: [], ebul: [], snapAt: 0, round: null, me: null, picked: 0, mode: 'play', stats: null, hostSeen: 0, t: 0 };
+const CL = { bugs: new Map(), players: new Map(), queen: null, coins: [], shots: [], traps: [], ebul: [], snapAt: 0, round: null, roundAt: 0, me: null, mode: 'play', stats: null, hostSeen: 0, t: 0 };
 function applySnapshot(s) {
   const now = performance.now();
   CL.hostSeen = now; CL.snapAt = now;
@@ -760,7 +825,7 @@ function applySnapshot(s) {
   CL.ebul = s.E.map(r => ({ k: r[0], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10 }));
   for (const e of s.ev) playEvent(e);
   // mode and level-up rounds
-  CL.round = s.R || null;
+  CL.round = s.R || null; CL.roundAt = performance.now();
   if (s.m === 'level' && CL.round) { if (mode !== 'level') { mode = 'level'; } showCards(); }
   else if (s.m === 'play') { if (mode === 'level') hideCards(); if (mode === 'level' || mode === 'over' || mode === 'join') { mode = 'play'; enterGameUi(); } }
   else if (s.m === 'over' && mode !== 'over') { CL.stats = s.st; showOver(s.st); }
@@ -853,10 +918,10 @@ function drawPlayer(p, dt, t) {
   u.body.position.y = Math.abs(sw) * 0.06;
   L.body.rotation.z = p.down ? Math.PI / 2 : 0;
   L.body.position.y = p.down ? 0.4 : 0;
-  L.body.visible = mode !== 'title' && !(p.inv > 0 && !p.down && Math.floor(t * 20) % 2);
+  L.body.visible = !idle() && !(p.inv > 0 && !p.down && Math.floor(t * 20) % 2);
   B.shadow.add(p.x, 0.02, p.z, 2.6, 0, 0, 0, 0, 0.4);
   const col = new THREE.Color(CSS_COL[p.color % 4]);
-  if (mode !== 'title') B.ring.add(p.x, 0.05, p.z, 3.4, 0, col.r, col.g, col.b, p.down ? 0.25 : 0.5);
+  if (!idle()) B.ring.add(p.x, 0.05, p.z, 3.4, 0, col.r, col.g, col.b, p.down ? 0.25 : 0.5);
   if ((p.slow || 0) > 0) B.ring.add(p.x, 0.07, p.z, 2.6, t * 2, 1, 1, 1, 0.6);
   if ((p.sprayPuff || 0) > 0) {
     p.sprayPuff -= dt;
@@ -870,7 +935,7 @@ function drawPlayer(p, dt, t) {
     s.visible = k < ns && !p.down;
     if (!s.visible) return;
     const a = p.swatA + k / ns * TAU;
-    s.position.set(p.x + Math.cos(a) * 3.1, 0.7, p.z + Math.sin(a) * 3.1); s.rotation.set(0, -a, 0);
+    s.position.set(p.x + Math.cos(a) * 2.2, 0.7, p.z + Math.sin(a) * 2.2); s.rotation.set(0, Math.PI / 2 - a, 0);   // head sits on the 3.1 hit circle
   });
   // zapper lantern
   L.zap.visible = up.zap > 0 && !p.down;
@@ -913,7 +978,7 @@ function drawBoss(q, t, dt) {
 function drawWorld(t, dt) {
   for (const k in B) B[k].begin();
   const players = role === 'client' ? [...CL.players.values()] : (S.players || []);
-  if (mode !== 'title') for (const p of players) drawPlayer(p, dt, t);
+  if (!idle()) for (const p of players) drawPlayer(p, dt, t);
   for (const [id, L] of looks) if (!players.some(p => p.id === id)) dropLook(id);
   const q = role === 'client' ? CL.queen : S.queen;
   bossMeshes.forEach((m, i) => m.visible = !!q && q.kind === i);
@@ -946,8 +1011,7 @@ function drawWorld(t, dt) {
   let gi = 0;
   for (const tr of (role === 'client' ? CL.traps : S.traps)) {
     if (gi >= 60) break;
-    setI(IM.glue, gi++, tr.x, 0.04 + (tr.drop || 0) * 4, tr.z, tr.rot, tr.life < 1.5 ? 1 + Math.sin(t * 30) * 0.05 : 1);
-    if (Math.random() < dt * 2) FX.glow.spawn({ x: tr.x + rand(-0.4, 0.4), y: 0.2, z: tr.z + rand(-0.4, 0.4), life: 0.4, s0: 0.35, s1: 0.1, c: [1.2, 1, 0.4] });
+    setI(IM.glue, gi++, tr.x, 0.04 + (tr.drop || 0) * 4, tr.z, 0, tr.life < 1.5 ? 1 + Math.sin(t * 30) * 0.05 : 1);
   }
   IM.glue.count = gi; IM.glue.instanceMatrix.needsUpdate = true;
   for (const e of (role === 'client' ? CL.ebul : S.ebul)) {
@@ -983,7 +1047,7 @@ function drawOverlay(dt) {
   const dpr = Math.min(devicePixelRatio || 1, 2);
   if (fx.width !== Math.round(view.w * dpr)) { fx.width = Math.round(view.w * dpr); fx.height = Math.round(view.h * dpr); }
   fctx.setTransform(dpr, 0, 0, dpr, 0, 0); fctx.clearRect(0, 0, view.w, view.h);
-  if (!S || mode === 'title') return;
+  if (!S || idle()) return;
   fctx.textAlign = 'center'; fctx.lineJoin = 'round';
   const keep = [];
   for (const n of S.nums) {
@@ -1047,7 +1111,8 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.add('on'); bannerT = 2.2; }
 
 // ---------------------------------------------------------------- modes and screens
-const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg'];
+const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby'];
+const idle = () => mode === 'title' || mode === 'lobby';
 function screen(id) { SCREENS.forEach(s => $(s).hidden = s !== id); }
 function enterGameUi() {
   screen(null); $('hud').hidden = false;
@@ -1069,9 +1134,9 @@ function addRemote(id, name) {
   const used = new Set(S.players.map(p => p.color));
   let color = 0; while (used.has(color)) color++;
   const host = meP() || S.players[0], p = newPlayer(id, name, color);
-  p.x = host.x + rand(-2, 2); p.z = host.z + rand(-2, 2); p.inv = 3;
+  p.x = host.x + rand(-2, 2); p.z = host.z + rand(-2, 2); p.inv = 3; p.joinT = performance.now();
+  if (host && host.id !== id) p.up = { ...host.up };   // the team shares one build, so latecomers catch up
   S.players.push(p);
-  if (S.round) S.round.cards[id] = cardsFor(p);
   ev(['j', name]);
 }
 function removeRemote(id) {
@@ -1114,6 +1179,8 @@ function demo() {
 function saveName() { me.name = ($('pname').value || '').trim().slice(0, 12); try { localStorage.setItem('pestpanic-name', me.name); } catch (e) {} }
 function status(msg, err) { const s = $('netstatus'); s.textContent = msg; s.classList.toggle('err', !!err); }
 
+$('startbtn').addEventListener('click', startGame);
+$('lobbyleave').addEventListener('click', toTitle);
 $('play').addEventListener('click', () => { saveName(); role = 'solo'; beginRound(); });
 $('again').addEventListener('click', () => { if (role !== 'client') beginRound(); });
 $('resume').addEventListener('click', () => pause(false));
@@ -1130,6 +1197,7 @@ $('pname').addEventListener('keydown', e => e.stopPropagation());
 function confirmAction() {
   if (mode === 'title') { if (document.activeElement && document.activeElement.tagName === 'INPUT') return; saveName(); role = 'solo'; beginRound(); }
   else if (mode === 'level') choose(sel);
+  else if (mode === 'lobby') { if (role === 'host') startGame(); }
   else if (!$('paused').hidden) pause(false);
   else if (mode === 'over' && !$('over').hidden && role !== 'client') beginRound();
 }
@@ -1209,15 +1277,15 @@ async function hostGame() {
   role = 'host'; roster.clear();
   net.onPresence(list => {
     const ids = new Set(list.map(p => p.id));
-    for (const p of list) if (p.id !== me.id && !roster.has(p.id)) { roster.set(p.id, p); if (S && mode !== 'title') addRemote(p.id, p.name || 'Player'); }
-    for (const id of [...roster.keys()]) if (!ids.has(id)) { roster.delete(id); if (S) removeRemote(id); }
+    for (const p of list) if (p.id !== me.id && !roster.has(p.id)) { roster.set(p.id, p); if (S && !idle()) addRemote(p.id, p.name || 'Player'); }
+    for (const id of [...roster.keys()]) if (!ids.has(id)) { roster.delete(id); if (S && !idle()) removeRemote(id); }
+    if (mode === 'lobby') renderLobby(lobbyList());
   });
-  net.on('input', d => { const p = S && S.players.find(q => q.id === d.id); if (p) { p.net = d; p.seen = performance.now(); } else if (S && roster.has(d.id) && mode !== 'title') addRemote(d.id, roster.get(d.id).name); });
-  net.on('pick', d => { if (S && S.round && d.n === S.round.n) { applyPick(d.id, d.up); checkRound(); } });
+  net.on('input', d => { const p = S && S.players.find(q => q.id === d.id); if (p) { p.net = d; p.seen = performance.now(); } else if (S && roster.has(d.id) && !idle()) addRemote(d.id, roster.get(d.id).name); });
+  net.on('pick', d => { const p = S && S.players.find(q => q.id === d.id); if (p) p.seen = performance.now(); if (S && S.round) { applyVote(d.id, d.n, d.up); checkRound(); } });
   net.on('bye', d => { roster.delete(d.id); if (S) removeRemote(d.id); });
   status('');
-  beginRound();
-  banner('Room ' + code + ' — tell your friends!');
+  enterLobby();
 }
 async function joinGame(raw) {
   const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1235,12 +1303,43 @@ async function joinGame(raw) {
   newWorld(); CL.players.clear(); CL.bugs.clear(); CL.queen = null; CL.hostSeen = performance.now();
   let gotSnap = false;
   net.on('snap', s => {
-    if (!gotSnap) { gotSnap = true; status(''); mode = 'play'; enterGameUi(); banner('Joined room ' + code); }
+    if (s.m === 'lobby') {
+      CL.hostSeen = performance.now();
+      if (!gotSnap || mode !== 'lobby') { gotSnap = true; status(''); enterLobby(); }
+      renderLobby(s.L || []);
+      return;
+    }
+    if (!gotSnap || mode === 'lobby') { const wasLobby = mode === 'lobby'; gotSnap = true; status(''); newWorld(); CL.bugs.clear(); mode = 'play'; enterGameUi(); banner(wasLobby ? "Squash 'em!" : 'Joined room ' + code); }
     applySnapshot(s);
   });
   net.on('bye', d => { if (d.id === hostId()) hostGone(); });
   net.onPresence(list => { roster.clear(); list.forEach(p => roster.set(p.id, p)); if (gotSnap && !list.some(p => p.host)) hostGone(); });
   setTimeout(() => { if (!gotSnap && role === 'client') { status('No game found with code ' + code + '. Check the code with your friend.', true); net && net.close(); net = null; role = 'solo'; mode = 'title'; demo(); } }, 9000);
+}
+// ---------------------------------------------------------------- lobby: wait for friends, host presses Start
+function lobbyList() {
+  const list = [{ id: me.id, name: me.name || 'Host', host: true }];
+  for (const r of roster.values()) if (r.id !== me.id && list.length < 4) list.push({ id: r.id, name: r.name || 'Player' });
+  return list.map((p, i) => [p.id, p.name, i, p.host ? 1 : 0]);
+}
+function enterLobby() {
+  mode = 'lobby'; $('hud').hidden = true; screen('lobby');
+  if (role === 'client') demo();
+  $('lobbycode').textContent = net ? net.code : '';
+  $('startbtn').hidden = role !== 'host';
+  $('lobbywait').hidden = role === 'host';
+  if (role === 'host') renderLobby(lobbyList());
+}
+function renderLobby(L) {
+  $('lobbylist').innerHTML = L.map(([id, name, c, h]) => `<li><i style="background:${CSS_COL[c % 4]}"></i>${esc(name)}${id === me.id ? ' <em>(you)</em>' : ''}${h ? ' <small>HOST</small>' : ''}</li>`).join('') +
+    (L.length < 4 ? '<li class="empty">Waiting for players…</li>' : '');
+  $('lobbycount').textContent = L.length + ' / 4 players';
+  if (role === 'host') $('startbtn').textContent = L.length > 1 ? 'Start game' : 'Start alone';
+}
+function startGame() {
+  if (role !== 'host' || mode !== 'lobby') return;
+  beginRound();
+  banner("Squash 'em!");
 }
 function hostId() { for (const p of roster.values()) if (p.host) return p.id; return null; }
 function hostGone() {
@@ -1264,7 +1363,7 @@ function sendSnapshot() {
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
     E: S.ebul.slice(0, 120).map(e => [e.k, r(e.x * 10), r(e.z * 10), r(e.vx * 10), r(e.vz * 10)]),
     ev: S.ev.splice(0, S.ev.length).slice(-120).map(e => e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)),
-    R: S.round ? { n: S.round.n, cards: S.round.cards, picked: S.round.picked } : null,
+    R: S.round ? { n: S.round.n, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
     st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.queens - (S.queen ? 1 : 0) } : null,
   };
   net.send('snap', snap);
@@ -1343,7 +1442,7 @@ function pollPads() {
   const edge = i => btn[i] && !padState.prev[i];
   if (mode === 'level') { if (edge(14) || edge(12)) moveSel(-1); if (edge(15) || edge(13)) moveSel(1); if (edge(0)) choose(sel); }
   else if (edge(0)) confirmAction();
-  if (edge(9)) { if (mode === 'title' || mode === 'over') confirmAction(); else pause($('paused').hidden); }
+  if (edge(9)) { if (mode === 'title' || mode === 'over' || mode === 'lobby') confirmAction(); else pause($('paused').hidden); }
   if (edge(1) && !$('paused').hidden) pause(false);
   padState.prev = btn;
   const on = list.length > 0, pad = $('pad');
@@ -1371,12 +1470,14 @@ function frame(now) {
     if (mode === 'play' || mode === 'level' || mode === 'over') {
       clientTick(dt);
       inT -= dt; if (inT <= 0 && net) { inT = 1 / 15; sendInput(); }
+      if (mode === 'level') { sendVote(); renderVotes(); }
       if (performance.now() - CL.hostSeen > 8000) hostGone();
-    }
+    } else if (mode === 'lobby' && performance.now() - CL.hostSeen > 8000) hostGone();
   } else if (mode === 'play') step(dt);
-  else if (mode === 'level') checkRound();
-  else if (mode === 'title' && S) { S.t += dt; S.demoX = Math.sin(S.t * 0.2) * 6; S.demoZ = Math.cos(S.t * 0.15) * 4; updateBugs(dt, true); }
-  if (role === 'host' && net && mode !== 'title') {
+  else if (mode === 'level') { checkRound(); renderVotes(); }
+  else if (idle() && S) { S.t += dt; S.demoX = Math.sin(S.t * 0.2) * 6; S.demoZ = Math.cos(S.t * 0.15) * 4; updateBugs(dt, true); }
+  if (role === 'host' && net && mode === 'lobby') { snapT -= dt; if (snapT <= 0) { snapT = 0.4; net.send('snap', { m: 'lobby', L: lobbyList() }); } }
+  if (role === 'host' && net && !idle()) {
     snapT -= dt; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); }
     for (const p of S.players) if (p.id !== me.id && p.seen && performance.now() - p.seen > 15000) removeRemote(p.id);
   }
@@ -1386,12 +1487,12 @@ function frame(now) {
   const sh = S.shake * S.shake * 0.9, mp = myView();
   const fx0 = mp ? mp.x : 0, fz0 = mp ? mp.z : 0;
   camX += (fx0 - camX) * Math.min(1, dt * 8); camZ += (fz0 - camZ) * Math.min(1, dt * 8);
-  if (mode === 'title') { const a = now / 9000; camX = Math.sin(a) * 4; camZ = Math.cos(a) * 3; }
+  if (idle()) { const a = now / 9000; camX = Math.sin(a) * 4; camZ = Math.cos(a) * 3; }
   placeCamera(camX, camZ, rand(-1, 1) * sh, rand(-1, 1) * sh, true);
   drawWorld(now / 1000, fdt);
   render();
   drawOverlay(fdt);
-  if (mode !== 'title' && mode !== 'join') updateHud(dt);
+  if (!idle() && mode !== 'join') updateHud(dt);
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').classList.remove('on'); }
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 2) {
@@ -1412,6 +1513,6 @@ window.PP = {
   give(id, n = 1, pid = me.id) { const p = S.players.find(q => q.id === pid); for (let i = 0; i < n; i++) if (p.up[id] < UP.find(u => u.id === id).max) p.up[id]++; },
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
-  queen() { spawnQueen(); }, god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  queen() { spawnQueen(); }, start: () => startGame(), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };

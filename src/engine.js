@@ -508,8 +508,7 @@ export const MAT = {
   coin: std({ color: '#f5c242', metalness: 1, roughness: 0.22, emissive: '#5a3a00', emissiveIntensity: 0.6, envMapIntensity: 1.4 }),
   coinBig: std({ color: '#ffd96a', metalness: 1, roughness: 0.18, emissive: '#8a5a00', emissiveIntensity: 1.0, envMapIntensity: 1.6 }),
   paper: [std({ map: TEX.paper, roughness: 0.8 }), std({ color: '#d7d2c2', roughness: 0.8 }), std({ color: '#d7d2c2', roughness: 0.8 })],
-  glue: [std({ color: '#b48e58', roughness: .8 }), std({ color: '#b48e58', roughness: .8 }), std({ map: TEX.glue, roughness: 0.12, envMapIntensity: 1.2 }),
-    std({ color: '#b48e58' }), std({ color: '#b48e58' }), std({ color: '#b48e58' })],
+  glue: (() => { const m = std({ color: '#e4e4df', roughness: 0.95, metalness: 0, envMapIntensity: 0.2 }); return [m, m, m, m, m, m]; })(),
 };
 
 export function instanced(geo, mat, max, shadow = false) {
@@ -688,8 +687,9 @@ export function buildSwatter() {
   const g = new THREE.Group();
   const head = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 1.15), [std({ color: '#a32416' }), std({ color: '#a32416' }), std({ map: TEX.swat, roughness: 0.5 }), std({ map: TEX.swat, roughness: 0.5 }), std({ color: '#a32416' }), std({ color: '#a32416' })]);
   head.position.z = 0.9; head.castShadow = true; g.add(head);
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.3, 8), std({ color: '#f0ece2', roughness: 0.4 }));
-  handle.rotation.x = Math.PI / 2; handle.position.z = -0.2; handle.castShadow = true; g.add(handle);
+  // the group's +z points away from the player: handle toward them, head out toward the bugs
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.9, 8), std({ color: '#f0ece2', roughness: 0.4 }));
+  handle.rotation.x = Math.PI / 2; handle.position.z = -0.55; handle.castShadow = true; g.add(handle);
   scene.add(g);
   return g;
 }

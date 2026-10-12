@@ -1,7 +1,5 @@
 import re, sys
 local = len(sys.argv) > 1 and sys.argv[1] == 'local'
-import os
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
 head = open('head.html').read()
 eng = open('engine.js').read()
 eng = re.sub(r'^export \{[^}]*\};\s*$', '', eng, flags=re.M)
