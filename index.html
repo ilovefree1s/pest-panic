@@ -1515,7 +1515,7 @@ const SND = (() => {
     },
     spray(mine) {
       if (!gate(mine ? 'sp' : 'sp2', 70)) return;
-      const n = ctx.currentTime, o = out(mine ? 0.3 : 0.1);
+      const n = ctx.currentTime, o = out(mine ? 0.09 : 0.03);   // 70% quieter than the first mix: it fires constantly
       noise(o, n, 0.13, 'highpass', 3500, 6500, 0.6, 0.01);
     },
     bomb(x, z) {
