@@ -388,15 +388,15 @@ export function buildKitchen() {
     const grp = new THREE.Group();
     const cabTex = TEX.cab.clone(); cabTex.repeat.set(len / 7, 1); cabTex.needsUpdate = true;
     const cab = new THREE.Mesh(new THREE.BoxGeometry(len, H, D), [std({ color: '#2f555e', roughness: .7 }), std({ color: '#2f555e', roughness: .7 }),
-      std({ color: '#2f555e' }), std({ color: '#2f555e' }), std({ map: cabTex, roughness: 0.6, envMapIntensity: 0.5 }), std({ color: '#2f555e' })]);
+      std({ color: '#2f555e' }), std({ color: '#2f555e' }), std({ map: cabTex, color: '#a9b4b6', roughness: 0.7, envMapIntensity: 0.3 }), std({ color: '#2f555e' })]);
     cab.position.set(0, H / 2, -D / 2); cab.castShadow = cab.receiveShadow = true; grp.add(cab);
     const kick = new THREE.Mesh(new THREE.BoxGeometry(len, 0.5, 0.3), std({ color: '#1b1f22', roughness: 0.9 }));
     kick.position.set(0, 0.25, 0.05); grp.add(kick);
     const topTex = TEX.top.clone(); topTex.repeat.set(len / 10, 0.4); topTex.needsUpdate = true;
-    const top = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.35, D + 0.5), std({ map: topTex, roughness: 0.25, envMapIntensity: 1 }));
+    const top = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.35, D + 0.5), std({ map: topTex, color: '#6f6b64', roughness: 0.6, envMapIntensity: 0.25 }));
     top.position.set(0, H + 0.17, -D / 2 + 0.25); top.castShadow = top.receiveShadow = true; grp.add(top);
     const wt = TEX.subway.clone(); wt.repeat.set(len / 8, 1); wt.needsUpdate = true;
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(len, 8), std({ map: wt, roughness: 0.3, envMapIntensity: 0.6 }));
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(len, 8), std({ map: wt, color: '#5d5a54', roughness: 0.7, envMapIntensity: 0.15 }));
     wall.position.set(0, H + 4, -D); grp.add(wall);
     grp.position.set(x, 0, z); grp.rotation.y = rotY;
     g.add(grp);
@@ -408,16 +408,16 @@ export function buildKitchen() {
   const base = new THREE.Mesh(new THREE.BoxGeometry(L, 0.7, 0.6), std({ color: '#6b5a48', roughness: 0.7, envMapIntensity: 0.3 }));
   base.position.set(0, 0.35, E + 0.3); base.castShadow = true; g.add(base);
   // fridge and stove on the back wall
-  const fridge = new THREE.Mesh(new THREE.BoxGeometry(7, 13, 5), std({ color: '#c9ced3', metalness: 0.85, roughness: 0.28 }));
+  const fridge = new THREE.Mesh(new THREE.BoxGeometry(7, 13, 5), std({ color: '#6f757b', metalness: 0.6, roughness: 0.5, envMapIntensity: 0.4 }));
   fridge.position.set(E - 6, 6.5, -E - 2); fridge.castShadow = true; g.add(fridge);
   for (const [y, h] of [[9.2, 6.4], [3.1, 5.4]]) {
     const h1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, h * 0.6, 0.4), std({ color: '#7a8086', metalness: 1, roughness: 0.2 }));
     h1.position.set(E - 8.9, y, -E + 0.6); g.add(h1);
   }
   const stove = new THREE.Group();
-  const sBody = new THREE.Mesh(new THREE.BoxGeometry(8, H + 0.4, D + 0.4), std({ color: '#d7d9db', metalness: 0.7, roughness: 0.3 }));
+  const sBody = new THREE.Mesh(new THREE.BoxGeometry(8, H + 0.4, D + 0.4), std({ color: '#6c7074', metalness: 0.5, roughness: 0.5, envMapIntensity: 0.4 }));
   sBody.position.set(0, (H + 0.4) / 2, -D / 2); sBody.castShadow = true; stove.add(sBody);
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.6), std({ color: '#ff8a3c', emissive: '#ff6a1a', emissiveIntensity: 1.6, roughness: 0.2 }));
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.6), std({ color: '#5a2a12', emissive: '#ff6a1a', emissiveIntensity: 0.35, roughness: 0.4 }));
   win.position.set(0, 1.9, 0.22); stove.add(win);
   for (const dx of [-2, 2]) for (const dz of [-1, 1]) {
     const burner = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.12, 8, 24), std({ color: '#222', roughness: .5 }));
@@ -623,6 +623,64 @@ export function buildQueen() {
   root.userData = { body, legs, head, crown, mats };
   root.traverse(o => { if (o.isMesh) o.castShadow = true; });
   root.scale.setScalar(1.15);
+  return root;
+}
+
+// ---------------------------------------------------------------- bug bosses built from the regular bug parts, scaled up and crowned
+function crownMesh(scale) {
+  const gold = std({ color: '#f3c24a', metalness: 1, roughness: 0.2, emissive: '#6a4300', emissiveIntensity: 0.6 });
+  const gem = std({ color: '#ff3048', emissive: '#ff1030', emissiveIntensity: 2.2, roughness: 0.1 });
+  const crown = new THREE.Group();
+  crown.add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.22, 20, 1, true), gold));
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * TAU;
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.38, 8), gold); sp.position.set(Math.cos(a) * 0.43, 0.26, Math.sin(a) * 0.43); crown.add(sp);
+    const g = new THREE.Mesh(sph(0.07, 8, 6), gem); g.position.set(Math.cos(a) * 0.45, 0.02, Math.sin(a) * 0.45); crown.add(g);
+  }
+  crown.scale.setScalar(scale);
+  return crown;
+}
+export function buildBugBoss(kind) {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const mat = std({ vertexColors: true, roughness: 0.28, metalness: 0.1, envMapIntensity: 0.9 });
+  const legMat = std({ vertexColors: true, roughness: 0.45, envMapIntensity: 0.6 });
+  const legs = [], wings = [];
+  let S = 4, crown;
+  const addLegs = (geo, table, S) => {
+    for (let i = 0; i < table.length * 2; i++) {
+      const L = table[i >> 1], side = i & 1 ? -1 : 1;
+      const g = new THREE.Group(); g.position.set(L[0] * side * S, L[1] * S, L[2] * S);
+      const m = new THREE.Mesh(geo, legMat); m.scale.setScalar(S); m.castShadow = true; g.add(m);
+      g.userData = { yaw: L[3], side, row: i >> 1 };
+      body.add(g); legs.push(g);
+    }
+  };
+  if (kind === 'spider') {
+    S = 4.2;
+    const m = new THREE.Mesh(GEO.spiderBody, mat); m.scale.setScalar(S); body.add(m);
+    addLegs(GEO.spiderLeg, GEO.spiderLegs, S);
+    crown = crownMesh(1.5); crown.position.set(0, 0.86 * S, 0.22 * S);
+  } else if (kind === 'ant') {
+    S = 4.4;
+    const m = new THREE.Mesh(GEO.antBody, mat); m.scale.setScalar(S); body.add(m);
+    addLegs(GEO.antLeg, GEO.antLegs, S);
+    crown = crownMesh(1.05); crown.position.set(0, 0.7 * S, 0.46 * S);
+  } else {
+    S = 3.8;
+    const m = new THREE.Mesh(GEO.flyBody, mat); m.scale.setScalar(S); body.add(m);
+    const wm = MAT.wing.clone(); wm.opacity = 0.5;
+    for (const side of [1, -1]) {
+      const g = new THREE.Group(); g.position.set(0.08 * side * S, 0.12 * S, 0.02 * S);
+      const w = new THREE.Mesh(GEO.wing, wm); w.scale.setScalar(S); g.add(w);
+      g.userData = { side }; body.add(g); wings.push(g);
+    }
+    crown = crownMesh(0.95); crown.position.set(0, 0.3 * S, 0.3 * S);
+  }
+  body.add(crown);
+  root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  root.userData = { body, legs, wings, crown, mats: [mat, legMat], kind, S };
+  root.visible = false;
+  scene.add(root);
   return root;
 }
 

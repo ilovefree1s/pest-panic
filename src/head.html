@@ -100,6 +100,16 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 #float{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,rgba(255,255,255,.08) 0 55%,rgba(255,255,255,.04) 56%);display:none}
 #float i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,201,60,.8)}
+/* ---------- upgrade card details */
+.card{align-items:start;grid-template-columns:52px 1fr}
+.card .ic{grid-row:1;width:52px;height:52px}
+.card .ic svg{width:40px;height:40px}
+.card p{grid-column:1/3;font-size:14px;line-height:1.4;color:#d9d3c6}
+.st{grid-column:1/3;list-style:none;margin:2px 0 0;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.3);display:grid;gap:4px;font-size:13px}
+.st li{display:flex;justify-content:space-between;gap:10px;color:var(--dim);font-weight:700}
+.st b{font-family:var(--body);font-weight:900;font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.st b.up{color:var(--goo)}
+@media (max-width:640px){#levelup{justify-content:flex-start;overflow-y:auto;padding-top:24px}.card p{font-size:13px}}
 /* ---------- online menus */
 .menu{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(420px,100%)}
 .menu input{font:900 18px var(--body);text-align:center;color:var(--text);background:rgba(14,18,22,.85);border:0;border-radius:999px;
@@ -148,7 +158,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 
     <div class="screen" id="title">
       <h1 class="logo">Pest<span>Panic</span></h1>
-      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive the Roach Queens.</p>
+      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 5 minutes.</p>
       <div class="menu">
         <input id="pname" maxlength="12" placeholder="Your name" autocomplete="off" aria-label="Your name">
         <button class="btn" id="play" type="button">Play solo</button>

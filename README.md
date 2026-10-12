@@ -1,7 +1,7 @@
 # Pest Panic Online
 
 A 3D bug-swarm survival game for the browser. Squash ants, flies and spiders in a
-kitchen with bug-killer gear, survive a Roach Queen every 5 minutes, and play solo
+kitchen with bug-killer gear, survive a new bug boss every 5 minutes (Roach Queen, Spider King, Ant Prince, Fly Lord), and play solo
 or online co-op with up to 4 friends.
 
 **Play:** https://ilovefree1s.github.io/pest-panic/

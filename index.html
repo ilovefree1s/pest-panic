@@ -108,6 +108,16 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 #float{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,rgba(255,255,255,.08) 0 55%,rgba(255,255,255,.04) 56%);display:none}
 #float i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,201,60,.8)}
+/* ---------- upgrade card details */
+.card{align-items:start;grid-template-columns:52px 1fr}
+.card .ic{grid-row:1;width:52px;height:52px}
+.card .ic svg{width:40px;height:40px}
+.card p{grid-column:1/3;font-size:14px;line-height:1.4;color:#d9d3c6}
+.st{grid-column:1/3;list-style:none;margin:2px 0 0;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.3);display:grid;gap:4px;font-size:13px}
+.st li{display:flex;justify-content:space-between;gap:10px;color:var(--dim);font-weight:700}
+.st b{font-family:var(--body);font-weight:900;font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.st b.up{color:var(--goo)}
+@media (max-width:640px){#levelup{justify-content:flex-start;overflow-y:auto;padding-top:24px}.card p{font-size:13px}}
 /* ---------- online menus */
 .menu{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(420px,100%)}
 .menu input{font:900 18px var(--body);text-align:center;color:var(--text);background:rgba(14,18,22,.85);border:0;border-radius:999px;
@@ -156,7 +166,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 
     <div class="screen" id="title">
       <h1 class="logo">Pest<span>Panic</span></h1>
-      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive the Roach Queens.</p>
+      <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 5 minutes.</p>
       <div class="menu">
         <input id="pname" maxlength="12" placeholder="Your name" autocomplete="off" aria-label="Your name">
         <button class="btn" id="play" type="button">Play solo</button>
@@ -594,15 +604,15 @@ function buildKitchen() {
     const grp = new THREE.Group();
     const cabTex = TEX.cab.clone(); cabTex.repeat.set(len / 7, 1); cabTex.needsUpdate = true;
     const cab = new THREE.Mesh(new THREE.BoxGeometry(len, H, D), [std({ color: '#2f555e', roughness: .7 }), std({ color: '#2f555e', roughness: .7 }),
-      std({ color: '#2f555e' }), std({ color: '#2f555e' }), std({ map: cabTex, roughness: 0.6, envMapIntensity: 0.5 }), std({ color: '#2f555e' })]);
+      std({ color: '#2f555e' }), std({ color: '#2f555e' }), std({ map: cabTex, color: '#a9b4b6', roughness: 0.7, envMapIntensity: 0.3 }), std({ color: '#2f555e' })]);
     cab.position.set(0, H / 2, -D / 2); cab.castShadow = cab.receiveShadow = true; grp.add(cab);
     const kick = new THREE.Mesh(new THREE.BoxGeometry(len, 0.5, 0.3), std({ color: '#1b1f22', roughness: 0.9 }));
     kick.position.set(0, 0.25, 0.05); grp.add(kick);
     const topTex = TEX.top.clone(); topTex.repeat.set(len / 10, 0.4); topTex.needsUpdate = true;
-    const top = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.35, D + 0.5), std({ map: topTex, roughness: 0.25, envMapIntensity: 1 }));
+    const top = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.35, D + 0.5), std({ map: topTex, color: '#6f6b64', roughness: 0.6, envMapIntensity: 0.25 }));
     top.position.set(0, H + 0.17, -D / 2 + 0.25); top.castShadow = top.receiveShadow = true; grp.add(top);
     const wt = TEX.subway.clone(); wt.repeat.set(len / 8, 1); wt.needsUpdate = true;
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(len, 8), std({ map: wt, roughness: 0.3, envMapIntensity: 0.6 }));
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(len, 8), std({ map: wt, color: '#5d5a54', roughness: 0.7, envMapIntensity: 0.15 }));
     wall.position.set(0, H + 4, -D); grp.add(wall);
     grp.position.set(x, 0, z); grp.rotation.y = rotY;
     g.add(grp);
@@ -614,16 +624,16 @@ function buildKitchen() {
   const base = new THREE.Mesh(new THREE.BoxGeometry(L, 0.7, 0.6), std({ color: '#6b5a48', roughness: 0.7, envMapIntensity: 0.3 }));
   base.position.set(0, 0.35, E + 0.3); base.castShadow = true; g.add(base);
   // fridge and stove on the back wall
-  const fridge = new THREE.Mesh(new THREE.BoxGeometry(7, 13, 5), std({ color: '#c9ced3', metalness: 0.85, roughness: 0.28 }));
+  const fridge = new THREE.Mesh(new THREE.BoxGeometry(7, 13, 5), std({ color: '#6f757b', metalness: 0.6, roughness: 0.5, envMapIntensity: 0.4 }));
   fridge.position.set(E - 6, 6.5, -E - 2); fridge.castShadow = true; g.add(fridge);
   for (const [y, h] of [[9.2, 6.4], [3.1, 5.4]]) {
     const h1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, h * 0.6, 0.4), std({ color: '#7a8086', metalness: 1, roughness: 0.2 }));
     h1.position.set(E - 8.9, y, -E + 0.6); g.add(h1);
   }
   const stove = new THREE.Group();
-  const sBody = new THREE.Mesh(new THREE.BoxGeometry(8, H + 0.4, D + 0.4), std({ color: '#d7d9db', metalness: 0.7, roughness: 0.3 }));
+  const sBody = new THREE.Mesh(new THREE.BoxGeometry(8, H + 0.4, D + 0.4), std({ color: '#6c7074', metalness: 0.5, roughness: 0.5, envMapIntensity: 0.4 }));
   sBody.position.set(0, (H + 0.4) / 2, -D / 2); sBody.castShadow = true; stove.add(sBody);
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.6), std({ color: '#ff8a3c', emissive: '#ff6a1a', emissiveIntensity: 1.6, roughness: 0.2 }));
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.6), std({ color: '#5a2a12', emissive: '#ff6a1a', emissiveIntensity: 0.35, roughness: 0.4 }));
   win.position.set(0, 1.9, 0.22); stove.add(win);
   for (const dx of [-2, 2]) for (const dz of [-1, 1]) {
     const burner = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.12, 8, 24), std({ color: '#222', roughness: .5 }));
@@ -832,6 +842,64 @@ function buildQueen() {
   return root;
 }
 
+// ---------------------------------------------------------------- bug bosses built from the regular bug parts, scaled up and crowned
+function crownMesh(scale) {
+  const gold = std({ color: '#f3c24a', metalness: 1, roughness: 0.2, emissive: '#6a4300', emissiveIntensity: 0.6 });
+  const gem = std({ color: '#ff3048', emissive: '#ff1030', emissiveIntensity: 2.2, roughness: 0.1 });
+  const crown = new THREE.Group();
+  crown.add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.22, 20, 1, true), gold));
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * TAU;
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.38, 8), gold); sp.position.set(Math.cos(a) * 0.43, 0.26, Math.sin(a) * 0.43); crown.add(sp);
+    const g = new THREE.Mesh(sph(0.07, 8, 6), gem); g.position.set(Math.cos(a) * 0.45, 0.02, Math.sin(a) * 0.45); crown.add(g);
+  }
+  crown.scale.setScalar(scale);
+  return crown;
+}
+function buildBugBoss(kind) {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const mat = std({ vertexColors: true, roughness: 0.28, metalness: 0.1, envMapIntensity: 0.9 });
+  const legMat = std({ vertexColors: true, roughness: 0.45, envMapIntensity: 0.6 });
+  const legs = [], wings = [];
+  let S = 4, crown;
+  const addLegs = (geo, table, S) => {
+    for (let i = 0; i < table.length * 2; i++) {
+      const L = table[i >> 1], side = i & 1 ? -1 : 1;
+      const g = new THREE.Group(); g.position.set(L[0] * side * S, L[1] * S, L[2] * S);
+      const m = new THREE.Mesh(geo, legMat); m.scale.setScalar(S); m.castShadow = true; g.add(m);
+      g.userData = { yaw: L[3], side, row: i >> 1 };
+      body.add(g); legs.push(g);
+    }
+  };
+  if (kind === 'spider') {
+    S = 4.2;
+    const m = new THREE.Mesh(GEO.spiderBody, mat); m.scale.setScalar(S); body.add(m);
+    addLegs(GEO.spiderLeg, GEO.spiderLegs, S);
+    crown = crownMesh(1.5); crown.position.set(0, 0.86 * S, 0.22 * S);
+  } else if (kind === 'ant') {
+    S = 4.4;
+    const m = new THREE.Mesh(GEO.antBody, mat); m.scale.setScalar(S); body.add(m);
+    addLegs(GEO.antLeg, GEO.antLegs, S);
+    crown = crownMesh(1.05); crown.position.set(0, 0.7 * S, 0.46 * S);
+  } else {
+    S = 3.8;
+    const m = new THREE.Mesh(GEO.flyBody, mat); m.scale.setScalar(S); body.add(m);
+    const wm = MAT.wing.clone(); wm.opacity = 0.5;
+    for (const side of [1, -1]) {
+      const g = new THREE.Group(); g.position.set(0.08 * side * S, 0.12 * S, 0.02 * S);
+      const w = new THREE.Mesh(GEO.wing, wm); w.scale.setScalar(S); g.add(w);
+      g.userData = { side }; body.add(g); wings.push(g);
+    }
+    crown = crownMesh(0.95); crown.position.set(0, 0.3 * S, 0.3 * S);
+  }
+  body.add(crown);
+  root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  root.userData = { body, legs, wings, crown, mats: [mat, legMat], kind, S };
+  root.visible = false;
+  scene.add(root);
+  return root;
+}
+
 function buildSwatter() {
   const g = new THREE.Group();
   const head = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 1.15), [std({ color: '#a32416' }), std({ color: '#a32416' }), std({ map: TEX.swat, roughness: 0.5 }), std({ map: TEX.swat, roughness: 0.5 }), std({ color: '#a32416' }), std({ color: '#a32416' })]);
@@ -996,6 +1064,17 @@ const BUG = [
 ];
 const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f / 60);
 const QUEEN_EVERY = 300, QUEEN_HP = 1000;
+// a different boss every 5 minutes; after the fourth the cycle repeats, tougher
+const BOSSES = [
+  { id: 'roach', name: 'ROACH QUEEN', title: 'Roach Queen', r: 3.2, spd: 4.2, shadow: 9, hp: 1, goo: [0.42, 0.24, 0.1] },
+  { id: 'spider', name: 'SPIDER KING', title: 'Spider King', r: 2.9, spd: 3.6, shadow: 9, hp: 1.1, goo: [0.45, 0.22, 0.6] },
+  { id: 'ant', name: 'ANT PRINCE', title: 'Ant Prince', r: 2.6, spd: 5.0, shadow: 7, hp: 0.95, goo: [0.62, 0.16, 0.1] },
+  { id: 'fly', name: 'FLY LORD', title: 'Fly Lord', r: 2.4, spd: 9, shadow: 6, hp: 0.9, goo: [0.42, 0.56, 0.2] },
+];
+const EB_DMG = [12, 12, 6, 8, 8];                       // goo, fire, venom, web, fly spit
+const EB_COL = [[0.5, 1.3, 0.3], [1.4, 0.6, 0.15], [0.5, 1.3, 0.3], [1.3, 1.3, 1.3], [1.4, 1.2, 0.25]];
+const EB_CORE = [[0.55, 0.95, 0.3], [1, 0.55, 0.2], [0.55, 0.95, 0.3], [0.95, 0.95, 0.95], [1, 0.9, 0.3]];
+const bossTitle = q => BOSSES[q.kind].title + (q.tier > 1 ? ' ' + roman(q.tier) : '');
 const COLORS = [['#3a86bd', '#d43a2b'], ['#e0782a', '#2a5fd4'], ['#4fae3c', '#f0c53d'], ['#8b5cc9', '#ff6fa8']];
 const CSS_COL = ['#5fb0ea', '#ff9a4a', '#7ddc5a', '#b78cff'];
 
@@ -1013,6 +1092,50 @@ const UP = [
   { id: 'aid', name: 'First Aid Kit', max: 1e9, d: 'Restore 50 health.', up: 'Restore 50 health.' },
 ];
 const UPIDS = UP.map(u => u.id);
+const HOW = {
+  spray: 'Automatically sprays the closest bug. Each puff hits one bug.',
+  swat: 'Swatters circle close around you and smack every bug they touch, knocking it back.',
+  bomb: 'Every few seconds a burst of fog shoots out in a full circle around you.',
+  zap: 'A lantern floats over your shoulder and zaps random bugs on screen with lightning. Hits bosses for double damage.',
+  glue: 'Drops a trap where you stand. When a bug steps near, it snaps: hurts everything around it and glues bugs in place for 1.5 seconds.',
+  citro: 'A ring of fire surrounds you. Bugs inside it get burned and pushed back.',
+  paper: 'Throws a rolled-up newspaper the way you are moving. It flies through every bug in its path.',
+  shoes: 'You move faster.',
+  vac: 'Coins fly to you from farther away.',
+  str: 'Every weapon you have does 1 more damage.',
+  aid: 'Heals you right now.',
+};
+const sec = v => v.toFixed(2).replace(/0$/, '') + 's';
+// the numbers a weapon has at level L (0 = not owned yet)
+function stats(id, L, p) {
+  const s = p.up.str || 0, i = L - 1, none = L === 0;
+  const v = (f) => none ? '—' : f();
+  switch (id) {
+    case 'spray': return [['Damage', v(() => W.spray.dmg[i] + s)], ['Streams', v(() => W.spray.n[i])], ['Fires every', v(() => sec(W.spray.cd[i]))]];
+    case 'swat': return [['Swatters', v(() => W.swat.n[i])], ['Damage', v(() => W.swat.dmg[i] + s)], ['Spin', v(() => Math.round(W.swat.spd[i] * 60 / TAU) + ' rpm')]];
+    case 'bomb': return [['Fog puffs', v(() => W.bomb.n[i])], ['Damage', v(() => 3 + s)], ['Every', v(() => sec(W.bomb.cd[i]))]];
+    case 'zap': return [['Bolts', v(() => W.zap.n[i])], ['Damage', v(() => W.zap.dmg[i] + s)], ['Every', v(() => sec(W.zap.cd[i]))]];
+    case 'glue': return [['Damage', v(() => W.glue.dmg[i] + s)], ['Snap size', v(() => W.glue.r[i].toFixed(1))], ['New trap every', v(() => sec(W.glue.cd[i]))]];
+    case 'citro': return [['Ring size', v(() => W.citro.r[i].toFixed(1))], ['Burn damage', v(() => W.citro.dmg[i] + s)], ['Burns per second', v(() => (1 / W.citro.tick[i]).toFixed(1))]];
+    case 'paper': return [['Papers', v(() => W.paper.n[i])], ['Damage', v(() => W.paper.dmg[i] + s)], ['Every', v(() => sec(W.paper.cd[i]))]];
+    case 'shoes': return [['Speed', Math.round(100 + L * 25) + '%']];
+    case 'vac': return [['Coin reach', W.vac[L].toFixed(1)]];
+    case 'str': return [['Bonus damage', '+' + L]];
+    case 'aid': return [['Health', Math.ceil(p.hp)]];
+  }
+  return [];
+}
+function cardHtml(u, p, i) {
+  const l = p.up[u.id] || 0, next = u.id === 'aid' ? l : l + 1;
+  const tag = u.id === 'aid' ? 'HEAL 50' : l === 0 ? 'NEW!' : 'LEVEL ' + l + ' → ' + (l + 1);
+  const a = stats(u.id, l, p);
+  const b = u.id === 'aid' ? [['Health', Math.min(100, Math.ceil(p.hp) + 50)]] : stats(u.id, next, p);
+  const rows = b.map((row, k) => {
+    const from = a[k] ? a[k][1] : '—', to = row[1], changed = String(from) !== String(to);
+    return `<li><span>${row[0]}</span><b class="${changed ? 'up' : ''}">${l === 0 && u.id !== 'aid' && u.id !== 'shoes' && u.id !== 'vac' && u.id !== 'str' ? to : (changed ? from + ' → ' + to : to)}</b></li>`;
+  }).join('');
+  return `<button class="card${i === 0 ? ' sel' : ''}" data-i="${i}" type="button"><span class="ic">${ICON[u.id]}</span><span><small>${tag}</small><b>${u.name}</b></span><p>${HOW[u.id]}</p><ul class="st">${rows}</ul></button>`;
+}
 const W = {
   spray: { cd: [26, 22, 20, 17, 15, 12].map(f => f / 60), n: [1, 1, 2, 2, 3, 3], dmg: [3, 3, 3, 4, 4, 5] },
   swat: { n: [1, 2, 3, 3, 4], spd: [3, 3, 4, 5, 6].map(v => v * TAU / 256 * 60), dmg: [2, 2, 3, 3, 4] },
@@ -1042,6 +1165,7 @@ const ICON = {
 resize();
 scene.add(buildKitchen());
 const queenMesh = buildQueen(); queenMesh.visible = false; scene.add(queenMesh);
+const bossMeshes = [queenMesh, buildBugBoss('spider'), buildBugBoss('ant'), buildBugBoss('fly')];
 
 const IM = {
   ant: instanced(GEO.antBody, MAT.bug, MAX_BUGS),
@@ -1201,17 +1325,18 @@ function playEvent(e) {
     case 'c': FX.glow.spawn({ x: e[1], y: 0.8, z: e[2], vy: 3, life: 0.3, s0: 0.8, s1: 0.2, c: [1.2, 0.9, 0.3] }); break;
     case 'b': for (let k = 0; k < 10; k++) FX.smoke.spawn({ x: e[1], y: 0.8, z: e[2], vx: rand(-3, 3), vy: rand(0, 2), vz: rand(-3, 3), life: 0.8, s0: 1, s1: 3, c: [0.75, 0.9, 0.7], a0: 0.5, a1: 0, drag: 3 }); break;
     case 'f': FX.fire.spawn({ x: e[1], y: 0.5, z: e[2], vy: 2, life: 0.3, s0: 0.9, s1: 0.3, c: [1, 0.5, 0.1] }); break;
-    case 'w': banner('Roach Queen incoming!', true); break;
-    case 'qs': banner('Roach Queen' + (e[1] > 1 ? ' ' + roman(e[1]) : '') + '!', true); S.shake = Math.max(S.shake, 0.8); break;
+    case 'w': banner(BOSSES[e[1] || 0].title + ' incoming!', true); break;
+    case 'qs': banner(BOSSES[e[2] || 0].title + (e[3] > 1 ? ' ' + roman(e[3]) : '') + '!', true); S.shake = Math.max(S.shake, 0.8); break;
+    case 'ph': { const c = EB_CORE[e[3]] || EB_CORE[0]; for (let i = 0; i < 8; i++) { const a = Math.random() * TAU, sp = rand(2, 5); FX.goo.spawn({ x: e[1], y: 0.9, z: e[2], vx: Math.cos(a) * sp, vy: rand(1, 4), vz: Math.sin(a) * sp, life: 0.45, s0: 0.25, s1: 0.1, c, grav: 14 }); } FX.glow.spawn({ x: e[1], y: 0.9, z: e[2], life: 0.15, s0: 1.2, s1: 2, c: EB_COL[e[3]] || EB_COL[0], a0: 0.7, a1: 0 }); break; }
     case 'qk': {
-      const [, x, z] = e;
+      const [, x, z, kind] = e, gc = BOSSES[kind || 0].goo;
       for (let i = 0; i < 26; i++) {
         const a = Math.random() * TAU, s = rand(4, 14);
-        FX.goo.spawn({ x, y: 1.5, z, vx: Math.cos(a) * s, vy: rand(4, 10), vz: Math.sin(a) * s, life: 1.2, s0: 0.7, s1: 0.5, c: [0.55, 0.32, 0.12], a0: 1, a1: 0.9, grav: 22 });
+        FX.goo.spawn({ x, y: 1.5, z, vx: Math.cos(a) * s, vy: rand(4, 10), vz: Math.sin(a) * s, life: 1.2, s0: 0.7, s1: 0.5, c: gc, a0: 1, a1: 0.9, grav: 22 });
         FX.glow.spawn({ x: x + rand(-2, 2), y: rand(0.5, 3), z: z + rand(-2, 2), life: 0.6, s0: 2.5, s1: 6, c: [1, 0.7, 0.3], a0: 1, a1: 0 });
       }
-      for (let i = 0; i < 6; i++) addDecal(x + rand(-3, 3), z + rand(-3, 3), rand(3, 5), [0.42, 0.24, 0.1]);
-      S.shake = 1.2; banner('Queen squashed!  +40 HP');
+      for (let i = 0; i < 6; i++) addDecal(x + rand(-3, 3), z + rand(-3, 3), rand(3, 5), gc);
+      S.shake = 1.2; banner(BOSSES[kind || 0].title + ' squashed!  +40 HP');
       break;
     }
     case 'lv': {
@@ -1265,42 +1390,69 @@ function director(dt) {
       for (let i = 0; i < n; i++) { const a = i / n * TAU; spawnBug(0, p.x + Math.cos(a) * R, p.z + Math.sin(a) * R, true); }
     }
   }
-  if (!S.queen && S.t >= S.nextQueen - 5 && !S.warned) { S.warned = true; ev(['w']); }
+  if (!S.queen && S.t >= S.nextQueen - 5 && !S.warned) { S.warned = true; ev(['w', S.queens % BOSSES.length]); }
   if (!S.queen && S.t >= S.nextQueen) spawnQueen();
 }
 function spawnQueen() {
   S.queens++; S.nextQueen += QUEEN_EVERY; S.warned = false;
-  const n = S.queens, a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
-  const hp = QUEEN_HP * n * (1 + 0.6 * Math.max(0, alivePlayers().length - 1));
-  S.queen = { n, hp, max: hp, x: t.x + Math.cos(a) * (spawnRadius() + 4), z: t.z + Math.sin(a) * (spawnRadius() + 4),
-    vx: 0, vz: 0, ang: 0, t: 0, ring: 2, fan: 3, flash: 0, fcd: 0, icd: 0, walk: 0, rate: Math.max(0.4, (48 - 6 * (n - 1)) / 60), spin: 0, acc: 0, numT: 0 };
-  ev(['qs', n]);
+  const n = S.queens, kind = (n - 1) % BOSSES.length, tier = Math.floor((n - 1) / BOSSES.length) + 1;
+  const a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
+  const hp = Math.round(QUEEN_HP * n * BOSSES[kind].hp * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
+  S.queen = { n, kind, tier, hp, max: hp, x: t.x + Math.cos(a) * (spawnRadius() + 4), z: t.z + Math.sin(a) * (spawnRadius() + 4),
+    vx: 0, vz: 0, ang: 0, t: 0, ring: 2, fan: 3, a1: 2, a2: 1.5, a3: 6, flash: 0, fcd: 0, icd: 0, walk: 0,
+    rate: Math.max(0.4, (48 - 6 * (tier - 1)) / 60), spin: 0, acc: 0, numT: 0, state: 0, st: 0, ddx: 0, ddz: 0, orbitA: a, spiral: 4 };
+  ev(['qs', n, kind, tier]);
 }
+function bossShot(q, ang, spd, k, life = 5) { S.ebul.push({ x: q.x, z: q.z, vx: Math.cos(ang) * spd, vz: Math.sin(ang) * spd, life, k }); }
 function updateQueen(dt) {
   const q = S.queen; if (!q) return;
   q.t += dt; q.flash = Math.max(0, q.flash - dt); q.fcd = Math.max(0, q.fcd - dt); q.icd = Math.max(0, q.icd - dt);
   const tp = nearestPlayer(q.x, q.z); if (!tp) return;
-  const dx = tp.x - q.x, dz = tp.z - q.z, d = Math.hypot(dx, dz) || 1;
-  q.vx += (dx / d * 4.2 - q.vx) * Math.min(1, dt * 1.5); q.vz += (dz / d * 4.2 - q.vz) * Math.min(1, dt * 1.5);
+  const D = BOSSES[q.kind], dx = tp.x - q.x, dz = tp.z - q.z, d = Math.hypot(dx, dz) || 1, aim = Math.atan2(dz, dx);
+  const angry = q.hp < q.max / 2 ? 0.75 : 1, tierK = 1 / (1 + 0.15 * (q.tier - 1));
+  let wx = dx / d * D.spd, wz = dz / d * D.spd, turn = 1.5;
+  for (const k of ['a1', 'a2', 'a3']) q[k] -= dt;
+  if (q.kind === 0) {                       // Roach Queen: rings of goo + fire fans
+    q.ring -= dt;
+    if (q.ring <= 0) { q.ring = q.rate * angry; q.spin += 0.17; for (let i = 0; i < 12; i++) bossShot(q, q.spin + i / 12 * TAU, 7.5, 0); }
+    q.fan -= dt;
+    if (q.fan <= 0) { q.fan = 110 / 60; const n = Math.min(9, 5 + 2 * (q.tier - 1)); for (let i = 0; i < n; i++) bossShot(q, aim + (i - (n - 1) / 2) * 0.3, 12, 1, 4); }
+  } else if (q.kind === 1) {                // Spider King: webs that slow you, venom spray, babies
+    if (q.a1 <= 0) { q.a1 = 2.2 * angry * tierK; for (let i = -1; i <= 1; i++) bossShot(q, aim + i * 0.22, 10, 3, 4); }
+    if (q.a2 <= 0) { q.a2 = 0.9 * angry * tierK; q.spin += 0.5; for (let i = 0; i < 3 + q.tier - 1; i++) bossShot(q, q.spin + i / (3 + q.tier - 1) * TAU, 9, 2); }
+    if (q.a3 <= 0) { q.a3 = 12; for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; spawnBug(2, q.x + Math.cos(a) * 3, q.z + Math.sin(a) * 3, true); } }
+  } else if (q.kind === 2) {                // Ant Prince: winds up, charges, acid bursts, calls the colony
+    if (q.state === 1) { wx = wz = 0; q.st -= dt; if (q.st <= 0) { q.state = 2; q.st = 0.9; q.ddx = dx / d; q.ddz = dz / d; } }
+    else if (q.state === 2) {
+      q.vx = q.ddx * 22; q.vz = q.ddz * 22; turn = 0; q.st -= dt;
+      if (q.st <= 0 || Math.abs(q.x) > ARENA - 4 || Math.abs(q.z) > ARENA - 4) {
+        q.state = 0; q.vx *= 0.1; q.vz *= 0.1; S.shake = Math.max(S.shake, 0.4);
+        for (let i = 0; i < 14; i++) bossShot(q, i / 14 * TAU, 7, 0, 4);
+      }
+    } else if (q.a1 <= 0) { q.a1 = 6 * angry * tierK; q.state = 1; q.st = 0.8; }
+    if (q.a2 <= 0 && q.state === 0) { q.a2 = 3.5 * angry; for (let i = 0; i < 10; i++) bossShot(q, q.spin + i / 10 * TAU, 7, 0); q.spin += 0.3; }
+    if (q.a3 <= 0) { q.a3 = 10; const R = spawnRadius() * 0.7; for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; spawnBug(0, tp.x + Math.cos(a) * R, tp.z + Math.sin(a) * R, true); } }
+  } else {                                  // Fly Lord: circles you, spits spirals, calls flies
+    q.orbitA += dt * 0.6;
+    const ox = tp.x + Math.cos(q.orbitA) * 9, oz = tp.z + Math.sin(q.orbitA) * 9, ex = ox - q.x, ez = oz - q.z, ed = Math.hypot(ex, ez) || 1;
+    wx = ex / ed * D.spd; wz = ez / ed * D.spd; turn = 2.5;
+    q.spiral -= dt;
+    if (q.spiral > 0) {
+      if (q.a1 <= 0) { q.a1 = 0.09 * angry; q.spin += 0.35; bossShot(q, q.spin, 9, 4, 4); bossShot(q, q.spin + Math.PI, 9, 4, 4); if (q.tier > 1) bossShot(q, q.spin + Math.PI / 2, 9, 4, 4); }
+    } else if (q.spiral < -2) q.spiral = 4;
+    if (q.a3 <= 0) { q.a3 = 9; for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; spawnBug(1, q.x + Math.cos(a) * 3, q.z + Math.sin(a) * 3, true); } }
+  }
+  if (turn) { q.vx += (wx - q.vx) * Math.min(1, dt * turn); q.vz += (wz - q.vz) * Math.min(1, dt * turn); }
   q.x = clamp(q.x + q.vx * dt, -ARENA + 3, ARENA - 3); q.z = clamp(q.z + q.vz * dt, -ARENA + 3, ARENA - 3);
-  q.ang = Math.atan2(q.vx, q.vz); q.walk += dt * 9;
-  for (const p of alivePlayers()) if (dist2(p.x, p.z, q.x, q.z) < 3.4 * 3.4) hurt(p, 15);
-  q.ring -= dt;
-  if (q.ring <= 0) {
-    q.ring = q.rate * (q.hp < q.max / 2 ? 0.75 : 1); q.spin += 0.17;
-    for (let i = 0; i < 12; i++) { const a = q.spin + i / 12 * TAU; S.ebul.push({ x: q.x, z: q.z, vx: Math.cos(a) * 7.5, vz: Math.sin(a) * 7.5, life: 5, k: 0 }); }
-  }
-  q.fan -= dt;
-  if (q.fan <= 0) {
-    q.fan = 110 / 60;
-    const base = Math.atan2(dz, dx), n = Math.min(9, 5 + 2 * (q.n - 1));
-    for (let i = 0; i < n; i++) { const a = base + (i - (n - 1) / 2) * 0.3; S.ebul.push({ x: q.x, z: q.z, vx: Math.cos(a) * 12, vz: Math.sin(a) * 12, life: 4, k: 1 }); }
-  }
+  q.ang = q.state === 2 ? Math.atan2(q.ddx, q.ddz) : q.kind === 3 ? Math.atan2(dx, dz) : (Math.hypot(q.vx, q.vz) > 0.3 ? Math.atan2(q.vx, q.vz) : q.ang);
+  q.walk += dt * (q.state === 2 ? 30 : 9);
+  const reach = (D.r + 0.4) ** 2;
+  for (const p of alivePlayers()) if (dist2(p.x, p.z, q.x, q.z) < reach) hurt(p, q.state === 2 ? 20 : q.kind === 3 ? 10 : 15);
   if (q.hp <= 0) {
     for (let i = 0; i < 10 + S.players.length * 3; i++) dropCoin(q.x + rand(-3, 3), q.z + rand(-3, 3), 12, true);
     for (const p of S.players) if (!p.down) p.hp = Math.min(100, p.hp + 40);
     S.kills++;
-    ev(['qk', q.x, q.z]);
+    ev(['qk', q.x, q.z, q.kind]);
     S.queen = null;
   }
 }
@@ -1312,6 +1464,7 @@ function hitQueen(dmg, x, z) {
   if (S.t - q.numT > 0.25) { q.numT = S.t; ev(['n', x ?? q.x, z ?? q.z, Math.round(q.acc), 1]); q.acc = 0; }
 }
 function queenNear(p, r) { const q = S.queen; return q && dist2(q.x, q.z, p.x, p.z) < r * r; }
+const BR = () => S.queen ? BOSSES[S.queen.kind].r : 3;
 function hitBug(b, dmg, kx = 0, kz = 0) {
   if (b.hp <= 0) return;
   b.hp -= dmg; b.flash = 0.09; b.x += kx; b.z += kz;
@@ -1385,7 +1538,7 @@ function weapons(p, dt) {
     for (let k = 0; k < ns; k++) {
       const a = p.swatA + k / ns * TAU, x = p.x + Math.cos(a) * 3.1, z = p.z + Math.sin(a) * 3.1;
       near(x, z, 1.4, b => { if (b.icd <= 0 && dist2(b.x, b.z, x, z) < 1.96) { b.icd = 0.33; hitBug(b, dmg, Math.cos(a) * 0.5, Math.sin(a) * 0.5); if (Math.random() < 0.5) ev(['h', b.x, b.z]); } });
-      if (S.queen && S.queen.icd <= 0 && dist2(S.queen.x, S.queen.z, x, z) < 16) { S.queen.icd = 0.15; hitQueen(dmg * 2, x, z); }
+      if (S.queen && S.queen.icd <= 0 && dist2(S.queen.x, S.queen.z, x, z) < (BR() + 0.8) ** 2) { S.queen.icd = 0.15; hitQueen(dmg * 2, x, z); }
     }
   }
   if (L.citro) {
@@ -1410,11 +1563,11 @@ function updateShots(dt) {
     if (!dead) {
       if (s.kind === 'paper') {
         near(s.x, s.z, 1.3, b => { if (!s.hit.has(b) && dist2(b.x, b.z, s.x, s.z) < 1.69) { s.hit.add(b); hitBug(b, s.dmg, s.vx * 0.02, s.vz * 0.02); ev(['h', b.x, b.z]); } });
-        if (S.queen && !s.hitQ && dist2(S.queen.x, S.queen.z, s.x, s.z) < 12) { s.hitQ = true; hitQueen(s.dmg, s.x, s.z); }
+        if (S.queen && !s.hitQ && dist2(S.queen.x, S.queen.z, s.x, s.z) < (BR() + 0.5) ** 2) { s.hitQ = true; hitQueen(s.dmg, s.x, s.z); }
       } else {
         const r = s.kind === 'bomb' ? 1.3 : 1.0;
         if (near(s.x, s.z, r, b => { if (dist2(b.x, b.z, s.x, s.z) < r * r) { hitBug(b, s.dmg, s.vx * 0.01, s.vz * 0.01); return true; } })) dead = true;
-        else if (S.queen && dist2(S.queen.x, S.queen.z, s.x, s.z) < 9) { hitQueen(s.dmg, s.x, s.z); dead = true; }
+        else if (S.queen && dist2(S.queen.x, S.queen.z, s.x, s.z) < BR() ** 2) { hitQueen(s.dmg, s.x, s.z); dead = true; }
       }
     }
     if (!dead) keep.push(s);
@@ -1424,7 +1577,7 @@ function updateShots(dt) {
   for (const t of S.traps) {
     t.life -= dt; t.drop = Math.max(0, t.drop - dt);
     let boom = t.life <= 0;
-    if (!boom && t.drop <= 0) boom = near(t.x, t.z, 1.6, b => dist2(b.x, b.z, t.x, t.z) < 2.56) || !!(S.queen && dist2(S.queen.x, S.queen.z, t.x, t.z) < 12);
+    if (!boom && t.drop <= 0) boom = near(t.x, t.z, 1.6, b => dist2(b.x, b.z, t.x, t.z) < 2.56) || !!(S.queen && dist2(S.queen.x, S.queen.z, t.x, t.z) < (BR() + 0.5) ** 2);
     if (boom && t.life > 0) {
       near(t.x, t.z, t.r, b => { if (dist2(b.x, b.z, t.x, t.z) < t.r * t.r) { b.stuck = 1.5; hitBug(b, t.dmg); } });
       if (S.queen && dist2(S.queen.x, S.queen.z, t.x, t.z) < (t.r + 2.5) ** 2) hitQueen(t.dmg * 2, t.x, t.z);
@@ -1436,7 +1589,9 @@ function updateShots(dt) {
   const eb = [];
   for (const b of S.ebul) {
     b.life -= dt; b.x += b.vx * dt; b.z += b.vz * dt;
-    if (b.life > 0) for (const p of S.players) if (!p.down && dist2(b.x, b.z, p.x, p.z) < 0.6) { hurt(p, b.k === 2 ? 6 : 12); b.life = 0; break; }
+    if (b.life > 0) for (const p of S.players) if (!p.down && dist2(b.x, b.z, p.x, p.z) < 1.3) {
+      hurt(p, EB_DMG[b.k] || 12); if (b.k === 3) p.slow = 2; ev(['ph', b.x, b.z, b.k]); b.life = 0; break;
+    }
     if (b.life > 0 && Math.abs(b.x) < ARENA + 4 && Math.abs(b.z) < ARENA + 4) eb.push(b);
   }
   S.ebul = eb;
@@ -1496,7 +1651,7 @@ function updateCoins(dt) {
   while (S.xp >= S.need) { S.xp -= S.need; S.lvl++; S.need = xpNeed(S.lvl); S.pendingLevels++; }
 }
 function movePlayer(p, mv, dt) {
-  const spd = PLAYER_SPEED + p.up.shoes * 3.75, k = 1 - Math.exp(-dt * 14);
+  const spd = (PLAYER_SPEED + p.up.shoes * 3.75) * ((p.slow || 0) > 0 ? 0.55 : 1), k = 1 - Math.exp(-dt * 14);
   const m = p.down ? { x: 0, z: 0 } : mv;
   p.vx += (m.x * spd - p.vx) * k; p.vz += (m.z * spd - p.vz) * k;
   p.x = clamp(p.x + p.vx * dt, -ARENA + 0.8, ARENA - 0.8); p.z = clamp(p.z + p.vz * dt, -ARENA + 0.8, ARENA - 0.8);
@@ -1512,7 +1667,7 @@ function step(dt) {
       p.x += (n.x - p.x) * Math.min(1, dt * 15); p.z += (n.z - p.z) * Math.min(1, dt * 15);
       p.vx = n.vx; p.vz = n.vz; p.face = n.face;
     }
-    p.inv = Math.max(0, p.inv - dt);
+    p.inv = Math.max(0, p.inv - dt); p.slow = Math.max(0, (p.slow || 0) - dt);
     if (!p.down) p.hp = Math.min(100, p.hp + dt * 0.4);
   }
   director(dt);
@@ -1571,11 +1726,8 @@ function showCards() {
   if (!mine || r.picked[me.id] || (role === 'client' && CL.picked === r.n)) { $('cards').innerHTML = '<p class="sub">Waiting for your team to pick…</p>'; cards = []; return; }
   if (shownRound === r.n && cards.length) return;
   shownRound = r.n; cards = mine.map(id => UP.find(u => u.id === id)); sel = 0;
-  const lv = role === 'client' ? (CL.me?.up || {}) : (meP()?.up || {});
-  $('cards').innerHTML = cards.map((u, i) => {
-    const l = lv[u.id] || 0, tag = u.id === 'aid' ? 'HEAL' : l === 0 ? 'NEW!' : 'LEVEL ' + (l + 1);
-    return `<button class="card${i === 0 ? ' sel' : ''}" data-i="${i}" type="button"><span class="ic">${ICON[u.id]}</span><span><small>${tag}</small><b>${u.name}</b></span><p>${l === 0 ? u.d : u.up}</p></button>`;
-  }).join('');
+  const pl = (role === 'client' ? CL.me : meP()) || { up: {}, hp: 100 };
+  $('cards').innerHTML = cards.map((u, i) => cardHtml(u, pl, i)).join('');
   $('cards').querySelectorAll('.card').forEach(c => c.addEventListener('click', () => choose(+c.dataset.i)));
 }
 function hideCards() { $('levelup').hidden = true; cards = []; }
@@ -1633,14 +1785,15 @@ function applySnapshot(s) {
       up: Object.fromEntries(UPIDS.map((k, i) => [k, ups[i]])) });
     if (id !== me.id) { p.tx = x / 10; p.tz = z / 10; p.tface = face / 100; }
     if (flags & 4) p.sprayPuff = 0.12;
+    p.slow = flags & 8 ? 0.2 : 0;
   }
   for (const id of CL.players.keys()) if (!ps.has(id)) { CL.players.delete(id); dropLook(id); }
   CL.me = CL.players.get(me.id) || null;
   // queen
   if (s.Q) {
-    const [x, z, a, hp, max, n, fl] = s.Q;
-    if (!CL.queen) CL.queen = { x: x / 10, z: z / 10, ang: a / 100, walk: 0 };
-    Object.assign(CL.queen, { tx: x / 10, tz: z / 10, ta: a / 100, hp, max, n, flash: fl ? 0.05 : 0 });
+    const [x, z, a, hp, max, n, fl, kind, state, tier] = s.Q;
+    if (!CL.queen || CL.queen.kind !== kind) CL.queen = { x: x / 10, z: z / 10, ang: a / 100, walk: 0 };
+    Object.assign(CL.queen, { tx: x / 10, tz: z / 10, ta: a / 100, hp, max, n, flash: fl ? 0.05 : 0, kind, state, tier });
   } else CL.queen = null;
   CL.coins = [];
   for (let i = 0; i < s.C.length; i += 3) CL.coins.push({ x: s.C[i] / 10, z: s.C[i + 1] / 10, big: !!s.C[i + 2], y: 0.45, t: (i * 0.37) + now / 250 });
@@ -1669,9 +1822,10 @@ function clientTick(dt) {
     p.vx = (p.x - ox) / Math.max(dt, 1e-3); p.vz = (p.z - oz) / Math.max(dt, 1e-3);
   }
   const q = CL.queen;
-  if (q) { const ox = q.x, oz = q.z; q.x += (q.tx - q.x) * k; q.z += (q.tz - q.z) * k; q.ang = lerpAng(q.ang, q.ta, k); q.walk += Math.hypot(q.x - ox, q.z - oz) * 2.2; }
+  if (q) { const ox = q.x, oz = q.z; q.x += (q.tx - q.x) * k; q.z += (q.tz - q.z) * k; q.ang = lerpAng(q.ang, q.ta, k); q.walk += Math.hypot(q.x - ox, q.z - oz) * 2.2 + dt * 3; }
   for (const s of CL.shots) { s.x += s.vx * dt; s.z += s.vz * dt; s.spin += dt * 18; s.life -= dt; }
   for (const e of CL.ebul) { e.x += e.vx * dt; e.z += e.vz * dt; }
+  if (CL.me) CL.ebul = CL.ebul.filter(e => dist2(e.x, e.z, CL.me.x, CL.me.z) >= 1.3);
   // our own exterminator moves right away; the host trusts our position
   const p = CL.me;
   if (p && mode === 'play') {
@@ -1745,6 +1899,7 @@ function drawPlayer(p, dt, t) {
   B.shadow.add(p.x, 0.02, p.z, 2.6, 0, 0, 0, 0, 0.4);
   const col = new THREE.Color(CSS_COL[p.color % 4]);
   if (mode !== 'title') B.ring.add(p.x, 0.05, p.z, 3.4, 0, col.r, col.g, col.b, p.down ? 0.25 : 0.5);
+  if ((p.slow || 0) > 0) B.ring.add(p.x, 0.07, p.z, 2.6, t * 2, 1, 1, 1, 0.6);
   if ((p.sprayPuff || 0) > 0) {
     p.sprayPuff -= dt;
     const r = L.body.rotation.y, wx = p.x + Math.sin(r) * 2.0 + Math.cos(r) * 0.6, wz = p.z + Math.cos(r) * 2.0 - Math.sin(r) * 0.6;
@@ -1776,22 +1931,35 @@ function drawPlayer(p, dt, t) {
   }
   if (p.id === me.id && up.vac && mode === 'play') B.ring.add(p.x, 0.04, p.z, W.vac[up.vac] * 2, 0, 0.25, 0.5, 0.7, 0.12);
 }
+function drawBoss(q, t, dt) {
+  const D = BOSSES[q.kind], m = bossMeshes[q.kind], u = m.userData;
+  m.position.set(q.x, q.kind === 3 ? 1.6 + Math.sin(t * 3) * 0.25 : 0, q.z);
+  m.rotation.y = q.ang;
+  if (q.kind === 0) {
+    u.legs.forEach((l, i) => { const s = l.userData.side; l.rotation.y = l.userData.yaw + Math.sin(q.walk + i * 1.7) * 0.25 * s; l.rotation.z = Math.max(0, Math.sin(q.walk + i * 1.7)) * 0.15 * s; });
+  } else {
+    u.legs.forEach(l => {
+      const { yaw, side, row } = l.userData, sw = Math.sin(q.walk + row * (q.kind === 1 ? 1.6 : Math.PI) + (side > 0 ? 0 : Math.PI)) * (q.kind === 1 ? 0.3 : 0.4);
+      l.rotation.y = side > 0 ? yaw + sw : Math.PI - yaw - sw;
+      l.rotation.z = Math.max(0, Math.sin(q.walk + row)) * 0.12;
+    });
+    u.wings.forEach(w => { const s = w.userData.side; w.rotation.set(0, s > 0 ? -0.45 : Math.PI + 0.45, Math.sin(t * 40) * 0.7 * s, 'YXZ'); });
+  }
+  u.crown.rotation.y += dt * 0.8;
+  // wind-up before a charge glows red; hits flash
+  const wind = q.state === 1 ? 0.35 + Math.sin(t * 40) * 0.25 : 0, e = q.flash > 0 ? 0.28 : wind;
+  u.mats.forEach(mm => mm.emissive.setRGB(e, e * 0.3, e * 0.2));
+  if (q.state === 2) for (let i = 0; i < 2; i++) FX.smoke.spawn({ x: q.x + rand(-1.5, 1.5), y: 0.4, z: q.z + rand(-1.5, 1.5), life: 0.5, s0: 1.2, s1: 2.4, c: [0.5, 0.45, 0.4], a0: 0.4, a1: 0, drag: 2 });
+  B.shadow.add(q.x, 0.02, q.z, D.shadow, q.ang, 0, 0, 0, q.kind === 3 ? 0.3 : 0.5);
+}
 function drawWorld(t, dt) {
   for (const k in B) B[k].begin();
   const players = role === 'client' ? [...CL.players.values()] : (S.players || []);
   if (mode !== 'title') for (const p of players) drawPlayer(p, dt, t);
   for (const [id, L] of looks) if (!players.some(p => p.id === id)) dropLook(id);
   const q = role === 'client' ? CL.queen : S.queen;
-  queenMesh.visible = !!q;
-  if (q) {
-    const u = queenMesh.userData;
-    queenMesh.position.set(q.x, 0, q.z); queenMesh.rotation.y = q.ang;
-    u.legs.forEach((l, i) => { const s = l.userData.side; l.rotation.y = l.userData.yaw + Math.sin(q.walk + i * 1.7) * 0.25 * s; l.rotation.z = Math.max(0, Math.sin(q.walk + i * 1.7)) * 0.15 * s; });
-    u.crown.rotation.y += dt * 0.8;
-    const e = q.flash > 0 ? 0.28 : 0;
-    u.mats.forEach(m => m.emissive.setRGB(e, e * 0.35, e * 0.25));
-    B.shadow.add(q.x, 0.02, q.z, 9, q.ang, 0, 0, 0, 0.5);
-  }
+  bossMeshes.forEach((m, i) => m.visible = !!q && q.kind === i);
+  if (q) drawBoss(q, t, dt);
   drawBugs(role === 'client' ? CL.bugs.values() : S.bugs, t);
   let ci = 0, cb = 0;
   for (const c of (role === 'client' ? CL.coins : S.coins)) {
@@ -1825,9 +1993,9 @@ function drawWorld(t, dt) {
   }
   IM.glue.count = gi; IM.glue.instanceMatrix.needsUpdate = true;
   for (const e of (role === 'client' ? CL.ebul : S.ebul)) {
-    const col = e.k === 1 ? [1.4, 0.6, 0.15] : [0.5, 1.3, 0.3];
-    B.glow.add(e.x, 0.7, e.z, 1.1, 0, col[0], col[1], col[2], 0.9);
-    B.goo.add(e.x, 0.7, e.z, 0.45, 0, e.k === 1 ? 1 : 0.55, e.k === 1 ? 0.55 : 0.95, e.k === 1 ? 0.2 : 0.3, 1);
+    const col = EB_COL[e.k] || EB_COL[0], core = EB_CORE[e.k] || EB_CORE[0], big = e.k === 3 ? 1.5 : 1;
+    B.glow.add(e.x, 0.7, e.z, 1.1 * big, 0, col[0], col[1], col[2], e.k === 3 ? 0.5 : 0.9);
+    B.goo.add(e.x, 0.7, e.z, 0.45 * big, 0, core[0], core[1], core[2], 1);
     B.shadow.add(e.x, 0.02, e.z, 0.6, 0, 0, 0, 0, 0.25);
   }
   const keep = [];
@@ -1906,7 +2074,7 @@ function updateHud(dt) {
   lastHp = p.hp;
   const q = role === 'client' ? CL.queen : S.queen;
   $('queen').hidden = !q;
-  if (q) { $('qfill').style.width = Math.max(0, q.hp / q.max * 100).toFixed(1) + '%'; $('qname').textContent = 'ROACH QUEEN' + (q.n > 1 ? ' ' + roman(q.n) : ''); }
+  if (q) { $('qfill').style.width = Math.max(0, q.hp / q.max * 100).toFixed(1) + '%'; $('qname').textContent = BOSSES[q.kind || 0].name + ((q.tier || 1) > 1 ? ' ' + roman(q.tier) : ''); }
   hudT -= dt; if (hudT > 0) return; hudT = 0.1;
   $('lvl').textContent = S.lvl; $('hpt').textContent = Math.max(0, Math.ceil(p.hp));
   $('clock').firstChild.textContent = fmt(S.t); $('kills').textContent = S.kills.toLocaleString();
@@ -1965,7 +2133,7 @@ function showOver(st) {
   if (newBest) best = { t: st.t, k: st.k };
   try { localStorage.setItem('pestpanic-best', JSON.stringify(best)); } catch (e) {}
   $('overt').textContent = newBest ? 'New best time!' : 'Bugged out!';
-  $('ostats').innerHTML = `<dt>Survived</dt><dd>${fmt(st.t)}</dd><dt>Bugs squashed</dt><dd>${st.k.toLocaleString()}</dd><dt>Level</dt><dd>${st.lvl}</dd><dt>Queens</dt><dd>${st.q}</dd><dt>Best time</dt><dd>${fmt(best.t)}</dd>`;
+  $('ostats').innerHTML = `<dt>Survived</dt><dd>${fmt(st.t)}</dd><dt>Bugs squashed</dt><dd>${st.k.toLocaleString()}</dd><dt>Level</dt><dd>${st.lvl}</dd><dt>Bosses</dt><dd>${st.q}</dd><dt>Best time</dt><dd>${fmt(best.t)}</dd>`;
   $('again').hidden = role === 'client'; $('waithost').hidden = role !== 'client';
   setTimeout(() => { if (mode === 'over') screen('over'); }, 900);
 }
@@ -2076,7 +2244,7 @@ async function hostGame() {
   try {
     net = await connect(code, { name: me.name || 'Host', host: true });
   } catch (e) {
-    status('Could not reach the game server. Check your connection and try again.', true);
+    status('Could not reach the game server. Online play works at ilovefree1s.github.io/pest-panic', true);
     $('hostbtn').disabled = $('joinbtn').disabled = false; net = null; return;
   }
   $('hostbtn').disabled = $('joinbtn').disabled = false;
@@ -2101,7 +2269,7 @@ async function joinGame(raw) {
   try {
     net = await connect(code, { name: me.name || 'Player', host: false });
   } catch (e) {
-    status('Could not reach the game server. Check your connection and try again.', true);
+    status('Could not reach the game server. Online play works at ilovefree1s.github.io/pest-panic', true);
     $('hostbtn').disabled = $('joinbtn').disabled = false; net = null; return;
   }
   $('hostbtn').disabled = $('joinbtn').disabled = false;
@@ -2128,12 +2296,12 @@ function sendSnapshot() {
   const r = Math.round;
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
-  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10)]);
+  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10)]);
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 300); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
     t: +S.t.toFixed(2), lv: S.lvl, xp: S.xp, nd: S.need, k: S.kills, qn: S.queens, m: mode === 'pause' ? 'play' : mode,
-    B, P, C, Q: q ? [r(q.x * 10), r(q.z * 10), r(q.ang * 100), r(q.hp), r(q.max), q.n, q.flash > 0 ? 1 : 0] : 0,
+    B, P, C, Q: q ? [r(q.x * 10), r(q.z * 10), r(q.ang * 100), r(q.hp), r(q.max), q.n, q.flash > 0 ? 1 : 0, q.kind, q.state, q.tier] : 0,
     S: S.shots.slice(0, 80).map(s => [s.kind === 'spray' ? 0 : s.kind === 'bomb' ? 1 : 2, r(s.x * 10), r(s.z * 10), r(s.vx * 10), r(s.vz * 10), r(s.ang * 100), r(s.life * 100), r(s.max * 100)]),
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
     E: S.ebul.slice(0, 120).map(e => [e.k, r(e.x * 10), r(e.z * 10), r(e.vx * 10), r(e.vz * 10)]),
@@ -2282,9 +2450,10 @@ requestAnimationFrame(frame);
 // test hooks
 window.PP = {
   get state() { return S; }, get mode() { return mode; }, get role() { return role; }, get me() { return me; }, CL, frames: () => frameCount,
-  solo() { saveName(); role = 'solo'; beginRound(); }, host: hostGame, join: joinGame,
+  solo() { saveName(); role = 'solo'; beginRound(); }, host() { saveName(); return hostGame(); }, join(c) { saveName(); return joinGame(c); },
   give(id, n = 1, pid = me.id) { const p = S.players.find(q => q.id === pid); for (let i = 0; i < n; i++) if (p.up[id] < UP.find(u => u.id === id).max) p.up[id]++; },
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
+  end: () => endRound(), leave: toTitle, room: () => net && net.code,
   queen() { spawnQueen(); }, god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
