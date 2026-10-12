@@ -1062,7 +1062,8 @@ const VOTE_MS = 10000;
 function teamCards() {
   const pool = UP.filter(u => u.id !== 'aid' && S.players.some(p => p.up[u.id] < u.max)).map(u => u.id), pick = [];
   while (pick.length < 3 && pool.length) pick.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
-  if (pick.length < 3 && S.lvl % 5 === 0) pick.push('aid');   // med kit only every 5th level
+  // med kit: offered every 5th level, but only once the first boss is due (3:00)
+  if (S.t >= QUEEN_EVERY && S.lvl % 5 === 0) { if (pick.length >= 3) pick[2] = 'aid'; else pick.push('aid'); }
   return pick;
 }
 // players who can actually vote right now (skips anyone whose connection has gone quiet)
