@@ -339,7 +339,7 @@ const SND = (() => {
   const S_ = {
     squash(x, z, t) {
       if (!gate('sq', 32)) return; const [k, pan] = where(x, z); if (k < 0.02) return;
-      const n = ctx.currentTime, o = out(1.5 * k, pan), big = t === 2, p = R(0.85, 1.2);
+      const n = ctx.currentTime, o = out(0.45 * k, pan), big = t === 2, p = R(0.85, 1.2);
       noise(o, n, big ? 0.16 : 0.09, 'bandpass', (big ? 700 : 1300) * p, (big ? 160 : 320) * p, 1.4);
       tone(o, 'sine', (big ? 150 : 260) * p, (big ? 45 : 80) * p, n, big ? 0.14 : 0.08, 0.003, 0.7);
     },
@@ -356,7 +356,7 @@ const SND = (() => {
     },
     spray(mine) {
       if (!gate(mine ? 'sp' : 'sp2', 70)) return;
-      const n = ctx.currentTime, o = out(mine ? 0.027 : 0.009);   // kept very soft: it fires constantly
+      const n = ctx.currentTime, o = out(mine ? 0.09 : 0.03);   // soft: it fires constantly
       noise(o, n, 0.13, 'highpass', 3500, 6500, 0.6, 0.01);
     },
     bomb(x, z) {
