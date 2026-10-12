@@ -147,6 +147,24 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 .lroster li small{margin-left:auto;font-family:var(--display);color:var(--gold);letter-spacing:.06em}
 .lroster li.empty{background:transparent;box-shadow:inset 0 0 0 2px rgba(255,255,255,.12);color:var(--dim);justify-content:center}
 @media (max-height:560px){#lobby{justify-content:flex-start;overflow-y:auto;gap:8px;padding-top:12px}#lobby .lcode{font-size:40px}#lobby .lroster li{padding:6px 12px}}
+.lb{list-style:none;margin:0;padding:0;display:grid;gap:5px;width:min(520px,100%)}
+.lb li{display:grid;grid-template-columns:30px minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:7px 12px;border-radius:10px;background:rgba(20,26,32,.85);font-weight:800;font-size:14px}
+.lb li.me{box-shadow:inset 0 0 0 2px var(--gold);background:rgba(60,48,14,.9)}
+.lb .rk{font-family:var(--display);color:var(--gold);text-align:center}
+.lb li:nth-child(-n+3) .rk{font-size:18px}
+.lb .nm{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb .tm{font-family:var(--display);letter-spacing:.04em;color:#fff}
+.lb .ks,.lb .lv{color:var(--dim);font-size:12px}
+.oboard{display:grid;justify-items:center;gap:8px;width:min(520px,100%)}
+.oboard .rank{margin:0;font-family:var(--display);font-size:22px;color:var(--gold);letter-spacing:.04em}
+.oboard .sub{margin:0}
+.boardlist{width:min(520px,100%);max-height:52vh;overflow-y:auto;display:grid;justify-items:center}
+.tabs{display:flex;gap:6px;background:rgba(20,26,32,.85);padding:4px;border-radius:999px}
+.tabs button{border:0;border-radius:999px;padding:8px 22px;font:800 15px var(--body,inherit);color:var(--dim);background:transparent;cursor:pointer;pointer-events:auto}
+.tabs button.on{background:var(--gold);color:#2a1a00}
+#boardbtn{margin-top:4px}
+@media (max-width:480px){.lb li{grid-template-columns:24px minmax(0,1fr) auto auto;gap:8px}.lb .ks{display:none}}
+@media (max-height:600px){#over{justify-content:flex-start;overflow-y:auto;padding-top:14px;gap:8px}}
 @media (prefers-reduced-motion:reduce){#banner,.card{transition:none}}
 </style>
 
@@ -184,6 +202,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
           <div class="joinrow"><input id="code" maxlength="5" placeholder="CODE" autocomplete="off" aria-label="Room code"><button class="btn alt" id="joinbtn" type="button">Join</button></div>
         </div>
         <p class="status" id="netstatus"></p>
+        <button class="btn dark" id="boardbtn" type="button">🏆 Leaderboard</button>
       </div>
       <p class="best" id="best"></p>
       <p class="hint">Move with the stick, WASD / arrows, or a controller. Your gear fires on its own. Grab coins to level up.</p>
@@ -203,9 +222,16 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
       <dl class="stats" id="ostats"></dl>
+      <div class="oboard" id="oboard" hidden></div>
       <button class="btn" id="again" type="button">Play again</button>
       <p class="hint" id="waithost" hidden>Waiting for the host to start the next round…</p>
       <button class="btn dark" id="leave2" type="button">Leave</button>
+    </div>
+    <div class="screen" id="board" hidden>
+      <h2 class="t">Leaderboard</h2>
+      <p class="sub">Longest solo survival times</p>
+      <div class="boardlist" id="boardlist"></div>
+      <button class="btn dark" id="boardback" type="button">Back</button>
     </div>
     <div class="screen" id="lobby" hidden>
       <h2 class="t">Lobby</h2>

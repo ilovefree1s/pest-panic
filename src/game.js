@@ -56,6 +56,8 @@ const UP = [
   { id: 'glue', name: 'Glue Traps', max: 5, d: 'Drops traps that stick and snap bugs.', up: 'Bigger snaps, more traps.' },
   { id: 'citro', name: 'Citronella', max: 5, d: 'A ring of flame burns and repels bugs.', up: 'Wider ring, hotter flame.' },
   { id: 'paper', name: 'Newspaper', max: 5, d: 'Smacks through a whole line of bugs.', up: 'More papers, harder hits.' },
+  { id: 'flip', name: 'Flip-Flop', max: 5, d: 'A boomerang sandal.', up: 'More sandals, harder hits.' },
+  { id: 'roomba', name: 'Roomba', max: 5, d: 'A robot vacuum hunts bugs.', up: 'Faster, stronger, wider.' },
   { id: 'shoes', name: 'Sneakers', max: 3, d: 'Move faster.', up: 'Even faster.' },
   { id: 'vac', name: 'Shop Vac', max: 3, d: 'Pulls coins in from farther away.', up: 'Longer reach.' },
   { id: 'str', name: 'Extra Strength', max: 3, d: 'All damage +1.', up: 'All damage +1.' },
@@ -70,6 +72,8 @@ const HOW = {
   glue: 'Drops a trap where you stand. When a bug steps near, it snaps: hurts everything around it and glues bugs in place for 1.5 seconds.',
   citro: 'A ring of fire surrounds you. Bugs inside it get burned and pushed back.',
   paper: 'Throws a rolled-up newspaper the way you are moving. It flies through every bug in its path.',
+  flip: 'Throws a flip-flop at the nearest bug. It flies out through every bug in its path, then spins back to you and hits them all again.',
+  roomba: 'A robot vacuum drives around near you hunting bugs, sucking up and bumping everything it rolls over. You only get one, but every level makes it faster, stronger and bigger.',
   shoes: 'You move faster.',
   vac: 'Coins fly to you from farther away.',
   str: 'Every weapon you have does 1 more damage.',
@@ -88,6 +92,8 @@ function stats(id, L, p) {
     case 'glue': return [['Damage', v(() => W.glue.dmg[i] + s)], ['Snap size', v(() => W.glue.r[i].toFixed(1))], ['New trap every', v(() => sec(W.glue.cd[i]))]];
     case 'citro': return [['Ring size', v(() => W.citro.r[i].toFixed(1))], ['Burn damage', v(() => W.citro.dmg[i] + s)], ['Burns per second', v(() => (1 / W.citro.tick[i]).toFixed(1))]];
     case 'paper': return [['Papers', v(() => W.paper.n[i])], ['Damage', v(() => W.paper.dmg[i] + s)], ['Every', v(() => sec(W.paper.cd[i]))]];
+    case 'flip': return [['Flip-flops', v(() => W.flip.n[i])], ['Damage', v(() => W.flip.dmg[i] + s)], ['Every', v(() => sec(W.flip.cd[i]))]];
+    case 'roomba': return [['Damage', v(() => W.roomba.dmg[i] + s)], ['Speed', v(() => W.roomba.spd[i])], ['Suction size', v(() => W.roomba.r[i].toFixed(1))]];
     case 'shoes': return [['Speed', Math.round(100 + L * 25) + '%']];
     case 'vac': return [['Coin reach', W.vac[L].toFixed(1)]];
     case 'str': return [['Bonus damage', '+' + L]];
@@ -115,6 +121,8 @@ const W = {
   citro: { r: [3.25, 4, 4.75, 5.5, 6.25], dmg: [2, 3, 3, 4, 5], tick: [30, 26, 22, 20, 16].map(f => f / 60) },
   paper: { cd: [80, 70, 60, 50, 40].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [10, 12, 14, 18, 22] },
   vac: [4.5, 7, 10, 14],
+  flip: { cd: [100, 90, 80, 70, 60].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [8, 10, 12, 15, 18], range: [9, 10, 11, 12, 13] },
+  roomba: { dmg: [4, 5, 7, 9, 12], spd: [7, 8, 9, 10, 11.5], r: [1.5, 1.7, 1.9, 2.2, 2.5], tick: 0.25 },
 };
 
 const ICON = {
@@ -125,6 +133,8 @@ const ICON = {
   glue: '<svg viewBox="0 0 48 48"><rect x="8" y="8" width="32" height="32" fill="#e4e4df"/><rect x="8" y="8" width="32" height="32" fill="none" stroke="#9a9a94" stroke-width="2"/></svg>',
   citro: '<svg viewBox="0 0 48 48"><rect x="13" y="24" width="22" height="18" rx="4" fill="#e9dca0"/><rect x="13" y="29" width="22" height="4" fill="#c7ad55"/><rect x="23" y="18" width="2" height="7" fill="#333"/><path d="M24 2c6 7 8 11 4 16-2 2-6 2-8 0-4-5 0-9 4-16z" fill="#ff9a2a"/><path d="M24 8c3 4 4 7 2 9-1 1-3 1-4 0-2-3 0-5 2-9z" fill="#ffe27a"/></svg>',
   paper: '<svg viewBox="0 0 48 48"><rect x="8" y="17" width="34" height="14" rx="7" transform="rotate(-25 24 24)" fill="#e8e3d3"/><path d="M14 27l22-10M15 31l22-10" stroke="#555" stroke-width="2"/><rect x="21" y="14" width="4" height="20" transform="rotate(-25 24 24)" fill="#c0392b"/></svg>',
+  flip: '<svg viewBox="0 0 48 48"><ellipse cx="24" cy="25" rx="11" ry="19" fill="#ff4f93"/><ellipse cx="24" cy="25" rx="9" ry="16.5" fill="#ffd3e6"/><path d="M24 12l-8 17M24 12l8 17" stroke="#2b9cff" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="12" r="2.4" fill="#1e7fe0"/><path d="M41 9a12 12 0 0 1-3 13" stroke="#fff" stroke-width="2" fill="none" stroke-dasharray="3 3"/></svg>',
+  roomba: '<svg viewBox="0 0 48 48"><circle cx="24" cy="25" r="19" fill="#2a2e34"/><path d="M5 25a19 19 0 0 1 38 0" stroke="#111316" stroke-width="4" fill="none"/><circle cx="24" cy="25" r="13" fill="#454c55"/><circle cx="24" cy="25" r="11" fill="none" stroke="#9aa3ad" stroke-width="1.5"/><circle cx="24" cy="25" r="3.5" fill="#d7dbe0"/><circle cx="24" cy="15" r="1.6" fill="#6dff7a"/><path d="M36 11l4-4M38 13l5-1M35 9l1-5" stroke="#c9b27a" stroke-width="1.6"/></svg>',
   shoes: '<svg viewBox="0 0 48 48"><path d="M6 30c0-6 4-12 8-12l6 6 6-2 6 6 8 2c3 1 4 4 4 6H6z" fill="#3a86bd"/><rect x="6" y="36" width="38" height="5" rx="2" fill="#f4efe4"/><path d="M20 24l3-3M24 27l3-3" stroke="#fff" stroke-width="2"/></svg>',
   vac: '<svg viewBox="0 0 48 48"><rect x="6" y="20" width="22" height="20" rx="6" fill="#f2c53d"/><rect x="9" y="16" width="16" height="6" rx="2" fill="#333"/><path d="M28 28c8 0 10-8 14-14" stroke="#333" stroke-width="4" fill="none"/><circle cx="12" cy="42" r="3" fill="#333"/><circle cx="24" cy="42" r="3" fill="#333"/><circle cx="40" cy="22" r="3" fill="#ffd96a"/><circle cx="36" cy="30" r="2.4" fill="#ffd96a"/></svg>',
   str: '<svg viewBox="0 0 48 48"><path d="M10 36c0-10 6-16 12-20l-4-6c4-3 10-3 12 2l-2 6c6 0 10 6 10 12v6H10z" fill="#eab48a"/><path d="M22 26c4-2 8-2 12 2" stroke="#b77a4d" stroke-width="2" fill="none"/><path d="M8 40h32" stroke="#ff5248" stroke-width="4"/></svg>',
@@ -147,6 +157,7 @@ const IM = {
   coin: instanced(GEO.coin, MAT.coin, 400),
   coinBig: instanced(GEO.coin, MAT.coinBig, 80),
   paper: instanced(GEO.paper, MAT.paper, 60, true),
+  flip: instanced(GEO.flip, MAT.flip, 60, true),
   glue: instanced(GEO.glue, MAT.glue, 60),
 };
 const B = {
@@ -202,7 +213,7 @@ function lookFor(p) {
   let L = looks.get(p.id);
   if (!L) {
     const c = COLORS[p.color % COLORS.length];
-    L = { body: buildPlayer(c[0], c[1]), swats: [0, 1, 2, 3].map(() => { const s = buildSwatter(); s.visible = false; return s; }), zap: buildZapper(), walk: 0 };
+    L = { body: buildPlayer(c[0], c[1]), swats: [0, 1, 2, 3].map(() => { const s = buildSwatter(); s.visible = false; return s; }), zap: buildZapper(), roomba: buildRoomba(), walk: 0 };
     scene.add(L.body);
     looks.set(p.id, L);
   }
@@ -210,7 +221,7 @@ function lookFor(p) {
 }
 function dropLook(id) {
   const L = looks.get(id); if (!L) return;
-  scene.remove(L.body); L.swats.forEach(s => scene.remove(s)); scene.remove(L.zap);
+  scene.remove(L.body); L.swats.forEach(s => scene.remove(s)); scene.remove(L.zap); scene.remove(L.roomba);
   looks.delete(id);
 }
 
@@ -244,7 +255,7 @@ $('pname').value = me.name;
 function newPlayer(id, name, color) {
   return { id, name: name || 'Player', color, x: rand(-2, 2), z: rand(-2, 2), vx: 0, vz: 0, face: 0, hp: 100, inv: 1.5, down: false,
     up: Object.fromEntries(UPIDS.map(k => [k, k === 'spray' ? 1 : 0])),
-    cd: { spray: 0.3, bomb: 1, zap: 0.5, glue: 0.5, citro: 0.5, paper: 0.5 }, swatA: 0, citroA: 0, citroFlash: 0, sprayPuff: 0, walk: 0, seen: 0 };
+    cd: { spray: 0.3, bomb: 1, zap: 0.5, glue: 0.5, citro: 0.5, paper: 0.5, flip: 0.6, rb: 0 }, swatA: 0, citroA: 0, citroFlash: 0, sprayPuff: 0, walk: 0, seen: 0 };
 }
 function newWorld() {
   S = {
@@ -477,6 +488,7 @@ function nearestBug(p, maxR) {
   near(p.x, p.z, maxR, b => { const d = dist2(b.x, b.z, p.x, p.z); if (d < bd) { bd = d; best = b; } });
   return best;
 }
+const SHOT_KINDS = ['spray', 'bomb', 'paper', 'flip'];
 function fire(p, kind, ang, spd, life, dmg, extra = {}) {
   S.shots.push({ kind, x: p.x + Math.sin(ang) * 0.8, z: p.z + Math.cos(ang) * 0.8, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, life, max: life, dmg, ang, spin: 0, ...extra });
 }
@@ -500,6 +512,12 @@ function weapons(p, dt) {
     const n = W.paper.n[i];
     for (let k = 0; k < n; k++) fire(p, 'paper', p.face + (k - (n - 1) / 2) * 0.2, 52, 0.6, W.paper.dmg[i] + db, { hit: new Set() });
   }
+  if (L.flip && p.cd.flip <= 0) {
+    const i = L.flip - 1; p.cd.flip = W.flip.cd[i];
+    const tgt = nearestBug(p, 16), ang = tgt ? Math.atan2(tgt.x - p.x, tgt.z - p.z) : p.face, n = W.flip.n[i], spd = 24;
+    for (let k = 0; k < n; k++) fire(p, 'flip', ang + (k - (n - 1) / 2) * 0.55, spd, 4, W.flip.dmg[i] + db, { hit: new Set(), owner: p.id, out: W.flip.range[i] / spd, t: 0, back: false });
+  }
+  if (L.roomba) roomba(p, dt, L.roomba - 1, db);
   if (L.glue && p.cd.glue <= 0) {
     const i = L.glue - 1; p.cd.glue = W.glue.cd[i];
     if (S.traps.length < 40) S.traps.push({ x: p.x, z: p.z, life: 10, dmg: W.glue.dmg[i] + db, r: W.glue.r[i], rot: Math.random() * TAU, drop: 0.25 });
@@ -540,13 +558,51 @@ function weapons(p, dt) {
     }
   }
 }
+// the Roomba: one per player, hunts the bug nearest to it (within reach of its owner)
+function roomba(p, dt, i, db) {
+  const rb = p.rb || (p.rb = { x: p.x + 1.8, z: p.z, vx: 0, vz: 0, ang: 0 });
+  const spd = W.roomba.spd[i], R = W.roomba.r[i];
+  let tx = p.x - Math.sin(p.face) * 2.2, tz = p.z - Math.cos(p.face) * 2.2, best = null, bd = Infinity;
+  if (dist2(rb.x, rb.z, p.x, p.z) < 16 * 16) {
+    near(p.x, p.z, 13, b => { const d = dist2(b.x, b.z, rb.x, rb.z); if (d < bd) { bd = d; best = b; } });
+    for (const q of S.bosses) { const d = dist2(q.x, q.z, rb.x, rb.z); if (d < bd && dist2(q.x, q.z, p.x, p.z) < 13 * 13) { bd = d; best = q; } }
+  }
+  if (best) { tx = best.x; tz = best.z; }
+  const dx = tx - rb.x, dz = tz - rb.z, d = Math.hypot(dx, dz) || 1, want = best ? spd : Math.min(spd, d * 2);
+  const k = Math.min(1, dt * 5);
+  rb.vx += (dx / d * want - rb.vx) * k; rb.vz += (dz / d * want - rb.vz) * k;
+  rb.x = clamp(rb.x + rb.vx * dt, -ARENA + 1, ARENA - 1); rb.z = clamp(rb.z + rb.vz * dt, -ARENA + 1, ARENA - 1);
+  if (Math.hypot(rb.vx, rb.vz) > 0.5) rb.ang = Math.atan2(rb.vx, rb.vz);
+  if (p.cd.rb <= 0) {
+    p.cd.rb = W.roomba.tick;
+    const dmg = W.roomba.dmg[i] + db;
+    near(rb.x, rb.z, R, b => {
+      const ex = b.x - rb.x, ez = b.z - rb.z, ed = Math.hypot(ex, ez) || 1;
+      if (ed < R) { hitBug(b, dmg, ex / ed * 0.35, ez / ed * 0.35); if (Math.random() < 0.25) ev(['h', b.x, b.z]); }
+    });
+    for (const q of S.bosses) if (dist2(q.x, q.z, rb.x, rb.z) < (R + BR(q)) ** 2) hitQueen(dmg * 2, rb.x, rb.z, q);
+  }
+}
 function updateShots(dt) {
   const keep = [];
   for (const s of S.shots) {
     s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.spin += dt * 18;
     let dead = s.life <= 0 || Math.abs(s.x) > ARENA + 2 || Math.abs(s.z) > ARENA + 2;
     if (!dead) {
-      if (s.kind === 'paper') {
+      if (s.kind === 'flip') {
+        s.t += dt;
+        if (!s.back && s.t >= s.out) { s.back = true; s.hit = new Set(); s.hitQ = false; }
+        if (s.back) {
+          const o = S.players.find(q => q.id === s.owner);
+          if (!o) dead = true;
+          else {
+            const dx = o.x - s.x, dz = o.z - s.z, d = Math.hypot(dx, dz) || 1, sp = 28, k = Math.min(1, dt * 7);
+            s.vx += (dx / d * sp - s.vx) * k; s.vz += (dz / d * sp - s.vz) * k;
+            if (d < 1.3) dead = true;
+          }
+        }
+      }
+      if (s.kind === 'paper' || s.kind === 'flip') {
         near(s.x, s.z, 1.3, b => { if (!s.hit.has(b) && dist2(b.x, b.z, s.x, s.z) < 1.69) { s.hit.add(b); hitBug(b, s.dmg, s.vx * 0.02, s.vz * 0.02); ev(['h', b.x, b.z]); } });
         if (!s.hitQ) for (const q of S.bosses) if (dist2(q.x, q.z, s.x, s.z) < (BR(q) + 0.5) ** 2) { s.hitQ = true; hitQueen(s.dmg, s.x, s.z, q); break; }
       } else {
@@ -845,7 +901,7 @@ function applySnapshot(s) {
   // players
   const ps = new Set();
   for (const r of s.P) {
-    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv] = r;
+    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs] = r;
     ps.add(id);
     let p = CL.players.get(id);
     if (!p) { p = { id, name, color, x: x / 10, z: z / 10, face: face / 100, walk: 0, vx: 0, vz: 0, citroA: 0, sprayPuff: 0 }; CL.players.set(id, p); }
@@ -854,6 +910,7 @@ function applySnapshot(s) {
     if (id !== me.id) { p.tx = x / 10; p.tz = z / 10; p.tface = face / 100; }
     if (flags & 4) p.sprayPuff = 0.12;
     p.slow = flags & 8 ? 0.2 : 0;
+    if (rbs) { if (!p.rb) p.rb = { x: rbs[0] / 10, z: rbs[1] / 10, ang: rbs[2] / 100, vx: 0, vz: 0 }; p.rb.tx = rbs[0] / 10; p.rb.tz = rbs[1] / 10; p.rb.ta = rbs[2] / 100; } else p.rb = null;
   }
   for (const id of CL.players.keys()) if (!ps.has(id)) { CL.players.delete(id); dropLook(id); }
   CL.me = CL.players.get(me.id) || null;
@@ -868,7 +925,7 @@ function applySnapshot(s) {
   CL.bosses = nb; CL.queen = nb[0] || null;
   CL.coins = [];
   for (let i = 0; i < s.C.length; i += 3) CL.coins.push({ x: s.C[i] / 10, z: s.C[i + 1] / 10, big: !!s.C[i + 2], y: 0.45, t: (i * 0.37) + now / 250 });
-  CL.shots = s.S.map(r => ({ kind: ['spray', 'bomb', 'paper'][r[0]], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10, ang: r[5] / 100, spin: Math.random() * 6, life: r[6] / 100, max: r[7] / 100 }));
+  CL.shots = s.S.map(r => ({ kind: SHOT_KINDS[r[0]], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10, ang: r[5] / 100, spin: Math.random() * 6, life: r[6] / 100, max: r[7] / 100 }));
   CL.traps = s.T.map(r => ({ x: r[0] / 10, z: r[1] / 10, rot: r[2] / 100, life: r[3] / 10, drop: 0 }));
   CL.ebul = s.E.map(r => ({ k: r[0], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10 }));
   for (const e of s.ev) playEvent(e);
@@ -877,6 +934,7 @@ function applySnapshot(s) {
   if (s.m === 'level' && CL.round) { if (mode !== 'level') { mode = 'level'; } showCards(); }
   else if (s.m === 'play') { if (mode === 'level') hideCards(); if (mode === 'level' || mode === 'over' || mode === 'join') { mode = 'play'; enterGameUi(); } }
   else if (s.m === 'over' && mode !== 'over') { CL.stats = s.st; showOver(s.st); }
+  if (s.m === 'over' && s.st && s.st.rk) overBoard(s.st.bm, s.st.rk, null);
 }
 function clientTick(dt) {
   const k = 1 - Math.exp(-dt * 12), ext = (performance.now() - CL.snapAt) / 1000;
@@ -891,6 +949,11 @@ function clientTick(dt) {
     const ox = p.x, oz = p.z;
     p.x += (p.tx - p.x) * k; p.z += (p.tz - p.z) * k; p.face = lerpAng(p.face, p.tface, k);
     p.vx = (p.x - ox) / Math.max(dt, 1e-3); p.vz = (p.z - oz) / Math.max(dt, 1e-3);
+  }
+  for (const p of CL.players.values()) if (p.rb && p.rb.tx !== undefined) {
+    const rb = p.rb, ox = rb.x, oz = rb.z;
+    rb.x += (rb.tx - rb.x) * k; rb.z += (rb.tz - rb.z) * k; rb.ang = lerpAng(rb.ang, rb.ta, k);
+    rb.vx = (rb.x - ox) / Math.max(dt, 1e-3); rb.vz = (rb.z - oz) / Math.max(dt, 1e-3);
   }
   for (const q of CL.bosses) { const ox = q.x, oz = q.z; q.x += (q.tx - q.x) * k; q.z += (q.tz - q.z) * k; q.ang = lerpAng(q.ang, q.ta, k); q.walk += Math.hypot(q.x - ox, q.z - oz) * 2.2 + dt * 3; }
   for (const s of CL.shots) { s.x += s.vx * dt; s.z += s.vz * dt; s.spin += dt * 18; s.life -= dt; }
@@ -988,6 +1051,16 @@ function drawPlayer(p, dt, t) {
     const a = p.swatA + k / ns * TAU;
     s.position.set(p.x + Math.cos(a) * 2.2, 0.7, p.z + Math.sin(a) * 2.2); s.rotation.set(0, Math.PI / 2 - a, 0);   // head sits on the 3.1 hit circle
   });
+  // roomba
+  const rbv = up.roomba > 0 && p.rb;
+  L.roomba.visible = !!rbv;
+  if (rbv) {
+    const rb = p.rb, sc = 0.85 + up.roomba * 0.12;
+    L.roomba.position.set(rb.x, 0, rb.z); L.roomba.rotation.y = rb.ang; L.roomba.scale.setScalar(sc);
+    L.roomba.userData.brush.rotation.y += dt * 22;
+    B.shadow.add(rb.x, 0.02, rb.z, 2.4 * sc, 0, 0, 0, 0, 0.35);
+    if (Math.hypot(rb.vx || 0, rb.vz || 0) > 1 && Math.random() < dt * 14) FX.smoke.spawn({ x: rb.x - Math.sin(rb.ang) * 0.9 * sc, y: 0.2, z: rb.z - Math.cos(rb.ang) * 0.9 * sc, vy: 0.6, life: 0.45, s0: 0.3, s1: 0.8, c: [0.7, 0.68, 0.62], a0: 0.35, a1: 0 });
+  }
   // zapper lantern
   L.zap.visible = up.zap > 0 && !p.down;
   if (L.zap.visible) L.zap.position.set(p.x - Math.cos(p.face) * 0.9, 2.6 + Math.sin(t * 3) * 0.15, p.z + Math.sin(p.face) * 0.9);
@@ -1045,10 +1118,11 @@ function drawWorld(t, dt) {
     if (Math.random() < dt * 1.2) FX.glow.spawn({ x: c.x + rand(-0.2, 0.2), y: c.y + 0.3, z: c.z, life: 0.35, s0: 0.5, s1: 0.1, c: [1.4, 1.1, 0.5] });
   }
   IM.coin.count = ci; IM.coinBig.count = cb; IM.coin.instanceMatrix.needsUpdate = IM.coinBig.instanceMatrix.needsUpdate = true;
-  let pi = 0;
+  let pi = 0, fi = 0;
   for (const s of (role === 'client' ? CL.shots : S.shots)) {
     const k = s.max ? clamp(1 - s.life / s.max, 0, 1) : 0.5;
-    if (s.kind === 'paper') { if (pi < 60) setI(IM.paper, pi++, s.x, 0.9, s.z, s.ang, 1, s.spin, Math.PI / 2); B.shadow.add(s.x, 0.02, s.z, 1.2, 0, 0, 0, 0, 0.3); }
+    if (s.kind === 'flip') { if (fi < 60) setI(IM.flip, fi++, s.x, 0.9, s.z, s.spin * 1.4, 1.8, 0.25); B.shadow.add(s.x, 0.02, s.z, 1.3, 0, 0, 0, 0, 0.3); }
+    else if (s.kind === 'paper') { if (pi < 60) setI(IM.paper, pi++, s.x, 0.9, s.z, s.ang, 1, s.spin, Math.PI / 2); B.shadow.add(s.x, 0.02, s.z, 1.2, 0, 0, 0, 0, 0.3); }
     else if (s.kind === 'spray') {
       B.glow.add(s.x, 0.75, s.z, 0.5, 0, 0.5, 0.75, 0.9, 0.5);
       B.smoke.add(s.x, 0.75, s.z, 0.6 + k * 0.7, s.spin, 0.85, 0.95, 1, 0.65 - k * 0.4);
@@ -1059,6 +1133,7 @@ function drawWorld(t, dt) {
     }
   }
   IM.paper.count = pi; IM.paper.instanceMatrix.needsUpdate = true;
+  IM.flip.count = fi; IM.flip.instanceMatrix.needsUpdate = true;
   let gi = 0;
   for (const tr of (role === 'client' ? CL.traps : S.traps)) {
     if (gi >= 60) break;
@@ -1171,7 +1246,7 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.toggle('long', text.length > 20); b.classList.add('on'); bannerT = 2.2; }
 
 // ---------------------------------------------------------------- modes and screens
-const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby'];
+const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board'];
 const idle = () => mode === 'title' || mode === 'lobby';
 function screen(id) { SCREENS.forEach(s => $(s).hidden = s !== id); }
 function enterGameUi() {
@@ -1209,9 +1284,11 @@ function endRound() {
   mode = 'over';
   const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills };
   showOver(st);
+  submitRun(st);
 }
 function showOver(st) {
   mode = 'over'; $('banner').classList.remove('on'); bannerT = 0;
+  overBoardKey = ''; $('oboard').hidden = true; $('oboard').innerHTML = '';
   const newBest = st.t > best.t;
   if (newBest) best = { t: st.t, k: st.k };
   try { localStorage.setItem('pestpanic-best', JSON.stringify(best)); } catch (e) {}
@@ -1246,6 +1323,8 @@ $('again').addEventListener('click', () => { if (role !== 'client') beginRound()
 $('resume').addEventListener('click', () => pause(false));
 $('quit').addEventListener('click', toTitle);
 $('leave2').addEventListener('click', toTitle);
+$('boardbtn').addEventListener('click', () => openBoard());
+$('boardback').addEventListener('click', closeBoard);
 $('netok').addEventListener('click', toTitle);
 $('pausebtn').addEventListener('click', () => pause(true));
 $('dpause').addEventListener('click', () => { if ($('paused').hidden) pause(true); else pause(false); });
@@ -1255,6 +1334,7 @@ $('joinbtn').addEventListener('click', () => { saveName(); joinGame($('code').va
 $('code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.stopPropagation(); saveName(); joinGame($('code').value); } });
 $('pname').addEventListener('keydown', e => e.stopPropagation());
 function confirmAction() {
+  if (mode === 'title' && !$('board').hidden) { closeBoard(); return; }
   if (mode === 'title') { if (document.activeElement && document.activeElement.tagName === 'INPUT') return; saveName(); role = 'solo'; beginRound(); }
   else if (mode === 'level') choose(sel);
   else if (mode === 'lobby') { if (role === 'host') startGame(); }
@@ -1268,9 +1348,93 @@ const roster = new Map();   // everyone present in the room: id -> {id, name, ho
 function makeCode() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += A[(Math.random() * A.length) | 0]; return s; }
 
 // Supabase Realtime broadcast + presence
+let sbPromise = null;
+function supa() {
+  if (!sbPromise) sbPromise = import(SUPABASE_JS).then(m => m.createClient(SUPABASE_URL, SUPABASE_KEY, { realtime: { params: { eventsPerSecond: 40 } }, auth: { persistSession: false } }));
+  sbPromise.catch(() => { sbPromise = null; });
+  return sbPromise;
+}
+
+// ---------------------------------------------------------------- leaderboard (Supabase table "leaderboard")
+const withTimeout = (p, ms = 9000) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+const supaBoard = {
+  async submit(row) {
+    const sb = await withTimeout(supa());
+    const { error } = await withTimeout(sb.from('leaderboard').insert(row)); if (error) throw error;
+    const { count, error: e2 } = await withTimeout(sb.from('leaderboard').select('id', { count: 'exact', head: true }).eq('mode', row.mode).gt('seconds', row.seconds));
+    if (e2) throw e2;
+    return (count || 0) + 1;
+  },
+  async top(mode, n) {
+    const sb = await withTimeout(supa());
+    const { data, error } = await withTimeout(sb.from('leaderboard').select('name,seconds,kills,level,bosses,players,created_at').eq('mode', mode).order('seconds', { ascending: false }).order('created_at').limit(n));
+    if (error) throw error;
+    return data || [];
+  },
+};
+// stand-in kept in this browser, used with #local for testing
+const localBoard = {
+  rows() { try { return JSON.parse(localStorage.getItem('pestpanic-localboard') || '[]'); } catch (e) { return []; } },
+  async submit(row) { const r = this.rows(); r.push({ ...row, created_at: new Date().toISOString() }); try { localStorage.setItem('pestpanic-localboard', JSON.stringify(r)); } catch (e) {} return r.filter(o => o.mode === row.mode && o.seconds > row.seconds).length + 1; },
+  async top(mode, n) { return this.rows().filter(o => o.mode === mode).sort((a, b) => b.seconds - a.seconds).slice(0, n); },
+};
+const BOARD = () => location.hash === '#local' ? localBoard : supaBoard;
+const MIN_BOARD_SECS = 30;
+function boardError(e) {
+  const m = String(e && (e.message || e.code) || e);
+  if (/leaderboard|42P01|PGRST20/i.test(m) && !/timeout/.test(m)) return 'The leaderboard table isn\'t set up in Supabase yet.';
+  return 'Couldn\'t reach the leaderboard. It works on the online version at ilovefree1s.github.io/pest-panic';
+}
+function boardRows(rows, mine) {
+  if (!rows.length) return '<p class="sub">No times yet. Be the first!</p>';
+  let marked = false;
+  return '<ol class="lb">' + rows.map((r, i) => {
+    const me_ = !marked && mine && r.name === mine.name && r.seconds === mine.seconds; if (me_) marked = true;
+    return `<li class="${me_ ? 'me' : ''}"><span class="rk">${i + 1}</span><span class="nm">${esc(r.name)}</span><span class="tm">${fmt(r.seconds)}</span><span class="ks">${(r.kills || 0).toLocaleString()} bugs</span><span class="lv">LV ${r.level}</span></li>`;
+  }).join('') + '</ol>';
+}
+// game over: the host (or solo player) posts the run
+async function submitRun(st) {
+  S.boardRank = 0; S.boardMode = '';
+  if (role !== 'solo') return;   // the leaderboard is solo-only for now
+  const ps = S.players.slice(0, 4), team = ps.length > 1;
+  const row = { name: (team ? ps.map(p => p.name).join(' & ') : (me.name || 'Player')).slice(0, 60), mode: team ? 'team' : 'solo', players: ps.length,
+    seconds: Math.floor(st.t), kills: st.k | 0, level: st.lvl | 0, bosses: st.q | 0 };
+  S.boardMode = row.mode;
+  if (row.seconds < MIN_BOARD_SECS) { overBoard(row.mode, null, null, 'Survive at least 30 seconds to make the leaderboard.'); return; }
+  overBoard(row.mode, null, null, 'Saving your time…');
+  try {
+    const rank = await BOARD().submit(row);
+    S.boardRank = rank;
+    overBoard(row.mode, rank, row);
+  } catch (e) { overBoard(row.mode, null, null, boardError(e)); }
+}
+let overBoardKey = '';
+async function overBoard(bmode, rank, mine, note) {
+  const key = [bmode, rank, note].join('|'); if (key === overBoardKey) return; overBoardKey = key;
+  const el = $('oboard'); el.hidden = false;
+  const label = bmode === 'team' ? 'Team' : 'Solo';
+  if (note) { el.innerHTML = `<p class="sub">${esc(note)}</p>`; return; }
+  el.innerHTML = `<p class="rank">${rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] + ' ' : ''}#${rank} on the ${label} leaderboard!</p><p class="sub">Loading top times…</p>`;
+  try {
+    const rows = await BOARD().top(bmode, 5);
+    if (overBoardKey !== key) return;
+    el.innerHTML = `<p class="rank">${rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] + ' ' : ''}#${rank} on the ${label} leaderboard!</p>` + boardRows(rows, mine);
+  } catch (e) {}
+}
+// title screen: full board with Solo / Team tabs
+let boardTab = 'solo';
+async function openBoard(tab) {
+  boardTab = 'solo';
+  screen('board');
+  $('boardlist').innerHTML = '<p class="sub">Loading…</p>';
+  try { const rows = await BOARD().top(boardTab, 25); if (boardTab === tab || !tab) $('boardlist').innerHTML = boardRows(rows, null); }
+  catch (e) { $('boardlist').innerHTML = `<p class="sub">${esc(boardError(e))}</p>`; }
+}
+function closeBoard() { screen('title'); }
+
 async function supaNet(code, meta) {
-  const mod = await import(SUPABASE_JS);
-  const sb = mod.createClient(SUPABASE_URL, SUPABASE_KEY, { realtime: { params: { eventsPerSecond: 40 } }, auth: { persistSession: false } });
+  const sb = await supa();
   const ch = sb.channel('pest-' + code, { config: { broadcast: { self: false, ack: false }, presence: { key: me.id } } });
   const handlers = {};
   let presenceFn = () => {};
@@ -1413,18 +1577,18 @@ function sendSnapshot() {
   const r = Math.round;
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
-  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100)]);
+  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0]);
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 300); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
     t: +S.t.toFixed(2), lv: S.lvl, xp: S.xp, nd: S.need, k: S.kills, qn: S.queens, m: mode === 'pause' ? 'play' : mode,
     B, P, C, Q: S.bosses.map(q => [r(q.x * 10), r(q.z * 10), r(q.ang * 100), r(q.hp), r(q.max), q.n, q.flash > 0 ? 1 : 0, q.kind, q.state, q.tier, q.duo]),
-    S: S.shots.slice(0, 80).map(s => [s.kind === 'spray' ? 0 : s.kind === 'bomb' ? 1 : 2, r(s.x * 10), r(s.z * 10), r(s.vx * 10), r(s.vz * 10), r(s.ang * 100), r(s.life * 100), r(s.max * 100)]),
+    S: S.shots.slice(0, 80).map(s => [SHOT_KINDS.indexOf(s.kind), r(s.x * 10), r(s.z * 10), r(s.vx * 10), r(s.vz * 10), r(s.ang * 100), r(s.life * 100), r(s.max * 100)]),
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
     E: S.ebul.slice(0, 120).map(e => [e.k, r(e.x * 10), r(e.z * 10), r(e.vx * 10), r(e.vz * 10)]),
     ev: S.ev.splice(0, S.ev.length).slice(-120).map(e => e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)),
     R: S.round ? { n: S.round.n, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
-    st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills } : null,
+    st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, rk: S.boardRank || 0, bm: S.boardMode || '' } : null,
   };
   net.send('snap', snap);
 }
@@ -1504,6 +1668,7 @@ function pollPads() {
   else if (edge(0)) confirmAction();
   if (edge(9)) { if (mode === 'title' || mode === 'over' || mode === 'lobby') confirmAction(); else pause($('paused').hidden); }
   if (edge(1) && !$('paused').hidden) pause(false);
+  if (edge(1) && mode === 'title' && !$('board').hidden) closeBoard();
   padState.prev = btn;
   const on = list.length > 0, pad = $('pad');
   if (on || padState.seen) {

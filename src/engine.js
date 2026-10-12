@@ -499,6 +499,14 @@ GEO.spiderLegs = [[0.16, 0.5, 0.32, 0.95], [0.2, 0.5, 0.22, 0.35], [0.2, 0.5, 0.
 GEO.coin = (() => { const c = new THREE.CylinderGeometry(0.3, 0.3, 0.07, 22); c.rotateX(Math.PI / 2); return c; })();
 GEO.paper = (() => { const c = new THREE.CylinderGeometry(0.2, 0.2, 1.1, 14, 1, false); return c; })();
 GEO.glue = new THREE.BoxGeometry(1.3, 0.08, 1.3);
+// flip-flop: pink foam sole, lighter footbed, blue V strap (lies flat, toe toward +z)
+GEO.flip = merge([
+  P(new THREE.CylinderGeometry(0.5, 0.5, 0.12, 22), '#ff4f93', [0, 0, 0], [0, 0, 0], [0.56, 1, 1.05]),
+  P(new THREE.CylinderGeometry(0.46, 0.46, 0.03, 22), '#ffd3e6', [0, 0.07, 0], [0, 0, 0], [0.5, 1, 0.98]),
+  seg([0, 0.08, 0.3], [0.25, 0.16, -0.08], 0.045, 0.045, '#2b9cff', 6),
+  seg([0, 0.08, 0.3], [-0.25, 0.16, -0.08], 0.045, 0.045, '#2b9cff', 6),
+  P(sph(0.06), '#1e7fe0', [0, 0.1, 0.3]),
+]);
 
 // ---------------------------------------------------------------- materials for instanced things
 export const MAT = {
@@ -508,6 +516,7 @@ export const MAT = {
   coin: std({ color: '#f5c242', metalness: 1, roughness: 0.22, emissive: '#5a3a00', emissiveIntensity: 0.6, envMapIntensity: 1.4 }),
   coinBig: std({ color: '#ffd96a', metalness: 1, roughness: 0.18, emissive: '#8a5a00', emissiveIntensity: 1.0, envMapIntensity: 1.6 }),
   paper: [std({ map: TEX.paper, roughness: 0.8 }), std({ color: '#d7d2c2', roughness: 0.8 }), std({ color: '#d7d2c2', roughness: 0.8 })],
+  flip: std({ vertexColors: true, roughness: 0.55, envMapIntensity: 0.5 }),
   glue: (() => { const m = std({ color: '#e4e4df', roughness: 0.95, metalness: 0, envMapIntensity: 0.2 }); return [m, m, m, m, m, m]; })(),
 };
 
@@ -690,6 +699,28 @@ export function buildSwatter() {
   // the group's +z points away from the player: handle toward them, head out toward the bugs
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.9, 8), std({ color: '#f0ece2', roughness: 0.4 }));
   handle.rotation.x = Math.PI / 2; handle.position.z = -0.55; handle.castShadow = true; g.add(handle);
+  scene.add(g);
+  return g;
+}
+export function buildRoomba() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1, 0.3, 32), std({ color: '#2a2e34', metalness: 0.35, roughness: 0.35, envMapIntensity: 0.6 }));
+  body.position.y = 0.17; body.castShadow = true; g.add(body);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.78, 0.04, 32), std({ color: '#454c55', metalness: 0.5, roughness: 0.3 }));
+  top.position.y = 0.34; g.add(top);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.03, 6, 32), std({ color: '#9aa3ad', metalness: 0.8, roughness: 0.25 }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.36; g.add(ring);
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 16), std({ color: '#d7dbe0', roughness: 0.4 }));
+  btn.position.y = 0.37; g.add(btn);
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), std({ color: '#6dff7a', emissive: '#3cff55', emissiveIntensity: 1.1 }));
+  led.position.set(0, 0.37, 0.42); g.add(led);
+  const bump = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.02, 0.18, 24, 1, true, -Math.PI / 2, Math.PI), std({ color: '#111316', roughness: 0.7, side: THREE.DoubleSide }));
+  bump.position.y = 0.14; g.add(bump);
+  const brush = new THREE.Group();
+  for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.55), std({ color: '#c9b27a', roughness: 0.9 })); b.position.z = 0.26; const a = new THREE.Group(); a.rotation.y = k * Math.PI * 2 / 3; a.add(b); brush.add(a); }
+  brush.position.set(0.62, 0.03, 0.62); g.add(brush);
+  g.userData = { brush };
+  g.visible = false;
   scene.add(g);
   return g;
 }
