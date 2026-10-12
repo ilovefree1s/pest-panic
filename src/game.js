@@ -450,7 +450,7 @@ const MUSIC = (() => {
   const FILES = { game: 'music/game.mp3', boss: 'music/boss.mp3', menu: 'music/menu.mp3' };
   const FALLBACK = { boss: 'game', menu: 'game', game: null };
   const els = {}, ok = {}, cur = {};
-  let vol = 0.5, muted = false, unlocked = false;
+  let vol = 0.5, muted = false, unlocked = false, blocked = false, tried = false;
   try { const v = JSON.parse(localStorage.getItem('pestpanic-music') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
   const save = () => { try { localStorage.setItem('pestpanic-music', JSON.stringify({ vol, muted })); } catch (e) {} };
   function el(name) {
@@ -467,17 +467,22 @@ const MUSIC = (() => {
     return null;
   }
   return {
-    unlock() { unlocked = true; },
+    unlock() { unlocked = true; blocked = false; },
+    get blocked() { return blocked; },
     // called every frame with the situation ('menu' | 'game' | 'boss' | null) and how loud (0..1)
     update(dt, want, level = 1) {
-      if (!unlocked) return;
+      // before the first click we still try once: browsers allow it on sites you play often
+      if (!unlocked && (tried || blocked)) return;
       const track = want ? pick(want) : null;
       for (const name in els) {
         const a = els[name], target = name === track && !muted ? vol * level : 0;
         cur[name] += (target - cur[name]) * Math.min(1, dt * (target > cur[name] ? 1.2 : 2.2));   // gentle fades
         if (Math.abs(cur[name] - target) < 0.002) cur[name] = target;
         a.volume = Math.max(0, Math.min(1, cur[name]));
-        if (target > 0 && a.paused && ok[name] !== false) a.play().catch(() => {});
+        if (target > 0 && a.paused && ok[name] !== false && a.readyState >= 2) {
+          if (!unlocked) tried = true;
+          a.play().then(() => { unlocked = true; blocked = false; }).catch(() => { if (!unlocked) blocked = true; });
+        }
         else if (cur[name] === 0 && !a.paused) { a.pause(); if (name === 'boss') a.currentTime = 0; }
       }
     },
@@ -1964,6 +1969,8 @@ function frame(now) {
     const boss = ((role === 'client' ? CL.bosses : S && S.bosses) || []).length > 0;
     const want = idle() ? 'menu' : mode === 'over' || mode === 'join' ? null : boss ? 'boss' : 'game';
     MUSIC.update(dt, want, mode === 'pause' || !$('paused').hidden ? 0.45 : mode === 'level' ? 0.7 : 1);
+    const hint = MUSIC.blocked && !MUSIC.muted && mode === 'title';
+    if ($('tapsnd').hidden === hint) $('tapsnd').hidden = !hint;
   }
   if (!S) return;
   const fdt = mode === 'pause' ? 0 : dt;

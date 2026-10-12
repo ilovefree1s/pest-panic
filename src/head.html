@@ -171,6 +171,8 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 .volrow input{width:min(180px,40vw);accent-color:var(--gold)}
 .volrow b{min-width:52px;font-family:var(--display);color:var(--gold);letter-spacing:.04em}
 .volrow .btn.dark{font-size:14px;padding:7px 14px}
+.tapsnd{margin:0;font-weight:800;color:var(--dim);font-size:14px;animation:tapb 1.6s ease-in-out infinite}
+@keyframes tapb{50%{opacity:.45}}
 @media (prefers-reduced-motion:reduce){#banner,.card{transition:none}}
 </style>
 
@@ -210,6 +212,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
         <p class="status" id="netstatus"></p>
         <div class="split2"><button class="btn dark" id="boardbtn" type="button">🏆 Leaderboard</button><button class="btn dark" id="sndbtn" type="button">🔊 Sound on</button><button class="btn dark" id="musbtn" type="button">🎵 Music on</button></div>
       </div>
+      <p class="tapsnd" id="tapsnd" hidden>🔇 Click anywhere for music</p>
       <p class="best" id="best"></p>
       <p class="hint">Move with the stick, WASD / arrows, or a controller. Press M to mute. Your gear fires on its own. Grab coins to level up.</p>
     </div>
