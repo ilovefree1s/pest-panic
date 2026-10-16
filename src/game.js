@@ -25,7 +25,7 @@ const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f /
 const QUEEN_EVERY = 180, QUEEN_HP = 1000;
 const DIFF = 1.1;
 // backpack sprayer: a move you trigger yourself (Space / Cross / the button), once every 30 s
-const BP_CD = 30, BP_TIME = 3, BP_R = 11, BP_COS = Math.cos(0.62);   // a forward cone ~70° wide, 11 steps long   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
+const BP_CD = 30, BP_TIME = 3, BP_R = 14.3, BP_COS = Math.cos(0.62);   // a forward cone ~70° wide, 14 steps long   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
 // a different boss every 3 minutes; once all four are beaten they come back in king-and-queen pairs
 const BOSSES = [
   { id: 'roach', bug: 'Roach', name: 'ROACH QUEEN', title: 'Roach Queen', r: 3.2, spd: 4.2, shadow: 9, hp: 1, goo: [0.42, 0.24, 0.1] },
@@ -1054,7 +1054,7 @@ function backpackTick(p, dt) {
   if (p.down) { p.bp = 0; return; }
   if (p.bpT > 0) return;
   p.bpT = 0.2;
-  const dmg = (5 + 2.2 * S.minute + (p.up.str || 0)) * 0.2;   // toned down to 20% of the first version
+  const dmg = (5 + 2.2 * S.minute + (p.up.str || 0)) * 0.4;   // 40% of the first version
   const fx = Math.sin(p.face), fz = Math.cos(p.face);
   near(p.x, p.z, BP_R, b => {
     const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz) || 1;
@@ -1430,11 +1430,11 @@ function drawPlayer(p, dt, t) {
     // a pressurised spray: fast streams of droplets fanning out of the wand, with a light mist behind them
     const nx = p.x + Math.sin(p.face) * 1.0, nz = p.z + Math.cos(p.face) * 1.0;
     for (let k = 0; k < 36; k++) {
-      const a = p.face + (Math.random() - 0.5) * 1.2, sp = rand(20, 32), sx = Math.sin(a), sz = Math.cos(a);
+      const a = p.face + (Math.random() - 0.5) * 1.2, sp = rand(26, 42), sx = Math.sin(a), sz = Math.cos(a);
       FX.goo.spawn({ x: nx, y: 1.05, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
     }
     for (let k = 0; k < 4; k++) {   // bright streaks down the middle of the jet
-      const a = p.face + rand(-0.25, 0.25), sp = rand(26, 36);
+      const a = p.face + rand(-0.25, 0.25), sp = rand(34, 47);
       FX.glow.spawn({ x: nx, y: 1.05, z: nz, vx: Math.sin(a) * sp, vy: 0.6, vz: Math.cos(a) * sp, life: 0.3, s0: 0.35, s1: 0.15, c: [0.65, 0.95, 1.1], a0: 0.8, a1: 0 });
     }
     if (Math.random() < 0.6) { const a = p.face + rand(-0.5, 0.5), sp = rand(10, 16);
