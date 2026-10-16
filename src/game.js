@@ -280,7 +280,7 @@ function newPlayer(id, name, color) {
 function newWorld() {
   S = {
     t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], ebul: [], decals: [], nums: [], rings: [],
-    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, queen: null, bosses: [], bossKills: 0, bank: 0,
+    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 0.3, ringAt: 30, nextQueen: QUEEN_EVERY, queen: null, bosses: [], bossKills: 0, bank: 0,
     shake: 0, pendingLevels: 0, bugHp: [3, 2, 14], minute: -1, round: null, nextId: 1, ev: [], warned: false,
   };
   updateMinute();
@@ -660,8 +660,10 @@ function director(dt) {
   if (S.spawnT <= 0) {
     const ph = Math.min(14, Math.floor(S.t / 20));
     S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF;
-    const n = 1 + (ph >= 4 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
-    for (let i = 0; i < n; i++) spawnAround(pickType(), spawnRadius() + rand(0, 4));
+    const n = 1 + (ph >= 4 || S.t < 20 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
+    // the first 15 s spawn right at the screen edge so the opening isn't empty; after that, just off screen as normal
+    const sr = S.t < 15 ? rand(15, 19) : spawnRadius() + rand(0, 4);
+    for (let i = 0; i < n; i++) spawnAround(pickType(), sr);
   }
   if (S.t >= S.ringAt) {
     S.ringAt += 30;
@@ -1679,6 +1681,8 @@ function beginRound() {   // solo and host
   S.players.push(newPlayer(id, me.name || 'You', 0));
   if (role === 'host') for (const r of roster.values()) if (r.id !== id) addRemote(r.id, r.name);
   growArena(true);
+  // open with a handful of ants already in view at the screen edges, so there's something to squash right away
+  for (const p of S.players) for (let i = 0; i < 7; i++) { const a = i / 7 * TAU + rand(-0.3, 0.3), d = rand(11, 15); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
   mode = 'play'; lastHp = 100;
   enterGameUi(); banner("Squash 'em!");
 }
