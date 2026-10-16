@@ -665,7 +665,7 @@ function director(dt) {
   }
   if (!S.openWave2 && S.t >= 3) {
     S.openWave2 = true;
-    for (const p of alivePlayers()) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + Math.PI / 4 + rand(-0.4, 0.4); spawnBug(0, p.x + Math.cos(a) * rand(18, 22), p.z + Math.sin(a) * rand(18, 22), true); }
+    for (const p of alivePlayers()) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + Math.PI / 4 + rand(-0.4, 0.4); const d = spawnRadius() + rand(1, 4); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }   // off screen, like normal spawns
   }
   if (S.t >= S.ringAt) {
     S.ringAt += 30;
