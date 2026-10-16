@@ -588,7 +588,7 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   }
   const torso = mesh(new THREE.CapsuleGeometry(0.31, 0.38, 6, 14), suit); torso.position.y = 1.08; body.add(torso);
   // backpack sprayer: white tank, orange cap and pump handle, hose round to the wand
-  { const tankM = std({ color: '#f1f1ec', roughness: 0.45 }), orange = std({ color: '#ff7a1f', roughness: 0.45 });
+  { const tankM = std({ color: '#dcdcd6', roughness: 0.75, envMapIntensity: 0.35 }), orange = std({ color: '#ff7a1f', roughness: 0.45 });
     const tank = mesh(new THREE.CapsuleGeometry(0.22, 0.32, 6, 12), tankM); tank.scale.set(1.15, 1, 0.75); tank.position.set(0, 1.18, -0.42); body.add(tank);
     const capB = mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.08, 14), orange); capB.position.set(0, 1.62, -0.42); body.add(capB);
     const pump = mesh(new THREE.BoxGeometry(0.06, 0.34, 0.06), orange); pump.position.set(0.3, 1.12, -0.42); body.add(pump);
@@ -606,13 +606,13 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   // spray wand in the right hand
   // backpack sprayer gun: black trigger grip, long dark lance, brass nozzle
   const wand = new THREE.Group();
-  const gunM = std({ color: '#26282d', roughness: 0.5 }), lanceM = std({ color: '#5a6068', metalness: 0.7, roughness: 0.35 }), brass = std({ color: '#c9a24a', metalness: 0.9, roughness: 0.3 });
+  const gunM = std({ color: '#26282d', roughness: 0.5 }), lanceM = std({ color: '#4a4f56', metalness: 0.3, roughness: 0.6, envMapIntensity: 0.4 }), brass = std({ color: '#3a3d42', metalness: 0.2, roughness: 0.7, envMapIntensity: 0.3 });   // dull nozzle, no glare
   const grip = mesh(new THREE.BoxGeometry(0.09, 0.2, 0.14), gunM); grip.position.set(0, -0.04, 0); grip.rotation.x = 0.35; wand.add(grip);
   const valve = mesh(new THREE.BoxGeometry(0.1, 0.09, 0.22), gunM); valve.position.set(0, 0.06, 0.08); wand.add(valve);
   const trig = mesh(new THREE.BoxGeometry(0.03, 0.08, 0.03), std({ color: '#ff7a1f', roughness: 0.5 })); trig.position.set(0, -0.02, 0.1); wand.add(trig);
   const lance = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.95, 8), lanceM); lance.rotation.x = Math.PI / 2; lance.position.set(0, 0.06, 0.66); wand.add(lance);
   const noz = mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.1, 10), brass); noz.rotation.x = Math.PI / 2; noz.position.set(0, 0.06, 1.17); wand.add(noz);
-  wand.position.set(0, -0.55, 0.05); arms[1].add(wand);
+  wand.position.set(0, -0.55, 0.05); wand.rotation.x = 1.05; arms[1].add(wand);   // held low, pointing at the ground ahead
   // citronella candle in the other hand: a little tin bucket with a flame (only shown once you pick Citronella)
   const candle = new THREE.Group();
   const tin = mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.16, 14), std({ color: '#d9c27a', metalness: 0.6, roughness: 0.35 })); candle.add(tin);

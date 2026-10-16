@@ -1490,7 +1490,7 @@ function drawPlayer(p, dt, t) {
   L.walk += dt * spd * 0.9;
   const sw = Math.sin(L.walk * 1.6) * Math.min(1, spd / 8);
   u.legs[0].rotation.x = sw * 0.7; u.legs[1].rotation.x = -sw * 0.7;
-  u.arms[0].rotation.x = -sw * 0.6; u.arms[1].rotation.x = -1.1;
+  u.arms[0].rotation.x = -sw * 0.6; u.arms[1].rotation.x = -0.55;
   u.body.position.y = Math.abs(sw) * 0.06;
   L.body.rotation.z = p.down ? Math.PI / 2 : 0;
   L.body.position.y = p.down ? 0.4 : 0;
