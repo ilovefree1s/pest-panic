@@ -635,6 +635,7 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   const hose = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new V3(0.18, 0.86, -0.5), new V3(0.42, 0.62, -0.25), new V3(0.46, 0.68, 0.08)]), 12, 0.03, 6), black);
   body.add(hose);
   const tipMark = new THREE.Object3D(); tipMark.position.set(0, 0.06, 1.24); wand.add(tipMark);   // the very end of the nozzle
+  arms[1].rotation.order = 'YXZ';   // the spraying arm swings left/right at the shoulder first
   root.userData = { body, legs, arms, head, tank, candle, tip: tipMark };
   root.traverse(o => { if (o.isMesh) o.castShadow = true; });
   root.scale.setScalar(1.6);

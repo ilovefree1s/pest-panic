@@ -847,14 +847,19 @@ const SHOT_KINDS = ['spray', 'bomb', 'paper', 'flip'];
 function fire(p, kind, ang, spd, life, dmg, extra = {}) {
   S.shots.push({ kind, x: p.x + Math.sin(ang) * 0.8, z: p.z + Math.cos(ang) * 0.8, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, life, max: life, dmg, ang, spin: 0, ...extra });
 }
-// where the sprayer wand's nozzle is: low, in front of the player and off to his right hand
-function nozzle(p, f = p.face) { return [p.x + Math.sin(f) * 2.32 + Math.cos(f) * 0.61, p.z + Math.cos(f) * 2.32 - Math.sin(f) * 0.61]; }   // measured from the model
+const AIM_MAX = 1.05;
+const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
+const aimTwist = (face, aim) => Math.max(-AIM_MAX, Math.min(AIM_MAX, wrapA(aim - face)));
+// where the sprayer wand's nozzle is: the right shoulder, plus the wand (2.3 long) swung toward the aim (measured from the model)
+function nozzle(p, f = p.face, tw = p.tw || 0) { const a = f + tw; return [p.x + Math.cos(f) * 0.61 + Math.sin(a) * 2.32, p.z - Math.sin(f) * 0.61 + Math.cos(a) * 2.32]; }
 function weapons(p, dt) {
   const L = p.up, db = L.str;
   for (const k in p.cd) p.cd[k] -= dt;
   if (L.spray && p.cd.spray <= 0) {
     const i = L.spray - 1; p.cd.spray = W.spray.cd[i];
-    const [nx, nz] = nozzle(p), tgt = nearestBug(p, 22), ang = tgt ? Math.atan2(tgt.x - nx, tgt.z - nz) : p.face, n = W.spray.n[i];
+    const tgt = nearestBug(p, 22), aim0 = tgt ? Math.atan2(tgt.x - p.x, tgt.z - p.z) : p.face;
+    p.aim = aim0; p.aimT = 0.6; p.tw = aimTwist(p.face, aim0);
+    const [nx, nz] = nozzle(p), ang = tgt ? Math.atan2(tgt.x - nx, tgt.z - nz) : p.face + p.tw, n = W.spray.n[i];
     for (let k = 0; k < n; k++) fire(p, 'spray', ang + (k - (n - 1) / 2) * 0.29, 30, 0.8, W.spray.dmg[i] + db, { x: nx, z: nz });   // shots leave from the wand
     p.sprayPuff = 0.12;
   }
@@ -1157,6 +1162,7 @@ function step(dt) {
     }
     p.inv = Math.max(0, p.inv - dt); p.slow = Math.max(0, (p.slow || 0) - dt);
     p.bpCd = Math.max(0, (p.bpCd || 0) - dt);
+    p.aimT = Math.max(0, (p.aimT || 0) - dt); if (p.aimT <= 0) p.tw = (p.tw || 0) * Math.max(0, 1 - dt * 6);
     if (p.bp > 0) backpackTick(p, dt);
     if (!p.down) p.hp = Math.min(100, p.hp + dt * 0.4);
   }
@@ -1339,7 +1345,7 @@ function applySnapshot(s) {
   // players
   const ps = new Set();
   for (const r of s.P) {
-    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms, bpc] = r;
+    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms, bpc, tw] = r;
     ps.add(id);
     let p = CL.players.get(id);
     if (!p) { p = { id, name, color, x: x / 10, z: z / 10, face: face / 100, walk: 0, vx: 0, vz: 0, citroA: 0, sprayPuff: 0 }; CL.players.set(id, p); }
@@ -1349,6 +1355,7 @@ function applySnapshot(s) {
     if (flags & 4) p.sprayPuff = 0.12;
     p.slow = flags & 8 ? 0.2 : 0;
     p.bp = flags & 16 ? 0.3 : 0;
+    p.tw = (tw || 0) / 100;
     if (id !== me.id || (bpc || 0) > (p.bpCd || 0) + 1.5 || !bpc) p.bpCd = bpc || 0;
     if (bms) {
       if (!p.beams || p.beams.length !== bms.length) p.beams = bms.map(([bx, bz]) => ({ x: bx / 10, z: bz / 10 }));
@@ -1493,6 +1500,8 @@ function drawPlayer(p, dt, t) {
   const sw = Math.sin(L.walk * 1.6) * Math.min(1, spd / 8);
   u.legs[0].rotation.x = sw * 0.7; u.legs[1].rotation.x = -sw * 0.7;
   u.arms[0].rotation.x = -sw * 0.6; u.arms[1].rotation.x = -0.55;
+  L.tw = (L.tw || 0) + ((p.tw || 0) - (L.tw || 0)) * Math.min(1, dt * 12);
+  u.arms[1].rotation.y = L.tw; u.head.rotation.y = L.tw * 0.7;
   u.body.position.y = Math.abs(sw) * 0.06;
   L.body.rotation.z = p.down ? Math.PI / 2 : 0;
   L.body.position.y = p.down ? 0.4 : 0;
@@ -1507,7 +1516,7 @@ function drawPlayer(p, dt, t) {
   if ((p.slow || 0) > 0) B.ring.add(p.x, 0.07, p.z, 2.6, t * 2, 1, 1, 1, 0.6);
   if ((p.sprayPuff || 0) > 0) {
     p.sprayPuff -= dt;
-    const [wx, wz] = nozzle(p, L.body.rotation.y);
+    const [wx, wz] = nozzle(p, L.body.rotation.y, L.tw || 0);
     FX.smoke.spawn({ x: wx, y: 0.5, z: wz, vx: Math.sin(p.face) * 4, vz: Math.cos(p.face) * 4, life: 0.25, s0: 0.12, s1: 0.36, c: [0.9, 1, 1], a0: 0.5, a1: 0 });
   }
   // swatters
@@ -1522,7 +1531,7 @@ function drawPlayer(p, dt, t) {
   // backpack sprayer cloud
   if (p.bp > 0 && !p.down) {
     // a pressurised spray: fast streams of droplets fanning out of the wand, with a light mist behind them
-    const [nx, nz] = nozzle(p, L.body.rotation.y);
+    const [nx, nz] = nozzle(p, L.body.rotation.y, L.tw || 0);
     for (let k = 0; k < 36; k++) {
       const a = p.face + (Math.random() - 0.5) * 1.2, sp = rand(26, 42), sx = Math.sin(a), sz = Math.cos(a);
       FX.goo.spawn({ x: nx, y: 0.5, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
@@ -2169,7 +2178,7 @@ function sendSnapshot() {
   const r = Math.round;
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
-  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0) | (p.bp > 0 ? 16 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0, Math.ceil(p.bpCd || 0)]);
+  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0) | (p.bp > 0 ? 16 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0, Math.ceil(p.bpCd || 0), Math.round((p.tw || 0) * 100)]);
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 400); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
