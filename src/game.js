@@ -1054,7 +1054,7 @@ function backpackTick(p, dt) {
   if (p.down) { p.bp = 0; return; }
   if (p.bpT > 0) return;
   p.bpT = 0.2;
-  const dmg = (5 + 2.2 * S.minute + (p.up.str || 0)) * 1.0;
+  const dmg = (5 + 2.2 * S.minute + (p.up.str || 0)) * 0.2;   // toned down to 20% of the first version
   const fx = Math.sin(p.face), fz = Math.cos(p.face);
   near(p.x, p.z, BP_R, b => {
     const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz) || 1;
