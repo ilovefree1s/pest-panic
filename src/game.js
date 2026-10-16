@@ -128,7 +128,7 @@ const W = {
   bomb: { cd: [170, 150, 130, 110, 90].map(f => f / 60), n: [8, 10, 12, 14, 16] },
   zap: { cd: [110, 95, 80, 70, 60].map(f => f / 60), n: [1, 2, 2, 3, 4], dmg: [10, 10, 14, 16, 20] },
   glue: { cd: [110, 95, 80, 70, 60].map(f => f / 60), dmg: [12, 16, 20, 26, 32], r: [3.5, 4, 4.5, 5, 5.75] },
-  citro: { r: [6.5, 8, 9.5, 11, 12.5], dmg: [4, 6, 6, 8, 10],   // ring size and damage doubled
+  citro: { r: [4.9, 6, 7.1, 8.25, 9.4], dmg: [4, 6, 6, 8, 10],   // ring 1.5x and damage 2x the original
     tick: [30, 26, 22, 20, 16].map(f => f / 60) },
   paper: { cd: [80, 70, 60, 50, 40].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [10, 12, 14, 18, 22] },
   vac: [4.5, 7, 10, 14],
@@ -1580,13 +1580,14 @@ function drawPlayer(p, dt, t) {
   if (up.citro && !p.down) {
     const R = W.citro.r[up.citro - 1];
     p.citroA = (p.citroA || 0) + dt * 1.6;
-    const nf = Math.round(R * 2.2);
+    // flames are drawn fixed to the ring every frame (no leftover particles), so the ring stays crisp while you move
+    const nf = Math.round(R * 2.6), fl = 1 + (p.citroFlash || 0) * 0.35;
     for (let k = 0; k < nf; k++) {
-      if (Math.random() > dt * 14) continue;
-      const a = p.citroA + k / nf * TAU + rand(-0.1, 0.1);
-      FX.fire.spawn({ x: p.x + Math.cos(a) * R, y: 0.4, z: p.z + Math.sin(a) * R, vy: rand(1.5, 3), life: rand(0.35, 0.55), s0: rand(0.6, 0.9), s1: 0.2, c: [1, 0.55, 0.15], a0: 1, a1: 0 });
+      const a = p.citroA + k / nf * TAU, w = Math.sin(t * 13 + k * 2.3) * 0.5 + 0.5;
+      B.fire.add(p.x + Math.cos(a) * R, 0.55 + w * 0.2, p.z + Math.sin(a) * R, (1.0 + w * 0.5) * fl, 0, 1.2, 0.6, 0.18, 1);
+      if (k % 2 === 0) B.glow.add(p.x + Math.cos(a) * R, 0.3, p.z + Math.sin(a) * R, 1.6, 0, 1, 0.45, 0.1, 0.35);
     }
-    B.ring.add(p.x, 0.05, p.z, R * 2.25, p.citroA, 1, 0.5, 0.12, 0.35 + (p.citroFlash || 0) * 0.5);
+    B.ring.add(p.x, 0.05, p.z, R * 2.25, p.citroA, 1, 0.5, 0.12, 0.55 + (p.citroFlash || 0) * 0.45);
   }
   if (p.id === me.id && up.vac && mode === 'play') B.ring.add(p.x, 0.04, p.z, W.vac[up.vac] * 2, 0, 0.25, 0.5, 0.7, 0.12);
 }
