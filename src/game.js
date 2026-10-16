@@ -284,7 +284,7 @@ function newPlayer(id, name, color) {
 }
 function newWorld() {
   S = {
-    t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], ebul: [], decals: [], nums: [], rings: [],
+    t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], clouds: [], ebul: [], decals: [], nums: [], rings: [],
     lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, nextNest: QUEEN_EVERY / 2, nestN: 0, nest: null, freePicks: 0, queen: null, bosses: [], bossKills: 0, bank: 0,
     shake: 0, pendingLevels: 0, bugHp: [3, 2, 14], minute: -1, round: null, nextId: 1, ev: [], warned: false,
   };
@@ -866,7 +866,7 @@ function weapons(p, dt) {
   if (L.bomb && p.cd.bomb <= 0) {
     const i = L.bomb - 1; p.cd.bomb = W.bomb.cd[i];
     const n = W.bomb.n[i], off = Math.random() * TAU;
-    for (let k = 0; k < n; k++) fire(p, 'bomb', off + k / n * TAU, 22.5, 0.75, 3 + db);
+    for (let k = 0; k < n; k++) fire(p, 'bomb', off + k / n * TAU, 22.5, 0.75, 3 + db, { lv: i, db });
     ev(['b', p.x, p.z]);
   }
   if (L.paper && p.cd.paper <= 0) {
@@ -989,6 +989,21 @@ function roomba(p, dt, i, db) {
     if (S.nest && dist2(S.nest.x, S.nest.z, rb.x, rb.z) < (R + 2.2) ** 2) hitBug(S.nest, dmg);
   }
 }
+// bug bomb fog clouds: hurt everything inside every half second for 3 s
+function updateClouds(dt) {
+  const keep = [];
+  for (const c of S.clouds) {
+    c.life -= dt; c.tick -= dt;
+    if (c.life <= 0) continue;
+    if (c.tick <= 0) {
+      c.tick = 0.5;
+      near(c.x, c.z, c.r, b => { if (dist2(b.x, b.z, c.x, c.z) < c.r * c.r) hitBug(b, c.dmg); });
+      for (const q of S.bosses) if (dist2(q.x, q.z, c.x, c.z) < (c.r + BR(q)) ** 2) hitQueen(c.dmg, c.x, c.z, q);
+    }
+    keep.push(c);
+  }
+  S.clouds = keep;
+}
 function updateShots(dt) {
   const keep = [];
   for (const s of S.shots) {
@@ -1022,6 +1037,7 @@ function updateShots(dt) {
       }
     }
     if (!dead) keep.push(s);
+    else if (s.kind === 'bomb' && S.clouds.length < 40) S.clouds.push({ x: s.x, z: s.z, r: 2.2 + 0.3 * (s.lv || 0), life: 3, max: 3, tick: 0, dmg: 2 + 0.5 * (s.lv || 0) + (s.db || 0) });   // fog lingers where each puff ends
   }
   S.shots = keep;
   const tk = [];
@@ -1171,6 +1187,7 @@ function step(dt) {
   updateBugs(dt);
   for (const p of S.players) if (!p.down) weapons(p, dt);
   updateShots(dt);
+  updateClouds(dt);
   updateQueen(dt);
   updateCoins(dt);
   if (S.pendingLevels > 0 && mode === 'play') startLevelRound();
@@ -1377,6 +1394,7 @@ function applySnapshot(s) {
   CL.coins = [];
   for (let i = 0; i < s.C.length; i += 3) CL.coins.push({ x: s.C[i] / 10, z: s.C[i + 1] / 10, big: !!s.C[i + 2], y: 0.45, t: (i * 0.37) + now / 250 });
   CL.shots = s.S.map(r => ({ kind: SHOT_KINDS[r[0]], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10, ang: r[5] / 100, spin: Math.random() * 6, life: r[6] / 100, max: r[7] / 100 }));
+  CL.clouds = (s.K || []).map(k => ({ x: k[0] / 10, z: k[1] / 10, r: k[2] / 10, life: k[3] / 10, max: 3 }));
   CL.traps = s.T.map(r => ({ x: r[0] / 10, z: r[1] / 10, rot: r[2] / 100, life: r[3] / 10, drop: 0 }));
   CL.ebul = s.E.map(r => ({ k: r[0], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10 }));
   for (const e of s.ev) playEvent(e);
@@ -1659,6 +1677,13 @@ function drawWorld(t, dt) {
   }
   IM.paper.count = pi; IM.paper.instanceMatrix.needsUpdate = true;
   IM.flip.count = fi; IM.flip.instanceMatrix.needsUpdate = true;
+  // bug bomb clouds
+  for (const c of (role === 'client' ? CL.clouds || [] : S.clouds)) {
+    const f = Math.min(1, c.life / 0.6) * Math.min(1, (c.max - c.life) / 0.25 + 0.3);
+    B.smoke.add(c.x, 0.6, c.z, c.r * 2.4, t * 0.4 + c.x, 0.55, 0.78, 0.45, 0.32 * f);
+    B.smoke.add(c.x, 1.0, c.z, c.r * 1.7, -t * 0.6 + c.z, 0.62, 0.85, 0.5, 0.26 * f);
+    if (Math.random() < dt * 4) FX.smoke.spawn({ x: c.x + rand(-c.r, c.r) * 0.6, y: 0.5, z: c.z + rand(-c.r, c.r) * 0.6, vy: 0.4, life: 1.0, s0: 0.8, s1: 2.2, c: [0.55, 0.78, 0.45], a0: 0.3 * f, a1: 0 });
+  }
   let gi = 0;
   for (const tr of (role === 'client' ? CL.traps : S.traps)) {
     if (gi >= 60) break;
@@ -2185,6 +2210,7 @@ function sendSnapshot() {
     t: +S.t.toFixed(2), A: ARENA, lv: S.lvl, xp: S.xp, nd: S.need, k: S.kills, qn: S.queens, m: mode === 'pause' ? 'play' : mode,
     B, P, C, Q: S.bosses.map(q => [r(q.x * 10), r(q.z * 10), r(q.ang * 100), r(q.hp), r(q.max), q.n, q.flash > 0 ? 1 : 0, q.kind, q.state, q.tier, q.duo]),
     S: S.shots.slice(0, 80).map(s => [SHOT_KINDS.indexOf(s.kind), r(s.x * 10), r(s.z * 10), r(s.vx * 10), r(s.vz * 10), r(s.ang * 100), r(s.life * 100), r(s.max * 100)]),
+    K: S.clouds.map(c => [r(c.x * 10), r(c.z * 10), r(c.r * 10), r(c.life * 10)]),
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
     E: S.ebul.slice(0, 120).map(e => [e.k, r(e.x * 10), r(e.z * 10), r(e.vx * 10), r(e.vz * 10)]),
     ev: S.ev.splice(0, S.ev.length).slice(-120).map(e => e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)),
