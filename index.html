@@ -246,7 +246,7 @@ body.menu #ver{display:block}
       <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="6" y="12" width="18" height="27" rx="6" fill="#f1f1ec"/><rect x="10" y="8" width="10" height="5" rx="2" fill="#ff7a1f"/><rect x="5" y="37" width="20" height="5" rx="2" fill="#ff7a1f"/><path d="M22 36c6 3 9 0 10-3" stroke="#1c1d22" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M30 35L41 16" stroke="#c6ccd4" stroke-width="3" stroke-linecap="round"/><rect x="27" y="31" width="6" height="7" rx="2" transform="rotate(30 30 34.5)" fill="#1c1d22"/><path d="M40 18l3-5" stroke="#f2c53d" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="8" r="2.4" fill="#bfefff" opacity=".85"/><circle cx="41" cy="5" r="1.8" fill="#bfefff" opacity=".65"/><circle cx="47" cy="3" r="1.5" fill="#bfefff" opacity=".5"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
-    <div id="ver">v1.15</div>
+    <div id="ver">v1.16</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -279,7 +279,7 @@ body.menu #ver{display:block}
       <div class="volrow"><span>Music</span><input type="range" id="mvol" min="0" max="100" step="5" aria-label="Music volume"><b id="mvolv"></b><button class="btn dark" id="mmutebtn" type="button">Turn off</button></div>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
-      <p class="hint pver">Pest Panic v1.15</p>
+      <p class="hint pver">Pest Panic v1.16</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -2121,13 +2121,15 @@ const SHOT_KINDS = ['spray', 'bomb', 'paper', 'flip'];
 function fire(p, kind, ang, spd, life, dmg, extra = {}) {
   S.shots.push({ kind, x: p.x + Math.sin(ang) * 0.8, z: p.z + Math.cos(ang) * 0.8, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, life, max: life, dmg, ang, spin: 0, ...extra });
 }
+// where the sprayer wand's nozzle is: low, in front of the player and off to his right hand
+function nozzle(p, f = p.face) { return [p.x + Math.sin(f) * 1.75 + Math.cos(f) * 0.6, p.z + Math.cos(f) * 1.75 - Math.sin(f) * 0.6]; }
 function weapons(p, dt) {
   const L = p.up, db = L.str;
   for (const k in p.cd) p.cd[k] -= dt;
   if (L.spray && p.cd.spray <= 0) {
     const i = L.spray - 1; p.cd.spray = W.spray.cd[i];
-    const tgt = nearestBug(p, 22), ang = tgt ? Math.atan2(tgt.x - p.x, tgt.z - p.z) : p.face, n = W.spray.n[i];
-    for (let k = 0; k < n; k++) fire(p, 'spray', ang + (k - (n - 1) / 2) * 0.29, 30, 0.8, W.spray.dmg[i] + db);
+    const [nx, nz] = nozzle(p), tgt = nearestBug(p, 22), ang = tgt ? Math.atan2(tgt.x - nx, tgt.z - nz) : p.face, n = W.spray.n[i];
+    for (let k = 0; k < n; k++) fire(p, 'spray', ang + (k - (n - 1) / 2) * 0.29, 30, 0.8, W.spray.dmg[i] + db, { x: nx, z: nz });   // shots leave from the wand
     p.sprayPuff = 0.12;
   }
   if (L.bomb && p.cd.bomb <= 0) {
@@ -2779,8 +2781,8 @@ function drawPlayer(p, dt, t) {
   if ((p.slow || 0) > 0) B.ring.add(p.x, 0.07, p.z, 2.6, t * 2, 1, 1, 1, 0.6);
   if ((p.sprayPuff || 0) > 0) {
     p.sprayPuff -= dt;
-    const r = L.body.rotation.y, wx = p.x + Math.sin(r) * 2.0 + Math.cos(r) * 0.6, wz = p.z + Math.cos(r) * 2.0 - Math.sin(r) * 0.6;
-    FX.smoke.spawn({ x: wx, y: 1.3, z: wz, vx: Math.sin(p.face) * 4, vz: Math.cos(p.face) * 4, life: 0.25, s0: 0.3, s1: 0.9, c: [0.9, 1, 1], a0: 0.5, a1: 0 });
+    const [wx, wz] = nozzle(p, L.body.rotation.y);
+    FX.smoke.spawn({ x: wx, y: 0.7, z: wz, vx: Math.sin(p.face) * 4, vz: Math.cos(p.face) * 4, life: 0.25, s0: 0.3, s1: 0.9, c: [0.9, 1, 1], a0: 0.5, a1: 0 });
   }
   // swatters
   const up = p.up || {}, ns = up.swat ? W.swat.n[up.swat - 1] : 0;
@@ -2794,17 +2796,17 @@ function drawPlayer(p, dt, t) {
   // backpack sprayer cloud
   if (p.bp > 0 && !p.down) {
     // a pressurised spray: fast streams of droplets fanning out of the wand, with a light mist behind them
-    const nx = p.x + Math.sin(p.face) * 1.0, nz = p.z + Math.cos(p.face) * 1.0;
+    const [nx, nz] = nozzle(p, L.body.rotation.y);
     for (let k = 0; k < 36; k++) {
       const a = p.face + (Math.random() - 0.5) * 1.2, sp = rand(26, 42), sx = Math.sin(a), sz = Math.cos(a);
-      FX.goo.spawn({ x: nx, y: 1.05, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
+      FX.goo.spawn({ x: nx, y: 0.75, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
     }
     for (let k = 0; k < 4; k++) {   // bright streaks down the middle of the jet
       const a = p.face + rand(-0.25, 0.25), sp = rand(34, 47);
-      FX.glow.spawn({ x: nx, y: 1.05, z: nz, vx: Math.sin(a) * sp, vy: 0.6, vz: Math.cos(a) * sp, life: 0.3, s0: 0.35, s1: 0.15, c: [0.65, 0.95, 1.1], a0: 0.8, a1: 0 });
+      FX.glow.spawn({ x: nx, y: 0.75, z: nz, vx: Math.sin(a) * sp, vy: 0.6, vz: Math.cos(a) * sp, life: 0.3, s0: 0.35, s1: 0.15, c: [0.65, 0.95, 1.1], a0: 0.8, a1: 0 });
     }
     if (Math.random() < 0.6) { const a = p.face + rand(-0.5, 0.5), sp = rand(10, 16);
-      FX.smoke.spawn({ x: nx, y: 1, z: nz, vx: Math.sin(a) * sp, vy: 0.3, vz: Math.cos(a) * sp, life: 0.6, s0: 0.4, s1: 1.6, c: [0.82, 0.95, 0.95], a0: 0.25, a1: 0, drag: 2 }); }
+      FX.smoke.spawn({ x: nx, y: 0.75, z: nz, vx: Math.sin(a) * sp, vy: 0.3, vz: Math.cos(a) * sp, life: 0.6, s0: 0.4, s1: 1.6, c: [0.82, 0.95, 0.95], a0: 0.25, a1: 0, drag: 2 }); }
   }
   // spray hiss when a puff starts
   if (p.sprayPuff > 0 && !L.puffing) SND.play('spray', p.id === me.id);
