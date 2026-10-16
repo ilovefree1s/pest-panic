@@ -26,8 +26,8 @@ const BUG = [
 const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f / 60);
 const QUEEN_EVERY = 180, QUEEN_HP = 1000;
 const DIFF = 1.1;
-// backpack sprayer: a move you trigger yourself (Space / Cross / the button), once every 30 s
-const BP_CD = 30, BP_TIME = 3, BP_R = 14.3, BP_COS = Math.cos(0.62);   // a forward cone ~70° wide, 14 steps long   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
+// backpack sprayer: a move you trigger yourself (Space / Cross / the button), once every 40 s
+const BP_CD = 40, BP_TIME = 3, BP_R = 14.3, BP_COS = Math.cos(0.62);   // a forward cone ~70° wide, 14 steps long   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
 // a different boss every 3 minutes; once all four are beaten they come back in king-and-queen pairs
 const BOSSES = [
   { id: 'roach', bug: 'Roach', name: 'ROACH QUEEN', title: 'Roach Queen', r: 3.2, spd: 4.2, shadow: 9, hp: 1, goo: [0.42, 0.24, 0.1] },
