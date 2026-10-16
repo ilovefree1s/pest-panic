@@ -1792,7 +1792,7 @@ function beginRound() {   // solo and host
   if (role === 'host') for (const r of roster.values()) if (r.id !== id) addRemote(r.id, r.name);
   growArena(true);
   // open with a handful of ants already in view at the screen edges, so there's something to squash right away
-  for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(13, 16); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
+  for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
   mode = 'play'; lastHp = 100;
   enterGameUi(); banner("Squash 'em!");
 }
