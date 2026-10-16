@@ -218,6 +218,9 @@ body.menu #deck{display:none!important}
 #abil.ready{animation:abilpulse 1.4s ease-in-out infinite}
 @keyframes abilpulse{50%{box-shadow:0 0 0 6px rgba(125,220,90,.25),0 6px 16px rgba(0,0,0,.45)}}
 #abil.indeck{position:relative;left:auto;bottom:auto;transform:none;width:70px;height:70px;flex:none}
+#ver{position:absolute;right:10px;bottom:8px;z-index:30;pointer-events:none;font:800 12px var(--body,system-ui);color:rgba(255,255,255,.45);letter-spacing:.04em;display:none}
+body.menu #ver{display:block}
+.pver{margin:0;opacity:.6;font-size:12px}
 @media (prefers-reduced-motion:reduce){#banner,.card{transition:none}}
 </style>
 
@@ -243,6 +246,7 @@ body.menu #deck{display:none!important}
       <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="6" y="12" width="18" height="27" rx="6" fill="#f1f1ec"/><rect x="10" y="8" width="10" height="5" rx="2" fill="#ff7a1f"/><rect x="5" y="37" width="20" height="5" rx="2" fill="#ff7a1f"/><path d="M22 36c6 3 9 0 10-3" stroke="#1c1d22" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M30 35L41 16" stroke="#c6ccd4" stroke-width="3" stroke-linecap="round"/><rect x="27" y="31" width="6" height="7" rx="2" transform="rotate(30 30 34.5)" fill="#1c1d22"/><path d="M40 18l3-5" stroke="#f2c53d" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="8" r="2.4" fill="#bfefff" opacity=".85"/><circle cx="41" cy="5" r="1.8" fill="#bfefff" opacity=".65"/><circle cx="47" cy="3" r="1.5" fill="#bfefff" opacity=".5"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
+    <div id="ver">v1.0</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -275,6 +279,7 @@ body.menu #deck{display:none!important}
       <div class="volrow"><span>Music</span><input type="range" id="mvol" min="0" max="100" step="5" aria-label="Music volume"><b id="mvolv"></b><button class="btn dark" id="mmutebtn" type="button">Turn off</button></div>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
+      <p class="hint pver">Pest Panic v1.0</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -3413,6 +3418,7 @@ function frame(now) {
     const key = (ready ? 'r' : Math.ceil(cd)) + (padState.seen ? 'p' : '');
     if (ab.dataset.k !== key) { ab.dataset.k = key; ab.classList.toggle('ready', !!ready); $('abilt').textContent = ready ? (IS_TOUCH ? 'TAP' : padState.seen ? 'X / R1' : 'SPACE') : Math.ceil(cd) + 's'; }
     ab.style.setProperty('--p', (1 - cd / BP_CD).toFixed(3));
+    const hideAb = !$('paused').hidden || mode === 'level'; if ((ab.style.visibility === 'hidden') !== hideAb) ab.style.visibility = hideAb ? 'hidden' : '';
   }
   if (mm.classList.contains('indeck')) mm.style.visibility = $('hud').hidden ? 'hidden' : '';
   {

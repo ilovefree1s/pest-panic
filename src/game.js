@@ -2182,6 +2182,7 @@ function frame(now) {
     const key = (ready ? 'r' : Math.ceil(cd)) + (padState.seen ? 'p' : '');
     if (ab.dataset.k !== key) { ab.dataset.k = key; ab.classList.toggle('ready', !!ready); $('abilt').textContent = ready ? (IS_TOUCH ? 'TAP' : padState.seen ? 'X / R1' : 'SPACE') : Math.ceil(cd) + 's'; }
     ab.style.setProperty('--p', (1 - cd / BP_CD).toFixed(3));
+    const hideAb = !$('paused').hidden || mode === 'level'; if ((ab.style.visibility === 'hidden') !== hideAb) ab.style.visibility = hideAb ? 'hidden' : '';
   }
   if (mm.classList.contains('indeck')) mm.style.visibility = $('hud').hidden ? 'hidden' : '';
   {
