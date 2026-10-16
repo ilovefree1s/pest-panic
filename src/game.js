@@ -66,6 +66,7 @@ const UP = [
   { id: 'flip', name: 'Flip-Flop', max: 5, d: 'A boomerang sandal.', up: 'More sandals, harder hits.' },
   { id: 'roomba', name: 'Roomba', max: 5, d: 'A robot vacuum hunts bugs.', up: 'Faster, stronger, wider.' },
   { id: 'lens', name: 'Magnifying Glass', max: 5, d: 'A sunbeam burns bugs.', up: 'Hotter, bigger, faster.' },
+  { id: 'boots', name: 'Rubber Boots', max: 3, d: 'Take less damage.', up: 'Take even less.' },
   { id: 'shoes', name: 'Sneakers', max: 3, d: 'Move faster.', up: 'Even faster.' },
   { id: 'vac', name: 'Shop Vac', max: 3, d: 'Pulls coins in from farther away.', up: 'Longer reach.' },
   { id: 'str', name: 'Exterminator License', max: 3, d: 'All damage +1.', up: 'All damage +1.' },
@@ -83,6 +84,7 @@ const HOW = {
   flip: 'Throws a flip-flop at the nearest bug. It flies out through every bug in its path, then spins back to you and hits them all again.',
   roomba: 'A robot vacuum drives around near you hunting bugs, sucking up and bumping everything it rolls over. You only get one, but every level makes it faster, stronger and bigger.',
   lens: 'A magnifying glass floats over you and focuses a sunbeam into a white-hot dot that hunts the toughest bugs nearby. Great on spiders and bosses.',
+  boots: 'Thick rubber boots. Bites, stings, goo and boss hits all hurt you less.',
   shoes: 'You move faster.',
   vac: 'Coins fly to you from farther away.',
   str: 'You\'re a licensed pro now. Every weapon you have does 1 more damage.',
@@ -104,6 +106,7 @@ function stats(id, L, p) {
     case 'flip': return [['Flip-flops', v(() => W.flip.n[i])], ['Damage', v(() => W.flip.dmg[i] + s)], ['Every', v(() => sec(W.flip.cd[i]))]];
     case 'roomba': return [['Damage', v(() => W.roomba.dmg[i] + s)], ['Speed', v(() => W.roomba.spd[i])], ['Suction size', v(() => W.roomba.r[i].toFixed(1))]];
     case 'lens': return [['Burn damage', v(() => W.lens.dmg[i] + s + '/tick')], ['Dot size', v(() => W.lens.r[i].toFixed(1))], ['Beams', v(() => W.lens.n[i])]];
+    case 'boots': return [['Damage taken', L ? '-' + L * 12 + '%' : 'normal']];
     case 'shoes': return [['Speed', Math.round(100 + L * 25) + '%']];
     case 'vac': return [['Coin reach', W.vac[L].toFixed(1)]];
     case 'str': return [['Bonus damage', '+' + L]];
@@ -118,7 +121,7 @@ function cardHtml(u, p, i) {
   const b = u.id === 'aid' ? [['Health', Math.min(100, Math.ceil(p.hp) + 50)]] : stats(u.id, next, p);
   const rows = b.map((row, k) => {
     const from = a[k] ? a[k][1] : '—', to = row[1], changed = String(from) !== String(to);
-    return `<li><span>${row[0]}</span><b class="${changed ? 'up' : ''}">${l === 0 && u.id !== 'aid' && u.id !== 'shoes' && u.id !== 'vac' && u.id !== 'str' ? to : (changed ? from + ' → ' + to : to)}</b></li>`;
+    return `<li><span>${row[0]}</span><b class="${changed ? 'up' : ''}">${l === 0 && u.id !== 'aid' && !['shoes', 'vac', 'str', 'boots'].includes(u.id) ? to : (changed ? from + ' → ' + to : to)}</b></li>`;
   }).join('');
   return `<button class="card${i === 0 ? ' sel' : ''}" data-i="${i}" type="button"><span class="ic">${ICON[u.id]}</span><span><small>${tag}</small><b>${u.name}</b></span><p>${HOW[u.id]}</p><ul class="st">${rows}</ul></button>`;
 }
@@ -148,6 +151,7 @@ const ICON = {
   flip: '<svg viewBox="0 0 48 48"><ellipse cx="24" cy="25" rx="11" ry="19" fill="#ff4f93"/><ellipse cx="24" cy="25" rx="9" ry="16.5" fill="#ffd3e6"/><path d="M24 12l-8 17M24 12l8 17" stroke="#2b9cff" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="12" r="2.4" fill="#1e7fe0"/><path d="M41 9a12 12 0 0 1-3 13" stroke="#fff" stroke-width="2" fill="none" stroke-dasharray="3 3"/></svg>',
   lens: '<svg viewBox="0 0 48 48"><circle cx="19" cy="19" r="13" fill="#cfeaff" opacity=".55"/><circle cx="19" cy="19" r="13" fill="none" stroke="#c9a24a" stroke-width="4"/><path d="M13 12a8 8 0 0 1 8-3" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/><rect x="30" y="28" width="7" height="17" rx="3" transform="rotate(-45 33 36)" fill="#7a4a24"/><circle cx="40" cy="42" r="3" fill="#ffd36a"/><circle cx="40" cy="42" r="6" fill="#ffd36a" opacity=".35"/></svg>',
   roomba: '<svg viewBox="0 0 48 48"><circle cx="24" cy="25" r="19" fill="#2a2e34"/><path d="M5 25a19 19 0 0 1 38 0" stroke="#111316" stroke-width="4" fill="none"/><circle cx="24" cy="25" r="13" fill="#454c55"/><circle cx="24" cy="25" r="11" fill="none" stroke="#9aa3ad" stroke-width="1.5"/><circle cx="24" cy="25" r="3.5" fill="#d7dbe0"/><circle cx="24" cy="15" r="1.6" fill="#6dff7a"/><path d="M36 11l4-4M38 13l5-1M35 9l1-5" stroke="#c9b27a" stroke-width="1.6"/></svg>',
+  boots: '<svg viewBox="0 0 48 48"><path d="M12 6h14v22l12 4c3 1 4 3 4 6v4H8V10a4 4 0 0 1 4-4z" fill="#ffcf4a"/><rect x="8" y="38" width="34" height="5" rx="2" fill="#7a5a10"/><rect x="12" y="10" width="14" height="4" fill="#e0a92a"/></svg>',
   shoes: '<svg viewBox="0 0 48 48"><path d="M6 30c0-6 4-12 8-12l6 6 6-2 6 6 8 2c3 1 4 4 4 6H6z" fill="#3a86bd"/><rect x="6" y="36" width="38" height="5" rx="2" fill="#f4efe4"/><path d="M20 24l3-3M24 27l3-3" stroke="#fff" stroke-width="2"/></svg>',
   vac: '<svg viewBox="0 0 48 48"><rect x="6" y="20" width="22" height="20" rx="6" fill="#f2c53d"/><rect x="9" y="16" width="16" height="6" rx="2" fill="#333"/><path d="M28 28c8 0 10-8 14-14" stroke="#333" stroke-width="4" fill="none"/><circle cx="12" cy="42" r="3" fill="#333"/><circle cx="24" cy="42" r="3" fill="#333"/><circle cx="40" cy="22" r="3" fill="#ffd96a"/><circle cx="36" cy="30" r="2.4" fill="#ffd96a"/></svg>',
   str: '<svg viewBox="0 0 48 48"><rect x="4" y="10" width="40" height="28" rx="4" fill="#f4efe4"/><rect x="4" y="10" width="40" height="8" rx="4" fill="#3a86bd"/><rect x="4" y="14" width="40" height="4" fill="#3a86bd"/><circle cx="15" cy="27" r="6" fill="#c9ced6"/><circle cx="15" cy="25" r="2.5" fill="#7a8088"/><path d="M10.5 31.5a4.5 3.5 0 0 1 9 0" fill="#7a8088"/><path d="M24 24h14M24 29h10M24 33h12" stroke="#9aa3ad" stroke-width="2"/><circle cx="37" cy="33" r="5" fill="#ffcf4a"/><path d="M35 33l1.5 1.5 3-3" stroke="#7a4a00" stroke-width="1.6" fill="none"/></svg>',
@@ -829,7 +833,7 @@ function dropCoin(x, z, v, big) {
 }
 function hurt(p, d) {
   if (p.inv > 0 || p.down || mode !== 'play' || window.__god) return;
-  p.hp -= d * DIFF; p.inv = 0.8;
+  p.hp -= d * DIFF * (1 - 0.12 * (p.up.boots || 0)); p.inv = 0.8;   // Rubber Boots: 12% less per level
   if (p.hp <= 0) {
     p.hp = 0; p.down = true; p.rev = 0; p.vx = p.vz = 0;
     ev(['dn', p.id, p.name]);
