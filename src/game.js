@@ -1593,7 +1593,7 @@ function drawPlayer(p, dt, t) {
     const R = W.citro.r[up.citro - 1];
     p.citroA = (p.citroA || 0) + dt * 1.6;
     // flames are drawn fixed to the ring every frame (no leftover particles), so the ring stays crisp while you move
-    const nf = Math.round(R * 2.6), fl = 1 + (p.citroFlash || 0) * 0.35;
+    const nf = [6, 8, 10, 12, 14][up.citro - 1] || 6, fl = (0.9 + up.citro * 0.08) * (1 + (p.citroFlash || 0) * 0.35);   // fewer flames, more (and bigger) as it ranks up
     for (let k = 0; k < nf; k++) {
       const a = p.citroA + k / nf * TAU, w = Math.sin(t * 13 + k * 2.3) * 0.5 + 0.5;
       B.fire.add(p.x + Math.cos(a) * R, 0.55 + w * 0.2, p.z + Math.sin(a) * R, (1.0 + w * 0.5) * fl, 0, 1.2, 0.6, 0.18, 1);
