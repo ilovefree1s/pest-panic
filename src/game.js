@@ -1423,12 +1423,18 @@ function drawPlayer(p, dt, t) {
   });
   // backpack sprayer cloud
   if (p.bp > 0 && !p.down) {
-    // a wide jet of spray shooting out of the wand, the way you're facing
-    for (let k = 0; k < 11; k++) {
-      const a = p.face + rand(-0.55, 0.55), sp = rand(14, 22), sx = Math.sin(a), sz = Math.cos(a);
-      FX.smoke.spawn({ x: p.x + Math.sin(p.face) * 0.9, y: rand(0.7, 1.2), z: p.z + Math.cos(p.face) * 0.9, vx: sx * sp, vy: rand(-0.2, 0.6), vz: sz * sp, life: rand(0.5, 0.75), s0: 0.6, s1: 3.2, c: [0.55, 0.92, 0.62], a0: 0.75, a1: 0, drag: 1.4 });
+    // a pressurised spray: fast streams of droplets fanning out of the wand, with a light mist behind them
+    const nx = p.x + Math.sin(p.face) * 1.0, nz = p.z + Math.cos(p.face) * 1.0;
+    for (let k = 0; k < 36; k++) {
+      const a = p.face + (Math.random() - 0.5) * 1.2, sp = rand(20, 32), sx = Math.sin(a), sz = Math.cos(a);
+      FX.goo.spawn({ x: nx, y: 1.05, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
     }
-    if (Math.random() < 0.5) FX.glow.spawn({ x: p.x + Math.sin(p.face) * 1.1, y: 1, z: p.z + Math.cos(p.face) * 1.1, life: 0.12, s0: 1.1, s1: 1.6, c: [0.6, 0.9, 0.7], a0: 0.6, a1: 0 });
+    for (let k = 0; k < 4; k++) {   // bright streaks down the middle of the jet
+      const a = p.face + rand(-0.25, 0.25), sp = rand(26, 36);
+      FX.glow.spawn({ x: nx, y: 1.05, z: nz, vx: Math.sin(a) * sp, vy: 0.6, vz: Math.cos(a) * sp, life: 0.3, s0: 0.35, s1: 0.15, c: [0.65, 0.95, 1.1], a0: 0.8, a1: 0 });
+    }
+    if (Math.random() < 0.6) { const a = p.face + rand(-0.5, 0.5), sp = rand(10, 16);
+      FX.smoke.spawn({ x: nx, y: 1, z: nz, vx: Math.sin(a) * sp, vy: 0.3, vz: Math.cos(a) * sp, life: 0.6, s0: 0.4, s1: 1.6, c: [0.82, 0.95, 0.95], a0: 0.25, a1: 0, drag: 2 }); }
   }
   // spray hiss when a puff starts
   if (p.sprayPuff > 0 && !L.puffing) SND.play('spray', p.id === me.id);
