@@ -953,13 +953,16 @@ function lens(p, dt, i, db) {
   if (p.cd.scorch <= 0) { p.cd.scorch = 0.12; for (const bm of p.beams) addDecal(bm.x + rand(-0.2, 0.2), bm.z + rand(-0.2, 0.2), R_ * rand(0.9, 1.3), [0.1, 0.07, 0.05], 7); }
 }
 // the Roomba: one per player, hunts the bug nearest to it (within reach of its owner)
+// flies and wasps fly over the floor (and the Fly Lord hovers): floor gear like the Roomba and glue traps can't touch them
+const flying = b => b.t === 1 || b.t === 3;
+const bossFlies = q => q.kind === 3;
 function roomba(p, dt, i, db) {
   const rb = p.rb || (p.rb = { x: p.x + 1.8, z: p.z, vx: 0, vz: 0, ang: 0 });
   const spd = W.roomba.spd[i], R = W.roomba.r[i];
   let tx = p.x - Math.sin(p.face) * 2.2, tz = p.z - Math.cos(p.face) * 2.2, best = null, bd = Infinity;
   if (dist2(rb.x, rb.z, p.x, p.z) < 16 * 16) {
-    near(p.x, p.z, 13, b => { const d = dist2(b.x, b.z, rb.x, rb.z); if (d < bd) { bd = d; best = b; } });
-    for (const q of S.bosses) { const d = dist2(q.x, q.z, rb.x, rb.z); if (d < bd && dist2(q.x, q.z, p.x, p.z) < 13 * 13) { bd = d; best = q; } }
+    near(p.x, p.z, 13, b => { if (flying(b)) return; const d = dist2(b.x, b.z, rb.x, rb.z); if (d < bd) { bd = d; best = b; } });
+    for (const q of S.bosses) { if (bossFlies(q)) continue; const d = dist2(q.x, q.z, rb.x, rb.z); if (d < bd && dist2(q.x, q.z, p.x, p.z) < 13 * 13) { bd = d; best = q; } }
   }
   if (best) { tx = best.x; tz = best.z; }
   const dx = tx - rb.x, dz = tz - rb.z, d = Math.hypot(dx, dz) || 1, want = best ? spd : Math.min(spd, d * 2);
@@ -972,9 +975,9 @@ function roomba(p, dt, i, db) {
     const dmg = W.roomba.dmg[i] + db;
     near(rb.x, rb.z, R, b => {
       const ex = b.x - rb.x, ez = b.z - rb.z, ed = Math.hypot(ex, ez) || 1;
-      if (ed < R) { hitBug(b, dmg, ex / ed * 0.35, ez / ed * 0.35); if (Math.random() < 0.25) ev(['h', b.x, b.z]); }
+      if (ed < R && !flying(b)) { hitBug(b, dmg, ex / ed * 0.35, ez / ed * 0.35); if (Math.random() < 0.25) ev(['h', b.x, b.z]); }
     });
-    for (const q of S.bosses) if (dist2(q.x, q.z, rb.x, rb.z) < (R + BR(q)) ** 2) hitQueen(dmg * 2, rb.x, rb.z, q);
+    for (const q of S.bosses) if (!bossFlies(q) && dist2(q.x, q.z, rb.x, rb.z) < (R + BR(q)) ** 2) hitQueen(dmg * 2, rb.x, rb.z, q);
     if (S.nest && dist2(S.nest.x, S.nest.z, rb.x, rb.z) < (R + 2.2) ** 2) hitBug(S.nest, dmg);
   }
 }
@@ -1017,10 +1020,10 @@ function updateShots(dt) {
   for (const t of S.traps) {
     t.life -= dt; t.drop = Math.max(0, t.drop - dt);
     let boom = t.life <= 0;
-    if (!boom && t.drop <= 0) boom = near(t.x, t.z, 1.6, b => dist2(b.x, b.z, t.x, t.z) < 2.56) || S.bosses.some(q => dist2(q.x, q.z, t.x, t.z) < (BR(q) + 0.5) ** 2);
+    if (!boom && t.drop <= 0) boom = near(t.x, t.z, 1.6, b => !flying(b) && dist2(b.x, b.z, t.x, t.z) < 2.56) || S.bosses.some(q => !bossFlies(q) && dist2(q.x, q.z, t.x, t.z) < (BR(q) + 0.5) ** 2);
     if (boom && t.life > 0) {
-      near(t.x, t.z, t.r, b => { if (dist2(b.x, b.z, t.x, t.z) < t.r * t.r) { b.stuck = 1.5; hitBug(b, t.dmg); } });
-      for (const q of S.bosses) if (dist2(q.x, q.z, t.x, t.z) < (t.r + 2.5) ** 2) hitQueen(t.dmg * 2, t.x, t.z, q);
+      near(t.x, t.z, t.r, b => { if (!flying(b) && dist2(b.x, b.z, t.x, t.z) < t.r * t.r) { b.stuck = 1.5; hitBug(b, t.dmg); } });
+      for (const q of S.bosses) if (!bossFlies(q) && dist2(q.x, q.z, t.x, t.z) < (t.r + 2.5) ** 2) hitQueen(t.dmg * 2, t.x, t.z, q);
       ev(['g', t.x, t.z, t.r]);
     }
     if (!boom) tk.push(t);
