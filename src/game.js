@@ -25,7 +25,7 @@ const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f /
 const QUEEN_EVERY = 180, QUEEN_HP = 1000;
 const DIFF = 1.1;
 // backpack sprayer: a move you trigger yourself (Space / Cross / the button), once every 30 s
-const BP_CD = 30, BP_TIME = 3, BP_R = 8.5;   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
+const BP_CD = 30, BP_TIME = 3, BP_R = 11, BP_COS = Math.cos(0.62);   // a forward cone ~70° wide, 11 steps long   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
 // a different boss every 3 minutes; once all four are beaten they come back in king-and-queen pairs
 const BOSSES = [
   { id: 'roach', bug: 'Roach', name: 'ROACH QUEEN', title: 'Roach Queen', r: 3.2, spd: 4.2, shadow: 9, hp: 1, goo: [0.42, 0.24, 0.1] },
@@ -1044,18 +1044,19 @@ function useBackpack(p) {
   p.bpCd = BP_CD; p.bp = BP_TIME; p.bpT = 0;
   ev(['bp', p.id, p.x, p.z]);
 }
-// a thick cloud of spray all around you for 3 s: hurts and shoves back everything in range, keeps up with the bugs' growing health
+// a powerful forward spray for 3 s, aimed the way you're facing: hurts and pushes back everything in the cone; keeps up with the bugs' growing health
 function backpackTick(p, dt) {
   p.bp -= dt; p.bpT -= dt;
   if (p.down) { p.bp = 0; return; }
   if (p.bpT > 0) return;
   p.bpT = 0.2;
   const dmg = (5 + 2.2 * S.minute + (p.up.str || 0)) * 1.0;
+  const fx = Math.sin(p.face), fz = Math.cos(p.face);
   near(p.x, p.z, BP_R, b => {
     const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz) || 1;
-    if (d < BP_R) { hitBug(b, dmg, dx / d * 0.2, dz / d * 0.2); b.stuck = Math.max(b.stuck || 0, 0.25); }
+    if (d < BP_R && (d < 1.4 || (dx * fx + dz * fz) / d > BP_COS)) { hitBug(b, dmg, fx * 0.3, fz * 0.3); b.stuck = Math.max(b.stuck || 0, 0.25); }
   });
-  for (const q of S.bosses) if (dist2(q.x, q.z, p.x, p.z) < (BP_R + BR(q)) ** 2) hitQueen(dmg * 2, q.x, q.z, q);
+  for (const q of S.bosses) { const dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1; if (d < BP_R + BR(q) && (dx * fx + dz * fz) / d > BP_COS - 0.15) hitQueen(dmg * 2, q.x, q.z, q); }
 }
 function useMyBackpack() {
   if (mode !== 'play') return;
@@ -1422,14 +1423,12 @@ function drawPlayer(p, dt, t) {
   });
   // backpack sprayer cloud
   if (p.bp > 0 && !p.down) {
-    const R0 = BP_R;
-    for (let k = 0; k < 4; k++) {
-      const a = Math.random() * TAU, rr = rand(0.6, R0), sp = rand(3, 7);
-      FX.smoke.spawn({ x: p.x + Math.cos(a) * rr * 0.4, y: rand(0.4, 1.4), z: p.z + Math.sin(a) * rr * 0.4, vx: Math.cos(a) * sp, vy: rand(0.2, 1), vz: Math.sin(a) * sp, life: rand(0.7, 1.1), s0: 0.8, s1: 2.6, c: [0.78, 0.95, 0.84], a0: 0.42, a1: 0, drag: 1.6 });
+    // a wide jet of spray shooting out of the wand, the way you're facing
+    for (let k = 0; k < 11; k++) {
+      const a = p.face + rand(-0.55, 0.55), sp = rand(14, 22), sx = Math.sin(a), sz = Math.cos(a);
+      FX.smoke.spawn({ x: p.x + Math.sin(p.face) * 0.9, y: rand(0.7, 1.2), z: p.z + Math.cos(p.face) * 0.9, vx: sx * sp, vy: rand(-0.2, 0.6), vz: sz * sp, life: rand(0.5, 0.75), s0: 0.6, s1: 3.2, c: [0.55, 0.92, 0.62], a0: 0.75, a1: 0, drag: 1.4 });
     }
-    const wa = t * 9;   // the wand sweeps round in a circle
-    for (let k = 0; k < 2; k++) FX.smoke.spawn({ x: p.x + Math.sin(wa) * 0.9, y: 1.1, z: p.z + Math.cos(wa) * 0.9, vx: Math.sin(wa) * 16, vy: 0.4, vz: Math.cos(wa) * 16, life: 0.55, s0: 0.4, s1: 1.8, c: [0.9, 1, 0.95], a0: 0.55, a1: 0, drag: 2.5 });
-    B.ring.add(p.x, 0.06, p.z, R0 * 2 * (0.92 + Math.sin(t * 12) * 0.04), t, 0.55, 1, 0.65, 0.35);
+    if (Math.random() < 0.5) FX.glow.spawn({ x: p.x + Math.sin(p.face) * 1.1, y: 1, z: p.z + Math.cos(p.face) * 1.1, life: 0.12, s0: 1.1, s1: 1.6, c: [0.6, 0.9, 0.7], a0: 0.6, a1: 0 });
   }
   // spray hiss when a puff starts
   if (p.sprayPuff > 0 && !L.puffing) SND.play('spray', p.id === me.id);
