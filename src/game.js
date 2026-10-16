@@ -1576,6 +1576,7 @@ function drawPlayer(p, dt, t) {
   // zapper lantern
   L.zap.visible = up.zap > 0 && !p.down;
   if (L.zap.visible) L.zap.position.set(p.x - Math.cos(p.face) * 0.9, 2.6 + Math.sin(t * 3) * 0.15, p.z + Math.sin(p.face) * 0.9);
+  if (u.candle) u.candle.visible = (up.citro || 0) > 0;   // the candle only shows up once you have Citronella
   // citronella ring and flames
   if (up.citro && !p.down) {
     const R = W.citro.r[up.citro - 1];

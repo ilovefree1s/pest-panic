@@ -246,7 +246,7 @@ body.menu #ver{display:block}
       <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="6" y="12" width="18" height="27" rx="6" fill="#f1f1ec"/><rect x="10" y="8" width="10" height="5" rx="2" fill="#ff7a1f"/><rect x="5" y="37" width="20" height="5" rx="2" fill="#ff7a1f"/><path d="M22 36c6 3 9 0 10-3" stroke="#1c1d22" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M30 35L41 16" stroke="#c6ccd4" stroke-width="3" stroke-linecap="round"/><rect x="27" y="31" width="6" height="7" rx="2" transform="rotate(30 30 34.5)" fill="#1c1d22"/><path d="M40 18l3-5" stroke="#f2c53d" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="8" r="2.4" fill="#bfefff" opacity=".85"/><circle cx="41" cy="5" r="1.8" fill="#bfefff" opacity=".65"/><circle cx="47" cy="3" r="1.5" fill="#bfefff" opacity=".5"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
-    <div id="ver">v1.13</div>
+    <div id="ver">v1.14</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -279,7 +279,7 @@ body.menu #ver{display:block}
       <div class="volrow"><span>Music</span><input type="range" id="mvol" min="0" max="100" step="5" aria-label="Music volume"><b id="mvolv"></b><button class="btn dark" id="mmutebtn" type="button">Turn off</button></div>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
-      <p class="hint pver">Pest Panic v1.13</p>
+      <p class="hint pver">Pest Panic v1.14</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -917,8 +917,7 @@ function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
     const capB = mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.08, 14), orange); capB.position.set(0, 1.62, -0.42); body.add(capB);
     const pump = mesh(new THREE.BoxGeometry(0.06, 0.34, 0.06), orange); pump.position.set(0.3, 1.12, -0.42); body.add(pump);
     const base = mesh(new THREE.BoxGeometry(0.46, 0.08, 0.3), orange); base.position.set(0, 0.84, -0.42); body.add(base);
-    for (const s of [-1, 1]) { const strap = mesh(new THREE.BoxGeometry(0.06, 0.5, 0.05), black); strap.position.set(0.17 * s, 1.24, -0.2); body.add(strap); }
-    const hose = mesh(new THREE.TorusGeometry(0.32, 0.025, 6, 16, Math.PI * 0.9), black); hose.position.set(0.3, 0.95, -0.12); hose.rotation.set(0, Math.PI / 2, 0.3); body.add(hose); }
+    for (const s of [-1, 1]) { const strap = mesh(new THREE.BoxGeometry(0.06, 0.5, 0.05), black); strap.position.set(0.17 * s, 1.24, -0.2); body.add(strap); } }
   const belt = mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.08, 18), black); belt.position.y = 0.86; body.add(belt);
   const badge = mesh(new THREE.CircleGeometry(0.07, 12), yellow, false); badge.position.set(-0.13, 1.2, 0.3); body.add(badge);
   const arms = [];
@@ -929,10 +928,21 @@ function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
     body.add(arm); arms.push(arm);
   }
   // spray wand in the right hand
+  // backpack sprayer gun: black trigger grip, long dark lance, brass nozzle
   const wand = new THREE.Group();
-  const pipe = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.9, 8), steel); pipe.rotation.x = Math.PI / 2; pipe.position.z = 0.4; wand.add(pipe);
-  const tip = mesh(new THREE.ConeGeometry(0.07, 0.16, 10), yellow); tip.rotation.x = Math.PI / 2; tip.position.z = 0.9; wand.add(tip);
+  const gunM = std({ color: '#26282d', roughness: 0.5 }), lanceM = std({ color: '#5a6068', metalness: 0.7, roughness: 0.35 }), brass = std({ color: '#c9a24a', metalness: 0.9, roughness: 0.3 });
+  const grip = mesh(new THREE.BoxGeometry(0.09, 0.2, 0.14), gunM); grip.position.set(0, -0.04, 0); grip.rotation.x = 0.35; wand.add(grip);
+  const valve = mesh(new THREE.BoxGeometry(0.1, 0.09, 0.22), gunM); valve.position.set(0, 0.06, 0.08); wand.add(valve);
+  const trig = mesh(new THREE.BoxGeometry(0.03, 0.08, 0.03), std({ color: '#ff7a1f', roughness: 0.5 })); trig.position.set(0, -0.02, 0.1); wand.add(trig);
+  const lance = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.95, 8), lanceM); lance.rotation.x = Math.PI / 2; lance.position.set(0, 0.06, 0.66); wand.add(lance);
+  const noz = mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.1, 10), brass); noz.rotation.x = Math.PI / 2; noz.position.set(0, 0.06, 1.17); wand.add(noz);
   wand.position.set(0, -0.55, 0.05); arms[1].add(wand);
+  // citronella candle in the other hand: a little tin bucket with a flame (only shown once you pick Citronella)
+  const candle = new THREE.Group();
+  const tin = mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.16, 14), std({ color: '#d9c27a', metalness: 0.6, roughness: 0.35 })); candle.add(tin);
+  const wax = mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 14), std({ color: '#f3e6a8', roughness: 0.7 })); wax.position.y = 0.08; candle.add(wax);
+  const flame = mesh(new THREE.ConeGeometry(0.045, 0.14, 8), std({ color: '#ffb347', emissive: '#ff8a1a', emissiveIntensity: 2.2 }), false); flame.position.y = 0.17; candle.add(flame);
+  candle.position.set(0, -0.62, 0.06); candle.visible = false; arms[0].add(candle);
   const head = new THREE.Group(); head.position.y = 1.72; body.add(head);
   head.add(mesh(sph(0.27, 18, 14), skin));
   const cap = mesh(new THREE.SphereGeometry(0.29, 18, 10, 0, TAU, 0, Math.PI / 2), red); cap.position.y = 0.04; head.add(cap);
@@ -945,11 +955,10 @@ function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   const mask = mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.14, 12), black); mask.rotation.x = Math.PI / 2; mask.position.set(0, -0.13, 0.25); head.add(mask);
   const filt = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.08, 12), steel); filt.rotation.x = Math.PI / 2; filt.position.set(0, -0.15, 0.34); head.add(filt);
   // pesticide tank
-  const tank = mesh(new THREE.CapsuleGeometry(0.2, 0.5, 6, 14), steel); tank.position.set(0, 1.15, -0.38); body.add(tank);
-  const stripe = mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.1, 16), yellow); stripe.position.set(0, 1.2, -0.38); body.add(stripe);
-  const hose = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new V3(0.12, 0.85, -0.4), new V3(0.35, 0.65, -0.2), new V3(0.42, 0.75, 0.15)]), 12, 0.035, 6), black);
+  const tank = null;
+  const hose = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new V3(0.18, 0.86, -0.5), new V3(0.42, 0.62, -0.25), new V3(0.46, 0.68, 0.08)]), 12, 0.03, 6), black);
   body.add(hose);
-  root.userData = { body, legs, arms, head, tank };
+  root.userData = { body, legs, arms, head, tank, candle };
   root.traverse(o => { if (o.isMesh) o.castShadow = true; });
   root.scale.setScalar(1.6);
   return root;
@@ -2841,6 +2850,7 @@ function drawPlayer(p, dt, t) {
   // zapper lantern
   L.zap.visible = up.zap > 0 && !p.down;
   if (L.zap.visible) L.zap.position.set(p.x - Math.cos(p.face) * 0.9, 2.6 + Math.sin(t * 3) * 0.15, p.z + Math.sin(p.face) * 0.9);
+  if (u.candle) u.candle.visible = (up.citro || 0) > 0;   // the candle only shows up once you have Citronella
   // citronella ring and flames
   if (up.citro && !p.down) {
     const R = W.citro.r[up.citro - 1];
