@@ -280,7 +280,7 @@ function newPlayer(id, name, color) {
 function newWorld() {
   S = {
     t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], ebul: [], decals: [], nums: [], rings: [],
-    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 0.3, ringAt: 30, nextQueen: QUEEN_EVERY, queen: null, bosses: [], bossKills: 0, bank: 0,
+    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, queen: null, bosses: [], bossKills: 0, bank: 0,
     shake: 0, pendingLevels: 0, bugHp: [3, 2, 14], minute: -1, round: null, nextId: 1, ev: [], warned: false,
   };
   updateMinute();
@@ -660,10 +660,12 @@ function director(dt) {
   if (S.spawnT <= 0) {
     const ph = Math.min(14, Math.floor(S.t / 20));
     S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF;
-    const n = 1 + (ph >= 4 || S.t < 20 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
-    // the first 15 s spawn right at the screen edge so the opening isn't empty; after that, just off screen as normal
-    const sr = S.t < 15 ? rand(17, 21) : spawnRadius() + rand(0, 4);
-    for (let i = 0; i < n; i++) spawnAround(pickType(), sr);
+    const n = 1 + (ph >= 4 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
+    for (let i = 0; i < n; i++) spawnAround(pickType(), spawnRadius() + rand(0, 4));
+  }
+  if (!S.openWave2 && S.t >= 3) {
+    S.openWave2 = true;
+    for (const p of alivePlayers()) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + Math.PI / 4 + rand(-0.4, 0.4); spawnBug(0, p.x + Math.cos(a) * rand(18, 22), p.z + Math.sin(a) * rand(18, 22), true); }
   }
   if (S.t >= S.ringAt) {
     S.ringAt += 30;
