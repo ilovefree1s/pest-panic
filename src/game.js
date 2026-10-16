@@ -848,7 +848,7 @@ function fire(p, kind, ang, spd, life, dmg, extra = {}) {
   S.shots.push({ kind, x: p.x + Math.sin(ang) * 0.8, z: p.z + Math.cos(ang) * 0.8, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, life, max: life, dmg, ang, spin: 0, ...extra });
 }
 // where the sprayer wand's nozzle is: low, in front of the player and off to his right hand
-function nozzle(p, f = p.face) { return [p.x + Math.sin(f) * 1.75 + Math.cos(f) * 0.6, p.z + Math.cos(f) * 1.75 - Math.sin(f) * 0.6]; }
+function nozzle(p, f = p.face) { return [p.x + Math.sin(f) * 2.32 + Math.cos(f) * 0.61, p.z + Math.cos(f) * 2.32 - Math.sin(f) * 0.61]; }   // measured from the model
 function weapons(p, dt) {
   const L = p.up, db = L.str;
   for (const k in p.cd) p.cd[k] -= dt;
@@ -1508,7 +1508,7 @@ function drawPlayer(p, dt, t) {
   if ((p.sprayPuff || 0) > 0) {
     p.sprayPuff -= dt;
     const [wx, wz] = nozzle(p, L.body.rotation.y);
-    FX.smoke.spawn({ x: wx, y: 0.7, z: wz, vx: Math.sin(p.face) * 4, vz: Math.cos(p.face) * 4, life: 0.25, s0: 0.3, s1: 0.9, c: [0.9, 1, 1], a0: 0.5, a1: 0 });
+    FX.smoke.spawn({ x: wx, y: 0.5, z: wz, vx: Math.sin(p.face) * 4, vz: Math.cos(p.face) * 4, life: 0.25, s0: 0.12, s1: 0.36, c: [0.9, 1, 1], a0: 0.5, a1: 0 });
   }
   // swatters
   const up = p.up || {}, ns = up.swat ? W.swat.n[up.swat - 1] : 0;
@@ -1525,14 +1525,14 @@ function drawPlayer(p, dt, t) {
     const [nx, nz] = nozzle(p, L.body.rotation.y);
     for (let k = 0; k < 36; k++) {
       const a = p.face + (Math.random() - 0.5) * 1.2, sp = rand(26, 42), sx = Math.sin(a), sz = Math.cos(a);
-      FX.goo.spawn({ x: nx, y: 0.75, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
+      FX.goo.spawn({ x: nx, y: 0.5, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
     }
     for (let k = 0; k < 4; k++) {   // bright streaks down the middle of the jet
       const a = p.face + rand(-0.25, 0.25), sp = rand(34, 47);
-      FX.glow.spawn({ x: nx, y: 0.75, z: nz, vx: Math.sin(a) * sp, vy: 0.6, vz: Math.cos(a) * sp, life: 0.3, s0: 0.35, s1: 0.15, c: [0.65, 0.95, 1.1], a0: 0.8, a1: 0 });
+      FX.glow.spawn({ x: nx, y: 0.5, z: nz, vx: Math.sin(a) * sp, vy: 0.6, vz: Math.cos(a) * sp, life: 0.3, s0: 0.35, s1: 0.15, c: [0.65, 0.95, 1.1], a0: 0.8, a1: 0 });
     }
     if (Math.random() < 0.6) { const a = p.face + rand(-0.5, 0.5), sp = rand(10, 16);
-      FX.smoke.spawn({ x: nx, y: 0.75, z: nz, vx: Math.sin(a) * sp, vy: 0.3, vz: Math.cos(a) * sp, life: 0.6, s0: 0.4, s1: 1.6, c: [0.82, 0.95, 0.95], a0: 0.25, a1: 0, drag: 2 }); }
+      FX.smoke.spawn({ x: nx, y: 0.5, z: nz, vx: Math.sin(a) * sp, vy: 0.3, vz: Math.cos(a) * sp, life: 0.6, s0: 0.4, s1: 1.6, c: [0.82, 0.95, 0.95], a0: 0.25, a1: 0, drag: 2 }); }
   }
   // spray hiss when a puff starts
   if (p.sprayPuff > 0 && !L.puffing) SND.play('spray', p.id === me.id);
@@ -2353,6 +2353,7 @@ window.PP = {
   give(id, n = 1, pid = me.id) { const p = S.players.find(q => q.id === pid); for (let i = 0; i < n; i++) if (p.up[id] < UP.find(u => u.id === id).max) p.up[id]++; },
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
+  tipOffset() { const p = meP(), L = looks.get(me.id); if (!L) return null; L.body.updateMatrixWorld(true); const v = L.body.userData.tip.getWorldPosition(new THREE.Vector3()), f = L.body.rotation.y; const dx = v.x - p.x, dz = v.z - p.z; return { forward: +(dx * Math.sin(f) + dz * Math.cos(f)).toFixed(2), right: +(dx * Math.cos(f) - dz * Math.sin(f)).toFixed(2), y: +v.y.toFixed(2) }; },
   arena: () => ARENA,   nest: () => spawnNest(), snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
