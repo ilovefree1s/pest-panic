@@ -20,6 +20,7 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-fami
 #fx{pointer-events:none}
 #hurt{position:absolute;inset:0;pointer-events:none;opacity:0;
   background:radial-gradient(ellipse at center,rgba(255,0,0,0) 45%,rgba(200,0,0,.55) 100%);transition:opacity .25s}
+#dread{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 38%,rgba(20,0,4,.55) 78%,rgba(8,0,2,.85) 100%)}
 #vign{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.45) 100%)}
 
 /* ---------- HUD */
@@ -221,6 +222,7 @@ body.menu #ver{display:block}
     <canvas id="gl"></canvas>
     <canvas id="fx"></canvas>
     <div id="vign"></div>
+    <div id="dread"></div>
     <div id="hurt"></div>
     <div id="float"><i></i></div>
     <div id="hud" hidden>

@@ -44,6 +44,25 @@ sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
 
+// boss mood: the kitchen lights dim, go cold, and a red glow follows the boss
+const dreadLight = new THREE.PointLight('#ff2a1a', 0, 40, 1.3);
+dreadLight.position.set(0, 6, 0);
+scene.add(dreadLight);
+const MOODC = { hemiC: new THREE.Color('#fff3e2'), hemiCold: new THREE.Color('#8fa2d6'), hemiG: new THREE.Color('#2b3038'), hemiGRed: new THREE.Color('#3a1416'),
+  sunC: new THREE.Color('#fff0d8'), sunCold: new THREE.Color('#aab8ff') };
+// g = how dark (0 normal .. 1 full boss mood), flick = light flicker multiplier (1 steady, lower = dipped), boss = {x,z} or null
+export function setMood(g, flick, boss) {
+  hemi.intensity = 0.75 * (1 - 0.7 * g) * flick;
+  sun.intensity = 2.4 * (1 - 0.66 * g) * flick;
+  hemi.color.copy(MOODC.hemiC).lerp(MOODC.hemiCold, g * 0.8);
+  hemi.groundColor.copy(MOODC.hemiG).lerp(MOODC.hemiGRed, g);
+  sun.color.copy(MOODC.sunC).lerp(MOODC.sunCold, g * 0.7);
+  renderer.toneMappingExposure = 1 - 0.4 * g;
+  scene.fog.near = 70 - 32 * g; scene.fog.far = 130 - 40 * g;
+  dreadLight.intensity = boss ? g * 40 * (0.85 + 0.15 * flick) : 0;
+  if (boss) dreadLight.position.set(boss.x, 9, boss.z);
+}
+
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.4, 0.9);

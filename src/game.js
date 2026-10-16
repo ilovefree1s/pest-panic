@@ -319,7 +319,7 @@ const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25], [0.95, 0
 // sliders follow how ears hear loudness (squared), with a little headroom off the top
 const loud = v => v * v * 0.7;
 const SND = (() => {
-  let ctx = null, master = null, noiseBuf = null, hum = null;
+  let ctx = null, master = null, comp = null, noiseBuf = null, hum = null, dr = null;
   let vol = 0.2, muted = false;
   try { const v = JSON.parse(localStorage.getItem('pestpanic-sfx') || 'null'); if (v) { vol = +v.vol; muted = !!v.muted; } } catch (e) {}
   const save = () => { try { localStorage.setItem('pestpanic-sfx', JSON.stringify({ vol, muted })); } catch (e) {} };
@@ -328,7 +328,7 @@ const SND = (() => {
     if (ctx) return ctx;
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
     ctx = new AC();
-    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 5;
+    comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 5;
     master = ctx.createGain(); master.gain.value = muted ? 0 : loud(vol);
     master.connect(comp); comp.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -468,6 +468,8 @@ const SND = (() => {
       for (const hz of [196, 203, 211]) { const osc = tone(f, 'sawtooth', hz, hz * 1.04, n, 1.1, 0.05, 0.7); }
       const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 23; lg.gain.value = 400; l.connect(lg); lg.connect(f.frequency); l.start(n); l.stop(n + 1.2);
     },
+    // the boss lights stutter: a quick electrical buzz and click
+    flick() { const n = ctx.currentTime, o = out(0.06); noise(o, n, 0.09, 'bandpass', 3200, 2400, 3, 0.002, 0.8); tone(o, 'square', 120, 118, n, 0.11, 0.003, 0.35); noise(o, n + 0.1, 0.03, 'highpass', 5000, 5000, 1, 0.001, 0.6); },
     join() { const n = ctx.currentTime, o = out(0.14); tone(o, 'sine', 660, 660, n, 0.08); tone(o, 'sine', 990, 990, n + 0.09, 0.12); },
   };
   return {
@@ -504,6 +506,37 @@ const SND = (() => {
         const t = ctx.currentTime, s = Math.min(1, speed / 10);
         hum.g.gain.setTargetAtTime(on ? 0.025 + 0.035 * s : 0, t, 0.08);
         hum.o.frequency.setTargetAtTime(58 + 18 * s, t, 0.1); hum.o2.frequency.setTargetAtTime(117 + 36 * s, t, 0.1);
+      } catch (e) {}
+    },
+    // boss dread: a low dissonant drone, a slow heartbeat and the odd far-off bell. Follows the MUSIC volume, not sound FX.
+    dread(level, mvol) {
+      try {
+        if (!ctx || ctx.state !== 'running') return;
+        if (!dr) {
+          if (level <= 0.001) return;
+          const g = ctx.createGain(), f = ctx.createBiquadFilter(), lfo = ctx.createOscillator(), lg = ctx.createGain();
+          g.gain.value = 0; f.type = 'lowpass'; f.frequency.value = 240; f.Q.value = 4;
+          lfo.frequency.value = 0.09; lg.gain.value = 110; lfo.connect(lg); lg.connect(f.frequency);
+          const os = [[55, 'sawtooth', 0.32], [55.4, 'sawtooth', 0.32], [58.3, 'sine', 0.22], [82.4, 'sine', 0.12]].map(([fr, ty, a]) => {
+            const o = ctx.createOscillator(), og = ctx.createGain(); o.type = ty; o.frequency.value = fr; og.gain.value = a; o.connect(og); og.connect(f); o.start(); return o;
+          });
+          f.connect(g); g.connect(comp); lfo.start();
+          dr = { g, os, nextBeat: ctx.currentTime + 0.5, nextBell: ctx.currentTime + 4 };
+        }
+        const t = ctx.currentTime, v = mvol * level;
+        dr.g.gain.setTargetAtTime(v * 1.6, t, 0.4);
+        if (level < 0.15) return;
+        if (t >= dr.nextBeat) {   // lub-dub
+          const bg = ctx.createGain(); bg.gain.value = v * 2.4; bg.connect(comp);
+          tone(bg, 'sine', 62, 38, t, 0.22, 0.006, 1); tone(bg, 'sine', 58, 34, t + 0.2, 0.2, 0.006, 0.7);
+          dr.nextBeat = t + 1.25;
+        }
+        if (t >= dr.nextBell) {   // a cold, out-of-tune bell somewhere far away
+          const bg = ctx.createGain(); bg.gain.value = v * 0.5; bg.connect(comp);
+          const root = [311, 293.7, 277.2][Math.floor(Math.random() * 3)];
+          tone(bg, 'sine', root, root * 0.995, t, 3.2, 0.01, 1); tone(bg, 'sine', root * 2.76, root * 2.74, t, 1.6, 0.01, 0.3); tone(bg, 'triangle', root * 1.5, root * 1.5, t + 0.02, 2.4, 0.02, 0.2);
+          dr.nextBell = t + R(6, 11);
+        }
       } catch (e) {}
     },
     get vol() { return vol; }, get muted() { return muted; },
@@ -565,6 +598,37 @@ const MUSIC = (() => {
 for (const e of ['pointerdown', 'keydown', 'touchstart']) addEventListener(e, () => MUSIC.unlock(), { capture: true, passive: true });
 // browsers only allow sound after the player clicks, taps or presses a key
 for (const e of ['pointerdown', 'keydown', 'touchstart']) addEventListener(e, () => SND.unlock(), { capture: true, passive: true });
+
+// ---------------------------------------------------------------- boss mood: dim cold lights that stutter, red glow on the boss
+const MOOD = { g: 0, f: 1, seq: [], next: 3, bossT: 0, was: false };
+function moodTick(dt, boss, q) {
+  const M = MOOD;
+  if (boss && !M.was) {   // the lights die as the boss shows up, then sputter back on
+    M.bossT = 0; M.next = rand(4, 7);
+    M.seq = [[0.08, 0.5], [0.06, 1], [0.5, 0.06], [0.07, 0.6], [0.09, 0.1], [0.12, 0.8], [0.06, 0.25]];
+    SND.play('flick');
+  }
+  M.was = boss;
+  if (boss) {
+    M.bossT += dt;
+    M.next -= dt;
+    if (M.next <= 0 && !M.seq.length) {   // a random stutter every few seconds (never a fast strobe)
+      M.next = rand(3, 7);
+      const n = 1 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) M.seq.push([rand(0.05, 0.1), rand(0.2, 0.55)], [rand(0.07, 0.16), 1]);
+      if (Math.random() < 0.25) M.seq.push([rand(0.3, 0.5), 0.1], [0.08, 0.7]);
+      SND.play('flick');
+    }
+  }
+  const tg = boss ? 1 : 0;
+  M.g += (tg - M.g) * Math.min(1, dt * (boss ? 1.4 : 0.6));
+  if (M.g < 0.002) M.g = 0;
+  let f = 1;
+  if (M.seq.length) { const st = M.seq[0]; f = st[1]; st[0] -= dt; if (st[0] <= 0) M.seq.shift(); }
+  M.f += (f - M.f) * Math.min(1, dt * 40);
+  setMood(M.g, M.f, boss && q ? q : null);
+  const dv = $('dread'); if (dv) { const o = (M.g * (0.7 + 0.3 * (1 - M.f))).toFixed(3); if (dv.style.opacity !== o) dv.style.opacity = o; }
+}
 
 function eventSound(e) {
   switch (e[0]) {
@@ -2354,9 +2418,14 @@ function frame(now) {
   }
   if (mm.classList.contains('indeck')) mm.style.visibility = $('hud').hidden ? 'hidden' : '';
   {
-    const boss = ((role === 'client' ? CL.bosses : S && S.bosses) || []).length > 0;
+    const bl = ((role === 'client' ? CL.bosses : S && S.bosses) || []), boss = bl.length > 0 && !idle() && mode !== 'over' && mode !== 'join';
+    moodTick(dt, boss, bl[0]);
     const want = idle() ? 'menu' : mode === 'over' || mode === 'join' ? null : boss ? 'boss' : 'game';
-    MUSIC.update(dt, want, mode === 'pause' || !$('paused').hidden ? 0.45 : mode === 'level' ? 0.7 : 1);
+    const quiet = mode === 'pause' || !$('paused').hidden ? 0.45 : mode === 'level' ? 0.7 : 1;
+    // the boss arrives in near-silence (just the drone and heartbeat), then its music creeps in
+    const intro = boss && MOOD.bossT < 3.5 ? 0 : boss ? 0.85 : 1;
+    MUSIC.update(dt, want, quiet * intro);
+    SND.dread(boss ? MOOD.g * (MOOD.bossT < 3.5 ? 1 : 0.6) * quiet : 0, MUSIC.muted ? 0 : loud(MUSIC.vol));
     const hint = MUSIC.blocked && !MUSIC.muted && mode === 'title';
     if ($('tapsnd').hidden === hint) $('tapsnd').hidden = !hint;
   }
