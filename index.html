@@ -246,7 +246,7 @@ body.menu #ver{display:block}
       <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="6" y="12" width="18" height="27" rx="6" fill="#f1f1ec"/><rect x="10" y="8" width="10" height="5" rx="2" fill="#ff7a1f"/><rect x="5" y="37" width="20" height="5" rx="2" fill="#ff7a1f"/><path d="M22 36c6 3 9 0 10-3" stroke="#1c1d22" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M30 35L41 16" stroke="#c6ccd4" stroke-width="3" stroke-linecap="round"/><rect x="27" y="31" width="6" height="7" rx="2" transform="rotate(30 30 34.5)" fill="#1c1d22"/><path d="M40 18l3-5" stroke="#f2c53d" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="8" r="2.4" fill="#bfefff" opacity=".85"/><circle cx="41" cy="5" r="1.8" fill="#bfefff" opacity=".65"/><circle cx="47" cy="3" r="1.5" fill="#bfefff" opacity=".5"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
-    <div id="ver">v1.11</div>
+    <div id="ver">v1.12</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -279,7 +279,7 @@ body.menu #ver{display:block}
       <div class="volrow"><span>Music</span><input type="range" id="mvol" min="0" max="100" step="5" aria-label="Music volume"><b id="mvolv"></b><button class="btn dark" id="mmutebtn" type="button">Turn off</button></div>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
-      <p class="hint pver">Pest Panic v1.11</p>
+      <p class="hint pver">Pest Panic v1.12</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -1389,11 +1389,12 @@ function cardHtml(u, p, i) {
 }
 const W = {
   spray: { cd: [26, 22, 20, 17, 15, 12].map(f => f / 60), n: [1, 1, 2, 2, 3, 3], dmg: [3, 3, 3, 4, 4, 5] },
-  swat: { n: [1, 2, 3, 3, 4], spd: [3, 3, 4, 5, 6].map(v => v * TAU / 256 * 60), dmg: [2, 2, 3, 3, 4] },
+  swat: { n: [1, 2, 3, 3, 4], spd: [3, 3, 4, 5, 6].map(v => v * TAU / 256 * 60), dmg: [6, 6, 9, 9, 12] },   // 3x: you have to be right up close
   bomb: { cd: [170, 150, 130, 110, 90].map(f => f / 60), n: [8, 10, 12, 14, 16] },
   zap: { cd: [110, 95, 80, 70, 60].map(f => f / 60), n: [1, 2, 2, 3, 4], dmg: [10, 10, 14, 16, 20] },
   glue: { cd: [110, 95, 80, 70, 60].map(f => f / 60), dmg: [12, 16, 20, 26, 32], r: [3.5, 4, 4.5, 5, 5.75] },
-  citro: { r: [3.25, 4, 4.75, 5.5, 6.25], dmg: [2, 3, 3, 4, 5], tick: [30, 26, 22, 20, 16].map(f => f / 60) },
+  citro: { r: [6.5, 8, 9.5, 11, 12.5], dmg: [4, 6, 6, 8, 10],   // ring size and damage doubled
+    tick: [30, 26, 22, 20, 16].map(f => f / 60) },
   paper: { cd: [80, 70, 60, 50, 40].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [10, 12, 14, 18, 22] },
   vac: [4.5, 7, 10, 14],
   flip: { cd: [108, 95, 80, 70, 60].map(f => f / 60), n: [1, 1, 2, 2, 3], dmg: [7, 9, 12, 15, 18], range: [8.2, 9.5, 11, 12, 13] },
