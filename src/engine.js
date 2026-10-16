@@ -519,6 +519,20 @@ GEO.spiderLeg = merge([seg([0, 0, 0], [0.55, 0.5, 0], 0.055, 0.045, '#2a1838'), 
   seg([0.55, 0.5, 0], [1.2, -0.5, 0], 0.045, 0.02, '#1f1229')]);
 GEO.spiderLegs = [[0.16, 0.5, 0.32, 0.95], [0.2, 0.5, 0.22, 0.35], [0.2, 0.5, 0.1, -0.2], [0.16, 0.5, -0.02, -0.75]];
 
+// wasp: like the fly's build but yellow-and-black with a pointed striped abdomen and stinger (faces +z)
+GEO.waspBody = merge([
+  P(sph(0.2), '#1b1b1b', [0, 0, 0.05], [0, 0, 0], [1, 0.9, 1.1]),
+  P(sph(0.2), '#f2c21b', [0, -0.02, -0.25], [0.1, 0, 0], [0.95, 0.85, 0.9]),
+  P(sph(0.19), '#1b1b1b', [0, -0.04, -0.45], [0.1, 0, 0], [0.9, 0.8, 0.85]),
+  P(sph(0.17), '#f2c21b', [0, -0.06, -0.63], [0.1, 0, 0], [0.85, 0.75, 0.85]),
+  P(sph(0.13), '#1b1b1b', [0, -0.08, -0.79], [0.1, 0, 0], [0.8, 0.7, 0.9]),
+  seg([0, -0.09, -0.86], [0, -0.12, -1.05], 0.05, 0.005, '#111111'),
+  P(sph(0.16), '#f2c21b', [0, 0.02, 0.3]),
+  P(sph(0.09), '#2a1608', [0.1, 0.05, 0.36]), P(sph(0.09), '#2a1608', [-0.1, 0.05, 0.36]),
+  seg([0.05, 0.12, 0.38], [0.14, 0.3, 0.55], 0.02, 0.012, '#111111'), seg([-0.05, 0.12, 0.38], [-0.14, 0.3, 0.55], 0.02, 0.012, '#111111'),
+  seg([0.1, -0.08, 0.1], [0.28, -0.4, 0.2], 0.022, 0.012, '#1b1b1b'), seg([-0.1, -0.08, 0.1], [-0.28, -0.4, 0.2], 0.022, 0.012, '#1b1b1b'),
+  seg([0.1, -0.08, -0.05], [0.3, -0.42, -0.12], 0.022, 0.012, '#f2c21b'), seg([-0.1, -0.08, -0.05], [-0.3, -0.42, -0.12], 0.022, 0.012, '#f2c21b'),
+]);
 GEO.coin = (() => { const c = new THREE.CylinderGeometry(0.3, 0.3, 0.07, 22); c.rotateX(Math.PI / 2); return c; })();
 GEO.paper = (() => { const c = new THREE.CylinderGeometry(0.2, 0.2, 1.1, 14, 1, false); return c; })();
 GEO.glue = new THREE.BoxGeometry(1.3, 0.08, 1.3);
@@ -778,6 +792,21 @@ export function buildBeam() {
   m.renderOrder = 16; m.visible = false; m.frustumCulled = false;
   scene.add(m);
   return m;
+}
+// wasp nest: a papery grey-tan lump with layered ridges and a dark entrance hole near the bottom
+export function buildNest() {
+  const g = new THREE.Group();
+  const paper = std({ color: '#b9aa8d', roughness: 0.95, envMapIntensity: 0.25 }), ridge = std({ color: '#9a8b70', roughness: 0.95, envMapIntensity: 0.2 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1.7, 28, 20), paper); body.scale.set(1, 1.2, 1); body.position.y = 2.05; body.castShadow = true; g.add(body);
+  for (const [y, r] of [[0.95, 1.18], [1.55, 1.58], [2.15, 1.7], [2.75, 1.52], [3.3, 1.1]]) {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.09, 6, 36), ridge); t.rotation.x = Math.PI / 2; t.position.y = y; g.add(t);
+  }
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, 0.6, 10), ridge); stalk.position.y = 4.2; g.add(stalk);
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(0.42, 18), new THREE.MeshBasicMaterial({ color: '#120d07' })); hole.position.set(0, 1.25, 1.42); hole.rotation.x = -0.35; g.add(hole);
+  g.userData = { body, mats: [paper, ridge] };
+  g.visible = false;
+  scene.add(g);
+  return g;
 }
 export function buildZapper() {
   const g = new THREE.Group();

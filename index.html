@@ -246,7 +246,7 @@ body.menu #ver{display:block}
       <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="6" y="12" width="18" height="27" rx="6" fill="#f1f1ec"/><rect x="10" y="8" width="10" height="5" rx="2" fill="#ff7a1f"/><rect x="5" y="37" width="20" height="5" rx="2" fill="#ff7a1f"/><path d="M22 36c6 3 9 0 10-3" stroke="#1c1d22" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M30 35L41 16" stroke="#c6ccd4" stroke-width="3" stroke-linecap="round"/><rect x="27" y="31" width="6" height="7" rx="2" transform="rotate(30 30 34.5)" fill="#1c1d22"/><path d="M40 18l3-5" stroke="#f2c53d" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="8" r="2.4" fill="#bfefff" opacity=".85"/><circle cx="41" cy="5" r="1.8" fill="#bfefff" opacity=".65"/><circle cx="47" cy="3" r="1.5" fill="#bfefff" opacity=".5"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
-    <div id="ver">v1.8</div>
+    <div id="ver">v1.9</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -279,7 +279,7 @@ body.menu #ver{display:block}
       <div class="volrow"><span>Music</span><input type="range" id="mvol" min="0" max="100" step="5" aria-label="Music volume"><b id="mvolv"></b><button class="btn dark" id="mmutebtn" type="button">Turn off</button></div>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
-      <p class="hint pver">Pest Panic v1.8</p>
+      <p class="hint pver">Pest Panic v1.9</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -843,6 +843,20 @@ GEO.spiderLeg = merge([seg([0, 0, 0], [0.55, 0.5, 0], 0.055, 0.045, '#2a1838'), 
   seg([0.55, 0.5, 0], [1.2, -0.5, 0], 0.045, 0.02, '#1f1229')]);
 GEO.spiderLegs = [[0.16, 0.5, 0.32, 0.95], [0.2, 0.5, 0.22, 0.35], [0.2, 0.5, 0.1, -0.2], [0.16, 0.5, -0.02, -0.75]];
 
+// wasp: like the fly's build but yellow-and-black with a pointed striped abdomen and stinger (faces +z)
+GEO.waspBody = merge([
+  P(sph(0.2), '#1b1b1b', [0, 0, 0.05], [0, 0, 0], [1, 0.9, 1.1]),
+  P(sph(0.2), '#f2c21b', [0, -0.02, -0.25], [0.1, 0, 0], [0.95, 0.85, 0.9]),
+  P(sph(0.19), '#1b1b1b', [0, -0.04, -0.45], [0.1, 0, 0], [0.9, 0.8, 0.85]),
+  P(sph(0.17), '#f2c21b', [0, -0.06, -0.63], [0.1, 0, 0], [0.85, 0.75, 0.85]),
+  P(sph(0.13), '#1b1b1b', [0, -0.08, -0.79], [0.1, 0, 0], [0.8, 0.7, 0.9]),
+  seg([0, -0.09, -0.86], [0, -0.12, -1.05], 0.05, 0.005, '#111111'),
+  P(sph(0.16), '#f2c21b', [0, 0.02, 0.3]),
+  P(sph(0.09), '#2a1608', [0.1, 0.05, 0.36]), P(sph(0.09), '#2a1608', [-0.1, 0.05, 0.36]),
+  seg([0.05, 0.12, 0.38], [0.14, 0.3, 0.55], 0.02, 0.012, '#111111'), seg([-0.05, 0.12, 0.38], [-0.14, 0.3, 0.55], 0.02, 0.012, '#111111'),
+  seg([0.1, -0.08, 0.1], [0.28, -0.4, 0.2], 0.022, 0.012, '#1b1b1b'), seg([-0.1, -0.08, 0.1], [-0.28, -0.4, 0.2], 0.022, 0.012, '#1b1b1b'),
+  seg([0.1, -0.08, -0.05], [0.3, -0.42, -0.12], 0.022, 0.012, '#f2c21b'), seg([-0.1, -0.08, -0.05], [-0.3, -0.42, -0.12], 0.022, 0.012, '#f2c21b'),
+]);
 GEO.coin = (() => { const c = new THREE.CylinderGeometry(0.3, 0.3, 0.07, 22); c.rotateX(Math.PI / 2); return c; })();
 GEO.paper = (() => { const c = new THREE.CylinderGeometry(0.2, 0.2, 1.1, 14, 1, false); return c; })();
 GEO.glue = new THREE.BoxGeometry(1.3, 0.08, 1.3);
@@ -1103,6 +1117,21 @@ function buildBeam() {
   scene.add(m);
   return m;
 }
+// wasp nest: a papery grey-tan lump with layered ridges and a dark entrance hole near the bottom
+function buildNest() {
+  const g = new THREE.Group();
+  const paper = std({ color: '#b9aa8d', roughness: 0.95, envMapIntensity: 0.25 }), ridge = std({ color: '#9a8b70', roughness: 0.95, envMapIntensity: 0.2 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1.7, 28, 20), paper); body.scale.set(1, 1.2, 1); body.position.y = 2.05; body.castShadow = true; g.add(body);
+  for (const [y, r] of [[0.95, 1.18], [1.55, 1.58], [2.15, 1.7], [2.75, 1.52], [3.3, 1.1]]) {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.09, 6, 36), ridge); t.rotation.x = Math.PI / 2; t.position.y = y; g.add(t);
+  }
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, 0.6, 10), ridge); stalk.position.y = 4.2; g.add(stalk);
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(0.42, 18), new THREE.MeshBasicMaterial({ color: '#120d07' })); hole.position.set(0, 1.25, 1.42); hole.rotation.x = -0.35; g.add(hole);
+  g.userData = { body, mats: [paper, ridge] };
+  g.visible = false;
+  scene.add(g);
+  return g;
+}
 function buildZapper() {
   const g = new THREE.Group();
   const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.6, 16), std({ color: '#b48cff', emissive: '#8a5cff', emissiveIntensity: 2.4, roughness: 0.2 }));
@@ -1256,6 +1285,8 @@ const BUG = [
   { name: 'ant', hp: 3, grow: 2, spd: 4.7, xp: 1, r: 0.7, dmg: 5 },
   { name: 'fly', hp: 2, grow: 1, spd: 8.9, xp: 1, r: 0.6, dmg: 5 },
   { name: 'spider', hp: 14, grow: 7, spd: 3.3, xp: 4, r: 1.0, dmg: 7 },
+  { name: 'wasp', hp: 5, grow: 2, spd: 8.2, xp: 2, r: 0.6, dmg: 7 },
+  { name: 'nest', hp: 1, grow: 0, spd: 0, xp: 0, r: 2.2, dmg: 0 },
 ];
 const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f / 60);
 const QUEEN_EVERY = 180, QUEEN_HP = 1000;
@@ -1400,6 +1431,7 @@ function applyArena(a) {
 }
 const arenaFor = n => +(ARENA_BASE * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
 function growArena(quiet) { const a = arenaFor(S.players.length); if (a > ARENA + 0.01) { applyArena(a); if (!quiet) ev(['ar', S.players.length]); } }
+const nestMesh = buildNest();
 const queenMesh = buildQueen(); queenMesh.visible = false; scene.add(queenMesh);
 const bossMeshes = [queenMesh, buildBugBoss('spider'), buildBugBoss('ant'), buildBugBoss('fly')];
 
@@ -1407,6 +1439,7 @@ const IM = {
   ant: instanced(GEO.antBody, MAT.bug, MAX_BUGS),
   antLeg: instanced(GEO.antLeg, MAT.leg, MAX_BUGS * 6),
   fly: instanced(GEO.flyBody, MAT.bug, MAX_BUGS),
+  wasp: instanced(GEO.waspBody, MAT.bug, 80),
   wing: instanced(GEO.wing, MAT.wing, MAX_BUGS * 2),
   spider: instanced(GEO.spider ? GEO.spider : GEO.spiderBody, MAT.bug, MAX_BUGS),
   spiderLeg: instanced(GEO.spiderLeg, MAT.leg, MAX_BUGS * 8),
@@ -1516,7 +1549,7 @@ function newPlayer(id, name, color) {
 function newWorld() {
   S = {
     t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], ebul: [], decals: [], nums: [], rings: [],
-    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, queen: null, bosses: [], bossKills: 0, bank: 0,
+    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, nextNest: QUEEN_EVERY / 2, nestN: 0, nest: null, freePicks: 0, queen: null, bosses: [], bossKills: 0, bank: 0,
     shake: 0, pendingLevels: 0, bugHp: [3, 2, 14], minute: -1, round: null, nextId: 1, ev: [], warned: false,
   };
   updateMinute();
@@ -1541,7 +1574,7 @@ const spawnRadius = () => Math.max(view.spawnR, role === 'solo' ? 0 : 30);
 
 // ---------------------------------------------------------------- events (played locally, and sent to clients by the host)
 function ev(e) { playEvent(e); if (role === 'host') S.ev.push(e); }
-const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25]];
+const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25], [0.95, 0.8, 0.2], [0.75, 0.7, 0.55]];
 // ---------------------------------------------------------------- sound effects (all synthesized with Web Audio, no files)
 // sliders follow how ears hear loudness (squared), with a little headroom off the top
 const loud = v => v * v * 0.7;
@@ -1690,6 +1723,11 @@ const SND = (() => {
       notes(out(0.2), 'triangle', [523, 659, 784], 0.11, 0.14, n + 0.35); tone(out(0.22), 'triangle', 1047, 1047, n + 0.68, 0.5, 0.01);
     },
     over() { const n = ctx.currentTime, o = out(0.18); notes(o, 'triangle', [392, 349, 311, 262], 0.22, 0.3, n); tone(o, 'sine', 131, 98, n + 0.88, 0.8, 0.02, 0.6); },
+    buzz() {   // an angry swarm buzz
+      const n = ctx.currentTime, o = out(0.16), f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 1.5; f.connect(o);
+      for (const hz of [196, 203, 211]) { const osc = tone(f, 'sawtooth', hz, hz * 1.04, n, 1.1, 0.05, 0.7); }
+      const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 23; lg.gain.value = 400; l.connect(lg); lg.connect(f.frequency); l.start(n); l.stop(n + 1.2);
+    },
     join() { const n = ctx.currentTime, o = out(0.14); tone(o, 'sine', 660, 660, n, 0.08); tone(o, 'sine', 990, 990, n + 0.09, 0.12); },
   };
   return {
@@ -1809,6 +1847,8 @@ function eventSound(e) {
     case 'rv': SND.play('revive'); break;
     case 'tp': SND.play(e[1] === 'aid' || e[3] ? 'pick' : 'tick'); break;
     case 'j': SND.play('join'); break;
+    case 'nw': SND.play('buzz'); break;
+    case 'nk': SND.play('bomb', e[1], e[2]); SND.play('pick'); break;
   }
 }
 function playEvent(e) {
@@ -1863,6 +1903,15 @@ function playEvent(e) {
       break;
     }
     case 'j': banner(e[1] + ' joined'); break;
+    case 'nw': banner('A wasp nest appeared! Follow the arrow'); break;
+    case 'nb': { for (let k = 0; k < 6; k++) FX.smoke.spawn({ x: e[1] + rand(-0.5, 0.5), y: 1.3, z: e[2] + 1.6, vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(0.5, 2), life: 0.5, s0: 0.3, s1: 0.9, c: [0.6, 0.55, 0.45], a0: 0.4, a1: 0 }); break; }
+    case 'nk': {
+      banner('Nest destroyed!');
+      for (let k = 0; k < 40; k++) { const a = Math.random() * TAU, sp = rand(4, 14); FX.goo.spawn({ x: e[1], y: rand(1, 3.5), z: e[2], vx: Math.cos(a) * sp, vy: rand(3, 9), vz: Math.sin(a) * sp, life: 1.1, s0: rand(0.4, 0.8), s1: 0.3, c: [0.78, 0.72, 0.58], a0: 1, a1: 0.8, grav: 18 }); }
+      S.rings.push({ x: e[1], z: e[2], r0: 1, r1: 12, life: 0.5, max: 0.5, c: [1, 0.85, 0.3] }); S.shake = Math.max(S.shake, 0.9);
+      addDecal(e[1], e[2], 5, [0.55, 0.5, 0.4], 9);
+      break;
+    }
     case 'ar': setTimeout(() => banner('The kitchen got bigger!'), 1600); break;
     case 'x': banner(e[1] + ' left'); break;
   }
@@ -1899,6 +1948,8 @@ function director(dt) {
     const n = 1 + (ph >= 4 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
     for (let i = 0; i < n; i++) spawnAround(pickType(), spawnRadius() + rand(0, 4));
   }
+  // wasp nest halfway between bosses (1:30, 4:30, ...); skipped if a boss is still alive
+  if (S.t >= S.nextNest) { S.nextNest += QUEEN_EVERY; if (!S.bosses.length && !S.nest) spawnNest(); }
   if (!S.openWave2 && S.t >= 3) {
     S.openWave2 = true;
     for (const p of alivePlayers()) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + Math.PI / 6 + rand(-0.3, 0.3); const d = spawnRadius() + rand(1, 4); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }   // off screen, like normal spawns
@@ -1913,7 +1964,43 @@ function director(dt) {
   if (!S.bosses.length && S.t >= S.nextQueen - 5 && !S.warned) { S.warned = true; ev(['w', planText(S.queens + 1)]); }
   if (!S.bosses.length && S.t >= S.nextQueen) spawnQueen();
 }
+// ---------------------------------------------------------------- wasp nest
+const NEST_SEE = 17;   // wasps only come out while the nest is on someone's screen
+function spawnNest() {
+  S.nestN++;
+  const al = alivePlayers(); if (!al.length) return;
+  const m = ARENA - 7;
+  let x = 0, z = 0;
+  for (let tries = 0; tries < 40; tries++) {
+    const p = al[(Math.random() * al.length) | 0], a = Math.random() * TAU, d = rand(26, 38);
+    x = clamp(p.x + Math.cos(a) * d, -m, m); z = clamp(p.z + Math.sin(a) * d, -m, m);
+    if (al.every(q => dist2(q.x, q.z, x, z) > 22 * 22)) break;
+  }
+  const hp = Math.round(420 * (1 + 0.9 * (S.nestN - 1)) * DIFF * (1 + 0.6 * Math.max(0, al.length - 1)));
+  const b = { id: S.nextId++ & 0xffff, t: 4, x, z, vx: 0, vz: 0, hp, max: hp, spd: 0, flash: 0, icd: 0, stuck: 0, cd: 1.2, ang: Math.random() * TAU, walk: 0, jit: 0, weave: 0, spit: 0 };
+  S.bugs.push(b); S.nest = b;
+  ev(['nw']);
+}
+function nestTick(b, dt) {
+  const seen = S.players.some(p => !p.down && dist2(p.x, p.z, b.x, b.z) < NEST_SEE * NEST_SEE);
+  if (!seen) return;
+  b.cd -= dt;
+  if (b.cd > 0) return;
+  b.cd = Math.max(1.3, 2.6 - 0.2 * (S.nestN - 1));
+  const out = S.bugs.reduce((n, o) => n + (o.t === 3 ? 1 : 0), 0);
+  if (out >= 10 + 2 * S.nestN) return;
+  const k = 2 + Math.floor(S.nestN / 2);
+  for (let i = 0; i < k; i++) spawnBug(3, b.x + rand(-0.6, 0.6), b.z + 1.6 + rand(-0.3, 0.3), true);
+  ev(['nb', b.x, b.z]);
+}
+function nestDown(b) {
+  S.nest = null; S.freePicks++; S.pendingLevels++;
+  for (let i = 0; i < 6; i++) dropCoin(b.x + rand(-2, 2), b.z + rand(-2, 2), 3, false);
+  ev(['nk', b.x, b.z]);
+}
 function spawnQueen() {
+  // the boss chases off any wasp nest still standing
+  if (S.nest) { S.bugs = S.bugs.filter(b => b.t !== 4); S.nest = null; }
   S.queens++; S.nextQueen += QUEEN_EVERY; S.warned = false;
   const n = S.queens, plan = bossPlan(n), tier = plan.tier;
   const a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
@@ -1995,9 +2082,9 @@ function queenNear(p, r) { let best = null, bd = r * r; for (const q of S.bosses
 const BR = (q = S.queen) => q ? BOSSES[q.kind].r : 3;
 function hitBug(b, dmg, kx = 0, kz = 0) {
   if (b.hp <= 0) return;
-  b.hp -= dmg; b.flash = 0.09; b.x += kx; b.z += kz;
+  b.hp -= dmg; b.flash = 0.09; if (b.t !== 4) { b.x += kx; b.z += kz; }
   if (dmg >= 8 || Math.random() < 0.12) ev(['n', b.x, b.z, Math.round(dmg), 0]);
-  if (b.hp <= 0) { S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp, b.t === 2); }
+  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp, b.t === 2); }
 }
 function dropCoin(x, z, v, big) {
   v += S.bank; S.bank = 0;
@@ -2077,6 +2164,7 @@ function weapons(p, dt) {
       const a = p.swatA + k / ns * TAU, x = p.x + Math.cos(a) * 3.1, z = p.z + Math.sin(a) * 3.1;
       near(x, z, 1.4, b => { if (b.icd <= 0 && dist2(b.x, b.z, x, z) < 1.96) { b.icd = 0.33; hitBug(b, dmg, Math.cos(a) * 0.5, Math.sin(a) * 0.5); if (Math.random() < 0.5) ev(['h', b.x, b.z]); } });
       for (const q of S.bosses) if (q.icd <= 0 && dist2(q.x, q.z, x, z) < (BR(q) + 0.8) ** 2) { q.icd = 0.15; hitQueen(dmg * 2, x, z, q); }
+      if (S.nest && S.nest.icd <= 0 && dist2(S.nest.x, S.nest.z, x, z) < 3.4 * 3.4) { S.nest.icd = 0.2; hitBug(S.nest, dmg * 2); }
     }
   }
   if (L.citro) {
@@ -2152,6 +2240,7 @@ function roomba(p, dt, i, db) {
       if (ed < R) { hitBug(b, dmg, ex / ed * 0.35, ez / ed * 0.35); if (Math.random() < 0.25) ev(['h', b.x, b.z]); }
     });
     for (const q of S.bosses) if (dist2(q.x, q.z, rb.x, rb.z) < (R + BR(q)) ** 2) hitQueen(dmg * 2, rb.x, rb.z, q);
+    if (S.nest && dist2(S.nest.x, S.nest.z, rb.x, rb.z) < (R + 2.2) ** 2) hitBug(S.nest, dmg);
   }
 }
 function updateShots(dt) {
@@ -2159,10 +2248,14 @@ function updateShots(dt) {
   for (const s of S.shots) {
     s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.spin += dt * 18;
     let dead = s.life <= 0 || Math.abs(s.x) > ARENA + 2 || Math.abs(s.z) > ARENA + 2;
+    const nb = S.nest;
+    if (!dead && nb && nb.hp > 0 && !s.hitN && dist2(s.x, s.z, nb.x, nb.z) < 2.6 * 2.6) {
+      hitBug(nb, s.dmg); if (s.kind === 'spray' || s.kind === 'bomb') dead = true; else s.hitN = true;
+    }
     if (!dead) {
       if (s.kind === 'flip') {
         s.t += dt;
-        if (!s.back && s.t >= s.out) { s.back = true; s.hit = new Set(); s.hitQ = false; }
+        if (!s.back && s.t >= s.out) { s.back = true; s.hit = new Set(); s.hitQ = false; s.hitN = false; }
         if (s.back) {
           const o = S.players.find(q => q.id === s.owner);
           if (!o) dead = true;
@@ -2214,6 +2307,7 @@ function updateBugs(dt, demo) {
   for (let i = 0; i < S.bugs.length; i++) {
     const b = S.bugs[i];
     b.flash = Math.max(0, b.flash - dt); b.icd = Math.max(0, b.icd - dt);
+    if (b.t === 4) { if (!demo) nestTick(b, dt); continue; }
     const tp = demo ? { x: S.demoX, z: S.demoZ } : nearestPlayer(b.x, b.z);
     if (!tp) continue;
     const dx = tp.x - b.x, dz = tp.z - b.z, d2 = dx * dx + dz * dz;
@@ -2221,7 +2315,7 @@ function updateBugs(dt, demo) {
     const d = Math.sqrt(d2) || 1, ax = dx / d, az = dz / d;
     const j = b.jit * (d > 6 ? 1 : 0.2);
     let ca = Math.cos(j), sa = Math.sin(j);
-    if (b.t === 1) { b.weave += dt * 5; const w = Math.sin(b.weave) * 0.9; ca = Math.cos(j + w); sa = Math.sin(j + w); }
+    if (b.t === 1 || b.t === 3) { b.weave += dt * 5; const w = Math.sin(b.weave) * 0.9; ca = Math.cos(j + w); sa = Math.sin(j + w); }
     const tx = ax * ca - az * sa, tz = ax * sa + az * ca;
     let spd = b.spd;
     if (b.stuck > 0) { b.stuck -= dt; spd = 0; }
@@ -2351,12 +2445,13 @@ function voters() {
 }
 function startLevelRound() {
   S.pendingLevels--;
+  const free = S.freePicks > 0; if (free) S.freePicks--;
   const cards = teamCards();
   if (!cards.length) { ev(['tp', '', '', 2]); return; }                               // everything maxed: nothing this level
   if (cards.length === 1 && cards[0] === 'aid') { applyTeamUp('aid', ''); return; }   // maxed, 5th level: med kit for everyone
   const vs = voters();
   S.roundN = (S.roundN || 0) + 1;
-  S.round = { n: S.roundN * 1000 + ((Math.random() * 1000) | 0), cards, votes: {}, until: performance.now() + VOTE_MS, tb: vs.length ? vs[(S.tbTurn || 0) % vs.length].id : me.id };
+  S.round = { n: S.roundN * 1000 + ((Math.random() * 1000) | 0), cards, free, votes: {}, until: performance.now() + VOTE_MS, tb: vs.length ? vs[(S.tbTurn || 0) % vs.length].id : me.id };
   mode = 'level';
   showCards();
 }
@@ -2426,7 +2521,7 @@ function renderVotes() {
   const tbp = ps.find(p => p.id === r.tb);
   const sig = JSON.stringify([votes, left, r.tb, multi, ps.length]);
   if (sig === voteSig) return; voteSig = sig;
-  $('lvtitle').textContent = multi ? 'Team level up!' : 'Level up!';
+  $('lvtitle').textContent = r.free ? 'Nest destroyed! Free upgrade' : multi ? 'Team level up!' : 'Level up!';
   $('lvnote').hidden = !multi;
   if (multi) {
     const n = ps.filter(p => votes[p.id]).length;
@@ -2488,6 +2583,7 @@ function applySnapshot(s) {
   const now = performance.now();
   CL.hostSeen = now; CL.snapAt = now;
   if (s.A) applyArena(s.A);
+  CL.nestHp = s.N || null;
   S.t = s.t; S.lvl = s.lv; S.xp = s.xp; S.need = s.nd; S.kills = s.k; S.queens = s.qn;
   // bugs
   const seen = new Set();
@@ -2588,7 +2684,8 @@ function setI(mesh, i, x, y, z, ry, s = 1, rx = 0, rz = 0) {
   return tmpM;
 }
 function drawBugs(list, t) {
-  const c = { ant: 0, antLeg: 0, fly: 0, wing: 0, spider: 0, spiderLeg: 0 };
+  const c = { ant: 0, antLeg: 0, fly: 0, wing: 0, spider: 0, spiderLeg: 0, wasp: 0 };
+  let nestB = null;
   const sh = B.shadow;
   for (const b of list) {
     const fl = b.flash > 0 ? flashC : b.stuck > 0 ? stuckC : white;
@@ -2602,6 +2699,18 @@ function drawBugs(list, t) {
         IM.antLeg.setMatrixAt(c.antLeg++, tmpM2.multiplyMatrices(base, legLocal));
       }
       sh.add(b.x, 0.02, b.z, 1.6, 0, 0, 0, 0, 0.45);
+    } else if (b.t === 4) { nestB = b; continue;
+    } else if (b.t === 3) {
+      if (c.wasp >= 80) continue;
+      const i = c.wasp++, hy = 1.0 + Math.sin(b.walk * 1.6) * 0.14, base = baseM.copy(setI(IM.wasp, i, b.x, hy, b.z, b.ang, 1.35));
+      IM.wasp.setColorAt(i, fl);
+      const flap = Math.sin(t * 65 + (b.id || 0)) * 0.7;
+      for (const side of [1, -1]) {
+        tmpE.set(0, side > 0 ? -0.35 : Math.PI + 0.35, flap * side, 'YXZ'); tmpQ.setFromEuler(tmpE);
+        legLocal.compose(tmpV.set(0.08 * side, 0.12, -0.05), tmpQ, ONE);
+        IM.wing.setMatrixAt(c.wing++, tmpM2.multiplyMatrices(base, legLocal));
+      }
+      sh.add(b.x, 0.02, b.z, 1.2, 0, 0, 0, 0, 0.3);
     } else if (b.t === 1) {
       const i = c.fly++, hy = 0.85 + Math.sin(b.walk * 1.3) * 0.12, base = baseM.copy(setI(IM.fly, i, b.x, hy, b.z, b.ang, 1.25));
       IM.fly.setColorAt(i, fl);
@@ -2623,6 +2732,14 @@ function drawBugs(list, t) {
       }
       sh.add(b.x, 0.02, b.z, 2.6, 0, 0, 0, 0, 0.5);
     }
+  }
+  // the wasp nest
+  nestMesh.visible = !!nestB;
+  if (nestB) {
+    const w = nestB.flash > 0 ? 1.06 : 1;
+    nestMesh.position.set(nestB.x, 0, nestB.z); nestMesh.rotation.y = nestB.ang || 0; nestMesh.scale.set(w, 1 / w * 1.0, w);
+    sh.add(nestB.x, 0.02, nestB.z, 5.5, 0, 0, 0, 0, 0.5);
+    if (Math.random() < 0.3) { const a = Math.random() * TAU; FX.glow.spawn({ x: nestB.x + Math.cos(a) * 2.4, y: rand(1, 3.5), z: nestB.z + Math.sin(a) * 2.4, vx: -Math.sin(a) * 4, vy: rand(-0.5, 0.5), vz: Math.cos(a) * 4, life: 0.5, s0: 0.18, s1: 0.12, c: [0.9, 0.75, 0.15], a0: 0.9, a1: 0 }); }
   }
   for (const k in c) { IM[k].count = c[k]; IM[k].instanceMatrix.needsUpdate = true; if (IM[k].instanceColor) IM[k].instanceColor.needsUpdate = true; }
 }
@@ -2842,6 +2959,25 @@ function drawOverlay(dt) {
   }
   S.nums = keep; fctx.globalAlpha = 1;
   const players = role === 'client' ? [...CL.players.values()] : S.players;
+  {
+    const nb = role === 'client' ? [...CL.bugs.values()].find(b => b.t === 4) : S.nest;
+    const hp = role === 'client' ? CL.nestHp : nb ? [nb.hp, nb.max] : null;
+    if (nb && !idle()) {
+      const [sx, sy] = project(nb.x, 5.2, nb.z), W = view.w, H = view.h, mg = 34;
+      if (sx > mg && sx < W - mg && sy > mg && sy < H - mg) {
+        if (hp) { const w = 96, f = Math.max(0, hp[0] / hp[1]); fctx.fillStyle = 'rgba(0,0,0,.7)'; fctx.fillRect(sx - w / 2 - 2, sy - 2, w + 4, 11); fctx.fillStyle = '#ffb21e'; fctx.fillRect(sx - w / 2, sy, w * f, 7); }
+        fctx.font = '800 12px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.8)'; fctx.strokeText('WASP NEST', sx, sy - 6); fctx.fillStyle = '#ffd24a'; fctx.fillText('WASP NEST', sx, sy - 6);
+      } else {
+        const cx = W / 2, cy = H / 2, dx = sx - cx, dy = sy - cy, sc = Math.min((W / 2 - mg) / Math.abs(dx || 1e-3), (H / 2 - mg) / Math.abs(dy || 1e-3));
+        const ax = cx + dx * sc, ay = cy + dy * sc, an = Math.atan2(dy, dx), pulse = 1 + Math.sin(performance.now() / 160) * 0.12;
+        fctx.save(); fctx.translate(ax, ay); fctx.rotate(an); fctx.scale(pulse, pulse);
+        fctx.beginPath(); fctx.moveTo(16, 0); fctx.lineTo(-10, -12); fctx.lineTo(-5, 0); fctx.lineTo(-10, 12); fctx.closePath();
+        fctx.fillStyle = '#ffb21e'; fctx.lineWidth = 3; fctx.strokeStyle = '#000'; fctx.stroke(); fctx.fill(); fctx.restore();
+        fctx.font = '800 11px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.85)'; const tx = ax - Math.cos(an) * 26, ty = ay - Math.sin(an) * 26 + 4;
+        fctx.strokeText('NEST', tx, ty); fctx.fillStyle = '#ffd24a'; fctx.fillText('NEST', tx, ty);
+      }
+    }
+  }
   if (players.length > 1) for (const p of players) {
     const [sx, sy] = project(p.x, 3.4, p.z);
     fctx.font = '800 13px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.8)';
@@ -2865,6 +3001,7 @@ function drawMinimap() {
   mctx.fillStyle = 'rgba(230,80,60,.75)';
   const bugs = role === 'client' ? [...CL.bugs.values()] : S.bugs;
   for (let i = 0; i < bugs.length; i += 2) { const b = bugs[i]; mctx.fillRect(o + b.x * k - 1.5, o + b.z * k - 1.5, 3, 3); }
+  { const nb = bugs.find(b => b.t === 4); if (nb) { mctx.fillStyle = '#ffb21e'; mctx.strokeStyle = '#000'; mctx.lineWidth = 2; mctx.beginPath(); mctx.arc(o + nb.x * k, o + nb.z * k, 6 + Math.sin(performance.now() / 150) * 2, 0, TAU); mctx.fill(); mctx.stroke(); } }
   mctx.fillStyle = '#ffd24a';
   const coins = role === 'client' ? CL.coins : S.coins;
   for (let i = 0; i < coins.length; i += 3) { const c = coins[i]; mctx.fillRect(o + c.x * k - 1, o + c.z * k - 1, 2, 2); }
@@ -3299,7 +3436,8 @@ function sendSnapshot() {
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
     E: S.ebul.slice(0, 120).map(e => [e.k, r(e.x * 10), r(e.z * 10), r(e.vx * 10), r(e.vz * 10)]),
     ev: S.ev.splice(0, S.ev.length).slice(-120).map(e => e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)),
-    R: S.round ? { n: S.round.n, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
+    R: S.round ? { n: S.round.n, free: S.round.free, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
+    N: S.nest ? [Math.round(S.nest.hp), S.nest.max] : 0,
     st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, rk: S.boardRank || 0, bm: S.boardMode || '' } : null,
   };
   net.send('snap', snap);
@@ -3472,7 +3610,7 @@ window.PP = {
   give(id, n = 1, pid = me.id) { const p = S.players.find(q => q.id === pid); for (let i = 0; i < n; i++) if (p.up[id] < UP.find(u => u.id === id).max) p.up[id]++; },
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
-  arena: () => ARENA,   snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  arena: () => ARENA,   nest: () => spawnNest(), snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
 
