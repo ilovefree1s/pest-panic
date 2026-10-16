@@ -200,6 +200,16 @@ body.menu #deck{display:none!important}
 .screen{overflow-y:auto;justify-content:safe center}
 @media (pointer:coarse){#title > .hint{display:none}}
 @media (max-height:700px){#title{gap:9px}#title .logo{font-size:clamp(44px,12vw,80px)}#title .menu{gap:9px}}
+#abil{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);pointer-events:auto;width:76px;height:76px;border-radius:50%;border:0;padding:0;cursor:pointer;
+  background:#1a2026;box-shadow:0 6px 16px rgba(0,0,0,.45);display:grid;place-items:center;touch-action:manipulation;--p:1}
+#abil .ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(#7ddc5a calc(var(--p) * 360deg),rgba(255,255,255,.1) 0);-webkit-mask:radial-gradient(circle,transparent 58%,#000 60%);mask:radial-gradient(circle,transparent 58%,#000 60%)}
+#abil svg{width:40px;height:40px;opacity:.45;margin-top:-8px}
+#abil b{position:absolute;bottom:9px;left:0;right:0;font:900 10px var(--body,system-ui);letter-spacing:.05em;color:var(--dim)}
+#abil.ready svg{opacity:1}
+#abil.ready b{color:#7ddc5a}
+#abil.ready{animation:abilpulse 1.4s ease-in-out infinite}
+@keyframes abilpulse{50%{box-shadow:0 0 0 6px rgba(125,220,90,.25),0 6px 16px rgba(0,0,0,.45)}}
+#abil.indeck{position:relative;left:auto;bottom:auto;transform:none;width:70px;height:70px;flex:none}
 @media (prefers-reduced-motion:reduce){#banner,.card{transition:none}}
 </style>
 
@@ -222,6 +232,7 @@ body.menu #deck{display:none!important}
       <div id="queen" hidden></div>
       <canvas id="minimap" width="224" height="224"></canvas>
       <button id="pausebtn" type="button" aria-label="Pause">II</button>
+      <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="12" y="10" width="20" height="30" rx="7" fill="#f1f1ec"/><rect x="16" y="6" width="12" height="6" rx="2" fill="#ff7a1f"/><rect x="11" y="38" width="22" height="5" rx="2" fill="#ff7a1f"/><path d="M32 30c8 0 8-14 12-18" stroke="#1c1d22" stroke-width="2.5" fill="none"/><circle cx="44" cy="10" r="3" fill="#bfefff" opacity=".8"/><circle cx="40" cy="5" r="2.2" fill="#bfefff" opacity=".6"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
     <div id="pad">Controller: press any button</div>
@@ -241,7 +252,7 @@ body.menu #deck{display:none!important}
       </div>
       <p class="tapsnd" id="tapsnd" hidden>🔇 Click anywhere for music</p>
       <p class="best" id="best"></p>
-      <p class="hint">Move with the stick, WASD / arrows, or a controller. Press M to mute. Your gear fires on its own. Grab coins to level up.</p>
+      <p class="hint">Move with the stick, WASD / arrows, or a controller. Space / Cross fires your backpack sprayer every 30 s. Press M to mute. Your gear fires on its own. Grab coins to level up.</p>
     </div>
     <div class="screen" id="levelup" hidden>
       <h2 class="t" id="lvtitle">Level up!</h2>

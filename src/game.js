@@ -23,7 +23,9 @@ const BUG = [
 ];
 const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f / 60);
 const QUEEN_EVERY = 180, QUEEN_HP = 1000;
-const DIFF = 1.1;   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
+const DIFF = 1.1;
+// backpack sprayer: a move you trigger yourself (Space / Cross / the button), once every 30 s
+const BP_CD = 30, BP_TIME = 3, BP_R = 8.5;   // overall difficulty: bug & boss health, damage taken and spawn pace all scale with this
 // a different boss every 3 minutes; once all four are beaten they come back in king-and-queen pairs
 const BOSSES = [
   { id: 'roach', bug: 'Roach', name: 'ROACH QUEEN', title: 'Roach Queen', r: 3.2, spd: 4.2, shadow: 9, hp: 1, goo: [0.42, 0.24, 0.1] },
@@ -47,8 +49,9 @@ const planText = n => { const pl = bossPlan(n); return pl.list.map(([k, d]) => b
 const EB_DMG = [12, 12, 6, 8, 8];                       // goo, fire, venom, web, fly spit
 const EB_COL = [[0.5, 1.3, 0.3], [1.4, 0.6, 0.15], [0.5, 1.3, 0.3], [1.3, 1.3, 1.3], [1.4, 1.2, 0.25]];
 const EB_CORE = [[0.55, 0.95, 0.3], [1, 0.55, 0.2], [0.55, 0.95, 0.3], [0.95, 0.95, 0.95], [1, 0.9, 0.3]];
-const COLORS = [['#3a86bd', '#d43a2b'], ['#e0782a', '#2a5fd4'], ['#4fae3c', '#f0c53d'], ['#8b5cc9', '#ff6fa8']];
-const CSS_COL = ['#5fb0ea', '#ff9a4a', '#7ddc5a', '#b78cff'];
+// players 1-4: red, blue, green, yellow (suit colour, cap colour)
+const COLORS = [['#d23b30', '#e0281c'], ['#2f7fd1', '#1f6ad6'], ['#3fa83a', '#2fae28'], ['#e8b81f', '#f2c400']];
+const CSS_COL = ['#ff5a4e', '#5fb0ea', '#7ddc5a', '#ffd23f'];
 
 const UP = [
   { id: 'spray', name: 'Bug Spray', max: 6, d: 'Sprays the nearest bug.', up: 'Faster sprays, more streams.' },
@@ -254,7 +257,7 @@ function near(x, z, r, fn) {
   const x0 = clamp(Math.floor((x - r + GOFF) / CELL), 0, GN - 1), x1 = clamp(Math.floor((x + r + GOFF) / CELL), 0, GN - 1);
   const z0 = clamp(Math.floor((z - r + GOFF) / CELL), 0, GN - 1), z1 = clamp(Math.floor((z + r + GOFF) / CELL), 0, GN - 1);
   for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
-    for (let i = head[cx + cz * GN]; i >= 0; i = nextB[i]) { const b = S.bugs[i]; if (b.hp > 0 && fn(b) === true) return true; }
+    for (let i = head[cx + cz * GN]; i >= 0; i = nextB[i]) { const b = S.bugs[i]; if (b && b.hp > 0 && fn(b) === true) return true; }
   }
   return false;
 }
@@ -272,7 +275,7 @@ $('pname').value = me.name;
 function newPlayer(id, name, color) {
   return { id, name: name || 'Player', color, x: rand(-2, 2), z: rand(-2, 2), vx: 0, vz: 0, face: 0, hp: 100, inv: 1.5, down: false,
     up: Object.fromEntries(UPIDS.map(k => [k, k === 'spray' ? 1 : 0])),
-    cd: { spray: 0.3, bomb: 1, zap: 0.5, glue: 0.5, citro: 0.5, paper: 0.5, flip: 0.6, rb: 0, lens: 0, scorch: 0 }, swatA: 0, citroA: 0, citroFlash: 0, sprayPuff: 0, walk: 0, seen: 0 };
+    cd: { spray: 0.3, bomb: 1, zap: 0.5, glue: 0.5, citro: 0.5, paper: 0.5, flip: 0.6, rb: 0, lens: 0, scorch: 0 }, bpCd: 0, bp: 0, bpT: 0, swatA: 0, citroA: 0, citroFlash: 0, sprayPuff: 0, walk: 0, seen: 0 };
 }
 function newWorld() {
   S = {
@@ -401,6 +404,12 @@ const SND = (() => {
     fire(x, z) {
       if (!gate('fire', 85)) return; const [k, pan] = where(x, z); if (k < 0.05) return;
       noise(out(0.9 * k, pan), ctx.currentTime, 0.08, 'bandpass', R(1200, 2200), 800, 1.5);
+    },
+    backpack(x, z) {   // pump-action pressure spray: a whoosh, then a long pulsing hiss
+      const [k, pan] = where(x, z); if (k < 0.02) return;
+      const n = ctx.currentTime, o = out(0.55 * k, pan);
+      noise(o, n, 0.35, 'lowpass', 300, 1800, 0.8, 0.02, 0.8);
+      for (let i = 0; i < 6; i++) noise(o, n + 0.15 + i * 0.47, 0.5, 'highpass', 2600, 4200, 0.6, 0.04, 0.55);
     },
     sizzle(x, z) {   // laser burn: a quick falling "pew" with a crackle
       S_.laserHitT = performance.now();
@@ -553,6 +562,7 @@ function eventSound(e) {
     case 'g': SND.play('snap', e[1], e[2]); break;
     case 'f': SND.play('fire', e[1], e[2]); break;
     case 'ff': SND.play('thwip', e[1], e[2]); break;
+    case 'bp': SND.play('backpack', e[2], e[3]); break;
     case 'sz': SND.play('sizzle', e[1], e[2]); break;
     case 'pp': SND.play('whoosh', e[1], e[2]); break;
     case 'ph': SND.play('splash', e[1], e[2]); break;
@@ -1029,6 +1039,29 @@ function revives(dt) {
     } else { p.rev = Math.max(0, (p.rev || 0) - dt / 1.5); p.revBy = null; }   // step away and it drains
   }
 }
+function useBackpack(p) {
+  if (!p || p.down || (p.bpCd || 0) > 0 || mode !== 'play') return;
+  p.bpCd = BP_CD; p.bp = BP_TIME; p.bpT = 0;
+  ev(['bp', p.id, p.x, p.z]);
+}
+// a thick cloud of spray all around you for 3 s: hurts and shoves back everything in range, keeps up with the bugs' growing health
+function backpackTick(p, dt) {
+  p.bp -= dt; p.bpT -= dt;
+  if (p.down) { p.bp = 0; return; }
+  if (p.bpT > 0) return;
+  p.bpT = 0.2;
+  const dmg = (5 + 2.2 * S.minute + (p.up.str || 0)) * 1.0;
+  near(p.x, p.z, BP_R, b => {
+    const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz) || 1;
+    if (d < BP_R) { hitBug(b, dmg, dx / d * 0.2, dz / d * 0.2); b.stuck = Math.max(b.stuck || 0, 0.25); }
+  });
+  for (const q of S.bosses) if (dist2(q.x, q.z, p.x, p.z) < (BP_R + BR(q)) ** 2) hitQueen(dmg * 2, q.x, q.z, q);
+}
+function useMyBackpack() {
+  if (mode !== 'play') return;
+  if (role === 'client') { if (CL.me && !CL.me.down && (CL.me.bpCd || 0) <= 0) { CL.me.bpCd = BP_CD; net && net.send('ab', { id: me.id }); } }
+  else useBackpack(meP());
+}
 function movePlayer(p, mv, dt) {
   const spd = (PLAYER_SPEED + p.up.shoes * 3.75) * ((p.slow || 0) > 0 ? 0.55 : 1), k = 1 - Math.exp(-dt * 14);
   const m = p.down ? { x: 0, z: 0 } : mv;
@@ -1047,6 +1080,8 @@ function step(dt) {
       p.vx = n.vx; p.vz = n.vz; p.face = n.face;
     }
     p.inv = Math.max(0, p.inv - dt); p.slow = Math.max(0, (p.slow || 0) - dt);
+    p.bpCd = Math.max(0, (p.bpCd || 0) - dt);
+    if (p.bp > 0) backpackTick(p, dt);
     if (!p.down) p.hp = Math.min(100, p.hp + dt * 0.4);
   }
   revives(dt);
@@ -1226,7 +1261,7 @@ function applySnapshot(s) {
   // players
   const ps = new Set();
   for (const r of s.P) {
-    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms] = r;
+    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms, bpc] = r;
     ps.add(id);
     let p = CL.players.get(id);
     if (!p) { p = { id, name, color, x: x / 10, z: z / 10, face: face / 100, walk: 0, vx: 0, vz: 0, citroA: 0, sprayPuff: 0 }; CL.players.set(id, p); }
@@ -1235,6 +1270,8 @@ function applySnapshot(s) {
     if (id !== me.id) { p.tx = x / 10; p.tz = z / 10; p.tface = face / 100; }
     if (flags & 4) p.sprayPuff = 0.12;
     p.slow = flags & 8 ? 0.2 : 0;
+    p.bp = flags & 16 ? 0.3 : 0;
+    if (id !== me.id || (bpc || 0) > (p.bpCd || 0) + 1.5 || !bpc) p.bpCd = bpc || 0;
     if (bms) {
       if (!p.beams || p.beams.length !== bms.length) p.beams = bms.map(([bx, bz]) => ({ x: bx / 10, z: bz / 10 }));
       bms.forEach(([bx, bz], k) => { p.beams[k].tx = bx / 10; p.beams[k].tz = bz / 10; });
@@ -1279,6 +1316,7 @@ function clientTick(dt) {
     p.x += (p.tx - p.x) * k; p.z += (p.tz - p.z) * k; p.face = lerpAng(p.face, p.tface, k);
     p.vx = (p.x - ox) / Math.max(dt, 1e-3); p.vz = (p.z - oz) / Math.max(dt, 1e-3);
   }
+  if (CL.me && CL.me.bpCd > 0) CL.me.bpCd = Math.max(0, CL.me.bpCd - dt);
   for (const p of CL.players.values()) if (p.beams) for (const bm of p.beams) if (bm.tx !== undefined) { bm.x += (bm.tx - bm.x) * k; bm.z += (bm.tz - bm.z) * k; }
   for (const p of CL.players.values()) if (p.rb && p.rb.tx !== undefined) {
     const rb = p.rb, ox = rb.x, oz = rb.z;
@@ -1382,6 +1420,17 @@ function drawPlayer(p, dt, t) {
     const a = p.swatA + k / ns * TAU;
     s.position.set(p.x + Math.cos(a) * 2.2, 0.7, p.z + Math.sin(a) * 2.2); s.rotation.set(0, Math.PI / 2 - a, 0);   // head sits on the 3.1 hit circle
   });
+  // backpack sprayer cloud
+  if (p.bp > 0 && !p.down) {
+    const R0 = BP_R;
+    for (let k = 0; k < 4; k++) {
+      const a = Math.random() * TAU, rr = rand(0.6, R0), sp = rand(3, 7);
+      FX.smoke.spawn({ x: p.x + Math.cos(a) * rr * 0.4, y: rand(0.4, 1.4), z: p.z + Math.sin(a) * rr * 0.4, vx: Math.cos(a) * sp, vy: rand(0.2, 1), vz: Math.sin(a) * sp, life: rand(0.7, 1.1), s0: 0.8, s1: 2.6, c: [0.78, 0.95, 0.84], a0: 0.42, a1: 0, drag: 1.6 });
+    }
+    const wa = t * 9;   // the wand sweeps round in a circle
+    for (let k = 0; k < 2; k++) FX.smoke.spawn({ x: p.x + Math.sin(wa) * 0.9, y: 1.1, z: p.z + Math.cos(wa) * 0.9, vx: Math.sin(wa) * 16, vy: 0.4, vz: Math.cos(wa) * 16, life: 0.55, s0: 0.4, s1: 1.8, c: [0.9, 1, 0.95], a0: 0.55, a1: 0, drag: 2.5 });
+    B.ring.add(p.x, 0.06, p.z, R0 * 2 * (0.92 + Math.sin(t * 12) * 0.04), t, 0.55, 1, 0.65, 0.35);
+  }
   // spray hiss when a puff starts
   if (p.sprayPuff > 0 && !L.puffing) SND.play('spray', p.id === me.id);
   L.puffing = p.sprayPuff > 0;
@@ -1726,12 +1775,14 @@ $('netok').addEventListener('click', toTitle);
 $('pausebtn').addEventListener('click', () => pause(true));
 $('dpause').addEventListener('click', () => { if ($('paused').hidden) pause(true); else pause(false); });
 $('dbtn').addEventListener('click', () => confirmAction());
+$('abil').addEventListener('click', e => { e.preventDefault(); useMyBackpack(); });
+$('abil').addEventListener('pointerdown', e => e.stopPropagation());
 // phones held upright: the map sits in the control deck (where GO was) instead of covering the play area
 {
   const q = matchMedia('(pointer:coarse) and (orientation:portrait)'), home = mm.parentNode, homeNext = mm.nextSibling;
   const place = () => {
-    if (q.matches) { $('dbtn').before(mm); $('dbtn').hidden = true; mm.classList.add('indeck'); }
-    else { home.insertBefore(mm, homeNext); $('dbtn').hidden = false; mm.classList.remove('indeck'); }
+    if (q.matches) { $('dbtn').before(mm); $('dbtn').hidden = true; mm.classList.add('indeck'); $('stick').after($('abil')); $('abil').classList.add('indeck'); }
+    else { home.insertBefore(mm, homeNext); $('dbtn').hidden = false; mm.classList.remove('indeck'); $('hud').append($('abil')); $('abil').classList.remove('indeck'); }
   };
   (q.addEventListener ? q.addEventListener('change', place) : q.addListener(place)); place();
 }
@@ -1751,6 +1802,7 @@ function confirmAction() {
   else if (mode === 'level') choose(sel);
   else if (mode === 'lobby') { if (role === 'host') startGame(); }
   else if (!$('paused').hidden) pause(false);
+  else if (mode === 'play') useMyBackpack();
   else if (mode === 'over' && !$('over').hidden && role !== 'client') beginRound();
 }
 
@@ -1850,7 +1902,7 @@ async function supaNet(code, meta) {
   const ch = sb.channel('pest-' + code, { config: { broadcast: { self: false, ack: false }, presence: { key: me.id } } });
   const handlers = {};
   let presenceFn = () => {};
-  for (const e of ['snap', 'input', 'pick', 'bye']) ch.on('broadcast', { event: e }, m => handlers[e] && handlers[e](m.payload));
+  for (const e of ['snap', 'input', 'pick', 'bye', 'ab']) ch.on('broadcast', { event: e }, m => handlers[e] && handlers[e](m.payload));
   ch.on('presence', { event: 'sync' }, () => {
     const st = ch.presenceState(), list = [];
     for (const k in st) { const m = st[k][0]; if (m) list.push({ id: k, name: m.name, host: !!m.host }); }
@@ -1920,6 +1972,7 @@ async function hostGame() {
   net.on('input', d => { const p = S && S.players.find(q => q.id === d.id); if (p) { p.net = d; p.seen = performance.now(); } else if (S && roster.has(d.id) && !idle()) addRemote(d.id, roster.get(d.id).name); });
   net.on('pick', d => { const p = S && S.players.find(q => q.id === d.id); if (p) p.seen = performance.now(); if (S && S.round) { applyVote(d.id, d.n, d.up); checkRound(); } });
   net.on('bye', d => { roster.delete(d.id); if (S) removeRemote(d.id); });
+  net.on('ab', d => { if (S) useBackpack(S.players.find(q => q.id === d.id)); });
   status('');
   enterLobby();
 }
@@ -1989,7 +2042,7 @@ function sendSnapshot() {
   const r = Math.round;
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
-  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0]);
+  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0) | (p.bp > 0 ? 16 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0, Math.ceil(p.bpCd || 0)]);
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 400); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
@@ -2021,6 +2074,7 @@ addEventListener('keydown', e => {
   if (mode === 'level') { if (['arrowleft', 'arrowup', 'a', 'w'].includes(k)) moveSel(-1); if (['arrowright', 'arrowdown', 'd', 's'].includes(k)) moveSel(1); }
   if (k === 'enter' || k === ' ') confirmAction();
   if (k === 'escape' || k === 'p') pause($('paused').hidden);
+  if (k === 'e' && mode === 'play') useMyBackpack();
   if (k === 'm') { SND.unlock(); SND.toggle(); syncSoundUi(); }
 });
 addEventListener('keyup', e => input.keys.delete(e.key.toLowerCase()));
@@ -2072,13 +2126,14 @@ function pollPads() {
       if (d === 7 || d === 0 || d === 1) sz = -1; if (d >= 1 && d <= 3) sx = 1; if (d >= 3 && d <= 5) sz = 1; if (d >= 5 && d <= 7) sx = -1;
     }
     if (Math.abs(sx) > Math.abs(x)) x = sx; if (Math.abs(sz) > Math.abs(z)) z = sz;
-    [0, 1, 9, 12, 13, 14, 15].forEach(i => { if (pr(i)) btn[i] = true; });
+    [0, 1, 5, 7, 9, 12, 13, 14, 15].forEach(i => { if (pr(i)) btn[i] = true; });
   }
   const l = Math.hypot(x, z); if (l > 1) { x /= l; z /= l; }
   input.pad.x = x; input.pad.z = z;
   const edge = i => btn[i] && !padState.prev[i];
   if (mode === 'level') { if (edge(14) || edge(12)) moveSel(-1); if (edge(15) || edge(13)) moveSel(1); if (edge(0)) choose(sel); }
   else if (edge(0)) confirmAction();
+  if ((edge(5) || edge(7)) && mode === 'play') useMyBackpack();
   if (edge(9)) { if (mode === 'title' || mode === 'over' || mode === 'lobby') confirmAction(); else pause($('paused').hidden); }
   if (edge(1) && !$('paused').hidden) pause(false);
   if (edge(1) && mode === 'title' && !$('board').hidden) closeBoard();
@@ -2123,6 +2178,12 @@ function frame(now) {
   if (idle() || mode === 'pause' || mode === 'over') { SND.hum(false, 0); SND.laser(false); }
   // phone controls only show during a run; menus get the whole screen
   { const menu = idle() || mode === 'over' || mode === 'join'; if (document.body.classList.contains('menu') !== menu) document.body.classList.toggle('menu', menu); }
+  { // backpack button: cooldown ring and label
+    const mp2 = role === 'client' ? CL.me : meP(), cd = mp2 ? Math.max(0, mp2.bpCd || 0) : 0, ab = $('abil'), ready = cd <= 0 && mp2 && !mp2.down;
+    const key = (ready ? 'r' : Math.ceil(cd)) + (padState.seen ? 'p' : '');
+    if (ab.dataset.k !== key) { ab.dataset.k = key; ab.classList.toggle('ready', !!ready); $('abilt').textContent = ready ? (IS_TOUCH ? 'TAP' : padState.seen ? 'X / R1' : 'SPACE') : Math.ceil(cd) + 's'; }
+    ab.style.setProperty('--p', (1 - cd / BP_CD).toFixed(3));
+  }
   if (mm.classList.contains('indeck')) mm.style.visibility = $('hud').hidden ? 'hidden' : '';
   {
     const boss = ((role === 'client' ? CL.bosses : S && S.bosses) || []).length > 0;

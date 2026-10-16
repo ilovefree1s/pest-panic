@@ -573,6 +573,14 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
     body.add(leg); legs.push(leg);
   }
   const torso = mesh(new THREE.CapsuleGeometry(0.31, 0.38, 6, 14), suit); torso.position.y = 1.08; body.add(torso);
+  // backpack sprayer: white tank, orange cap and pump handle, hose round to the wand
+  { const tankM = std({ color: '#f1f1ec', roughness: 0.45 }), orange = std({ color: '#ff7a1f', roughness: 0.45 });
+    const tank = mesh(new THREE.CapsuleGeometry(0.22, 0.32, 6, 12), tankM); tank.scale.set(1.15, 1, 0.75); tank.position.set(0, 1.18, -0.42); body.add(tank);
+    const capB = mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.08, 14), orange); capB.position.set(0, 1.62, -0.42); body.add(capB);
+    const pump = mesh(new THREE.BoxGeometry(0.06, 0.34, 0.06), orange); pump.position.set(0.3, 1.12, -0.42); body.add(pump);
+    const base = mesh(new THREE.BoxGeometry(0.46, 0.08, 0.3), orange); base.position.set(0, 0.84, -0.42); body.add(base);
+    for (const s of [-1, 1]) { const strap = mesh(new THREE.BoxGeometry(0.06, 0.5, 0.05), black); strap.position.set(0.17 * s, 1.24, -0.2); body.add(strap); }
+    const hose = mesh(new THREE.TorusGeometry(0.32, 0.025, 6, 16, Math.PI * 0.9), black); hose.position.set(0.3, 0.95, -0.12); hose.rotation.set(0, Math.PI / 2, 0.3); body.add(hose); }
   const belt = mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.08, 18), black); belt.position.y = 0.86; body.add(belt);
   const badge = mesh(new THREE.CircleGeometry(0.07, 12), yellow, false); badge.position.set(-0.13, 1.2, 0.3); body.add(badge);
   const arms = [];
