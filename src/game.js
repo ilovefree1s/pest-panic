@@ -173,6 +173,7 @@ function applyArena(a) {
 const arenaFor = n => +(ARENA_BASE * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
 function growArena(quiet) { const a = arenaFor(S.players.length); if (a > ARENA + 0.01) { applyArena(a); if (!quiet) ev(['ar', S.players.length]); } }
 const nestMesh = buildNest();
+const holeMesh = buildMouseHole();
 const queenMesh = buildQueen(); queenMesh.visible = false; scene.add(queenMesh);
 const bossMeshes = [queenMesh, buildBugBoss('spider'), buildBugBoss('ant'), buildBugBoss('fly')];
 
@@ -292,7 +293,7 @@ function newPlayer(id, name, color) {
 function newWorld() {
   S = {
     t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], clouds: [], ebul: [], decals: [], nums: [], rings: [],
-    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, nextNest: QUEEN_EVERY / 2, nestN: 0, nest: null, freePicks: 0, freeKinds: [], gold: null, nextGold: rand(55, 85), goldN: 0, queen: null, bosses: [], bossKills: 0, bank: 0,
+    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, nextNest: QUEEN_EVERY / 2, nestN: 0, nest: null, freePicks: 0, freeKinds: [], gold: null, goldHole: null, nextGold: rand(55, 85), goldN: 0, queen: null, bosses: [], bossKills: 0, bank: 0,
     shake: 0, pendingLevels: 0, bugHp: [3, 2, 14], minute: -1, round: null, nextId: 1, ev: [], warned: false,
   };
   updateMinute();
@@ -474,6 +475,7 @@ const SND = (() => {
     // golden bug: a sparkly little run of bells
     gold() { const n = ctx.currentTime, o = out(0.16); notes(o, 'triangle', [1047, 1319, 1568, 2093], 0.07, 0.35, n); tone(o, 'sine', 3136, 3136, n + 0.3, 0.5, 0.01, 0.3); },
     jackpot() { const n = ctx.currentTime, o = out(0.2); notes(o, 'square', [523, 659, 784, 1047, 1319], 0.06, 0.18, n); notes(o, 'triangle', [1568, 2093, 2637], 0.05, 0.4, n + 0.32); noise(o, n + 0.3, 0.5, 'highpass', 6000, 9000, 1, 0.01, 0.25); },
+    pop() { const n = ctx.currentTime, o = out(0.14); tone(o, 'sine', 900, 300, n, 0.12, 0.003, 1); noise(o, n, 0.08, 'bandpass', 1800, 900, 2, 0.002, 0.5); },
     escape() { const n = ctx.currentTime, o = out(0.12); notes(o, 'triangle', [1319, 1047, 784, 523], 0.08, 0.25, n); },
     // the boss lights stutter: a quick electrical buzz and click
     flick() { const n = ctx.currentTime, o = out(0.06); noise(o, n, 0.09, 'bandpass', 3200, 2400, 3, 0.002, 0.8); tone(o, 'square', 120, 118, n, 0.11, 0.003, 0.35); noise(o, n + 0.1, 0.03, 'highpass', 5000, 5000, 1, 0.001, 0.6); },
@@ -611,7 +613,7 @@ const MOOD = { g: 0, f: 1, seq: [], next: 3, bossT: 0, was: false };
 function moodTick(dt, boss, q) {
   const M = MOOD;
   if (boss && !M.was) {   // the lights die as the boss shows up, then sputter back on
-    M.bossT = 0; M.next = rand(4, 7);
+    M.bossT = 0; M.next = rand(2, 4);
     M.seq = [[0.08, 0.5], [0.06, 1], [0.5, 0.06], [0.07, 0.6], [0.09, 0.1], [0.12, 0.8], [0.06, 0.25]];
     SND.play('flick');
   }
@@ -620,10 +622,10 @@ function moodTick(dt, boss, q) {
     M.bossT += dt;
     M.next -= dt;
     if (M.next <= 0 && !M.seq.length) {   // a random stutter every few seconds (never a fast strobe)
-      M.next = rand(3, 7);
-      const n = 1 + Math.floor(Math.random() * 3);
+      M.next = rand(1.2, 3.5);
+      const n = 2 + Math.floor(Math.random() * 3);
       for (let i = 0; i < n; i++) M.seq.push([rand(0.05, 0.1), rand(0.2, 0.55)], [rand(0.07, 0.16), 1]);
-      if (Math.random() < 0.25) M.seq.push([rand(0.3, 0.5), 0.1], [0.08, 0.7]);
+      if (Math.random() < 0.35) M.seq.push([rand(0.3, 0.6), 0.08], [0.08, 0.7], [0.1, 0.35]);
       SND.play('flick');
     }
   }
@@ -632,6 +634,7 @@ function moodTick(dt, boss, q) {
   if (M.g < 0.002) M.g = 0;
   let f = 1;
   if (M.seq.length) { const st = M.seq[0]; f = st[1]; st[0] -= dt; if (st[0] <= 0) M.seq.shift(); }
+  if (boss && !M.seq.length) f = 0.9 + 0.1 * Math.sin(performance.now() / 47) * Math.sin(performance.now() / 131);   // a constant faint buzz in the bulbs
   M.f += (f - M.f) * Math.min(1, dt * 40);
   setMood(M.g, M.f, boss && q ? q : null);
   const dv = $('dread'); if (dv) { const o = (M.g * (0.7 + 0.3 * (1 - M.f))).toFixed(3); if (dv.style.opacity !== o) dv.style.opacity = o; }
@@ -660,8 +663,9 @@ function eventSound(e) {
     case 'j': SND.play('join'); break;
     case 'nw': SND.play('buzz'); break;
     case 'gs': SND.play('gold'); break;
+    case 'gh': SND.play('escape'); break;
     case 'gk': SND.play('jackpot'); break;
-    case 'ge': SND.play('escape'); break;
+    case 'ge': SND.play('pop'); break;
     case 'nk': SND.play('bomb', e[1], e[2]); SND.play('pick'); break;
   }
 }
@@ -719,6 +723,7 @@ function playEvent(e) {
     case 'j': banner(e[1] + ' joined'); break;
     case 'nw': banner('A wasp nest appeared! Follow the arrow'); break;
     case 'gs': banner('Golden Bug! Catch it!'); for (let k = 0; k < 20; k++) { const a = k / 20 * TAU; FX.glow.spawn({ x: e[1], y: 0.8, z: e[2], vx: Math.cos(a) * 5, vy: rand(1, 4), vz: Math.sin(a) * 5, life: 0.7, s0: 0.45, s1: 0.1, c: [1.3, 1.05, 0.35], drag: 2 }); } break;
+    case 'gh': banner("It's running for its hole!"); break;
     case 'ge': banner('The Golden Bug got away...'); for (let k = 0; k < 10; k++) FX.smoke.spawn({ x: e[1] + rand(-0.6, 0.6), y: 0.5, z: e[2] + rand(-0.6, 0.6), vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(-1, 1), life: 0.6, s0: 0.4, s1: 1.1, c: [0.85, 0.75, 0.4], a0: 0.5, a1: 0 }); break;
     case 'gk': {
       banner('Golden Bug caught!');
@@ -835,7 +840,29 @@ function spawnGold() {
 }
 function goldTick(b, dt) {
   b.life -= dt;
-  if (b.life <= 0) { b.hp = 0; S.gold = null; ev(['ge', b.x, b.z]); return; }   // slipped into a crack in the wall
+  // time's almost up: a mouse hole opens in the nearest cabinet and it makes a run for it
+  if (b.life <= 5 && !S.goldHole) { S.goldHole = goldHoleAt(b.x, b.z); ev(['gh']); }
+  const H = S.goldHole;
+  if (H) {
+    if (b.inHole === undefined) b.inHole = -1;
+    if (b.inHole >= 0) {   // squeezing into the hole
+      b.inHole += dt;
+      const k = Math.min(1, b.inHole / 0.6);
+      b.x = H.ex + (H.x - H.ex + H.nx * -1.2) * k; b.z = H.ez + (H.z - H.ez + H.nz * -1.2) * k;
+      b.ang = Math.atan2(-H.nx, -H.nz); b.walk += dt * 30;
+      if (b.inHole >= 0.6) { b.hp = 0; S.gold = null; H.t = 2.5; ev(['ge', H.x, H.z]); }
+      return;
+    }
+    const dx = H.ex - b.x, dz = H.ez - b.z, d = Math.hypot(dx, dz);
+    if (d < 0.8 || b.life < -8) { b.inHole = 0; b.x = H.ex; b.z = H.ez; return; }
+    const spd = b.spd * 1.1 * (b.stuck > 0 ? 0.3 : 1), k = 1 - Math.exp(-dt * 6);
+    if (b.stuck > 0) b.stuck -= dt;
+    b.vx += (dx / d * spd - b.vx) * k; b.vz += (dz / d * spd - b.vz) * k;
+    b.x += b.vx * dt; b.z += b.vz * dt;
+    b.ang = lerpAng(b.ang, Math.atan2(b.vx, b.vz), Math.min(1, dt * 10));
+    b.walk += dt * (Math.hypot(b.vx, b.vz) * 4 + 0.5);
+    return;
+  }
   let fx = 0, fz = 0, close = 99;
   for (const p of S.players) {   // run from everyone, most from whoever is closest
     if (p.down) continue;
@@ -856,7 +883,18 @@ function goldTick(b, dt) {
   b.ang = lerpAng(b.ang, Math.atan2(b.vx, b.vz), Math.min(1, dt * 10));
   b.walk += dt * (Math.hypot(b.vx, b.vz) * 4 + 0.5);
 }
+// the hole goes in the nearest cabinet (back, left or right; the front baseboard faces away from the camera)
+function goldHoleAt(x, z) {
+  const E = ARENA + 1.2, m = ARENA - 4, c = [
+    { d: z + E, x: clamp(x, -m, m), z: -E + 0.22, nx: 0, nz: 1, rot: 0 },
+    { d: x + E, x: -E + 0.22, z: clamp(z, -m, m), nx: 1, nz: 0, rot: Math.PI / 2 },
+    { d: E - x, x: E - 0.22, z: clamp(z, -m, m), nx: -1, nz: 0, rot: -Math.PI / 2 },
+  ].sort((a, b) => a.d - b.d)[0];
+  return { x: c.x, z: c.z, rot: c.rot, nx: c.nx, nz: c.nz, ex: c.x + c.nx * 0.9, ez: c.z + c.nz * 0.9, t: -1 };
+}
+function goldHoleTick(dt) { const H = S.goldHole; if (H && H.t >= 0) { H.t -= dt; if (H.t <= 0) S.goldHole = null; } }
 function goldDown(b) {
+  if (S.goldHole) S.goldHole.t = 1.5;
   S.gold = null; S.freePicks++; S.freeKinds.push('gold'); S.pendingLevels++;
   for (let i = 0; i < 10; i++) dropCoin(b.x + rand(-2.5, 2.5), b.z + rand(-2.5, 2.5), 3, true);
   ev(['gk', b.x, b.z]);
@@ -1321,6 +1359,7 @@ function step(dt) {
   for (const p of S.players) if (!p.down) weapons(p, dt);
   updateShots(dt);
   updateClouds(dt);
+  goldHoleTick(dt);
   updateQueen(dt);
   updateCoins(dt);
   if (S.pendingLevels > 0 && mode === 'play') startLevelRound();
@@ -1527,6 +1566,7 @@ function applySnapshot(s) {
   CL.coins = [];
   for (let i = 0; i < s.C.length; i += 3) CL.coins.push({ x: s.C[i] / 10, z: s.C[i + 1] / 10, big: !!s.C[i + 2], y: 0.45, t: (i * 0.37) + now / 250 });
   CL.shots = s.S.map(r => ({ kind: SHOT_KINDS[r[0]], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10, ang: r[5] / 100, spin: Math.random() * 6, life: r[6] / 100, max: r[7] / 100 }));
+  CL.hole = s.GH ? { x: s.GH[0] / 10, z: s.GH[1] / 10, rot: s.GH[2] / 100 } : null;
   CL.clouds = (s.K || []).map(k => ({ x: k[0] / 10, z: k[1] / 10, r: k[2] / 10, life: k[3] / 10, max: 3 }));
   CL.traps = s.T.map(r => ({ x: r[0] / 10, z: r[1] / 10, rot: r[2] / 100, life: r[3] / 10, drop: 0 }));
   CL.ebul = s.E.map(r => ({ k: r[0], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10 }));
@@ -1582,6 +1622,7 @@ function setI(mesh, i, x, y, z, ry, s = 1, rx = 0, rz = 0) {
   mesh.setMatrixAt(i, tmpM);
   return tmpM;
 }
+let holeT = 0;
 function drawBugs(list, t) {
   const c = { ant: 0, antLeg: 0, fly: 0, wing: 0, spider: 0, spiderLeg: 0, wasp: 0, gold: 0, goldLeg: 0 };
   let nestB = null;
@@ -1652,6 +1693,13 @@ function drawBugs(list, t) {
     nestMesh.position.set(nestB.x, 0, nestB.z); nestMesh.rotation.y = nestB.ang || 0; nestMesh.scale.set(w, 1 / w * 1.0, w);
     sh.add(nestB.x, 0.02, nestB.z, 5.5, 0, 0, 0, 0, 0.5);
     if (Math.random() < 0.3) { const a = Math.random() * TAU; FX.glow.spawn({ x: nestB.x + Math.cos(a) * 2.4, y: rand(1, 3.5), z: nestB.z + Math.sin(a) * 2.4, vx: -Math.sin(a) * 4, vy: rand(-0.5, 0.5), vz: Math.cos(a) * 4, life: 0.5, s0: 0.18, s1: 0.12, c: [0.9, 0.75, 0.15], a0: 0.9, a1: 0 }); }
+  }
+  { // the golden bug's mouse hole pops open in the cabinet
+    const H = role === 'client' ? CL.hole : S && S.goldHole;
+    if (H && !idle()) { holeMesh.visible = true; holeMesh.position.set(H.x, 0, H.z); holeMesh.rotation.y = H.rot; holeT = Math.min(1, holeT + 1 / 20); }
+    else { holeT = Math.max(0, holeT - 1 / 12); if (holeT <= 0) holeMesh.visible = false; }
+    const sc = holeT < 1 ? holeT * (1.25 - 0.25 * holeT) : 1; holeMesh.scale.set(sc, sc, 1);
+    if (H && holeT > 0.5) B.ring.add(H.x + Math.sin(H.rot) * 1.6, 0.06, H.z + Math.cos(H.rot) * 1.6, 2.4 + Math.sin(t * 8) * 0.4, 0, 1, 0.8, 0.2, 0.6);
   }
   for (const k in c) { IM[k].count = c[k]; IM[k].instanceMatrix.needsUpdate = true; if (IM[k].instanceColor) IM[k].instanceColor.needsUpdate = true; }
 }
@@ -2380,6 +2428,7 @@ function sendSnapshot() {
     t: +S.t.toFixed(2), A: ARENA, lv: S.lvl, xp: S.xp, nd: S.need, k: S.kills, qn: S.queens, m: mode === 'pause' ? 'play' : mode,
     B, P, C, Q: S.bosses.map(q => [r(q.x * 10), r(q.z * 10), r(q.ang * 100), r(q.hp), r(q.max), q.n, q.flash > 0 ? 1 : 0, q.kind, q.state, q.tier, q.duo]),
     S: S.shots.slice(0, 80).map(s => [SHOT_KINDS.indexOf(s.kind), r(s.x * 10), r(s.z * 10), r(s.vx * 10), r(s.vz * 10), r(s.ang * 100), r(s.life * 100), r(s.max * 100)]),
+    GH: S.goldHole ? [Math.round(S.goldHole.x * 10), Math.round(S.goldHole.z * 10), Math.round(S.goldHole.rot * 100)] : 0,
     K: S.clouds.map(c => [r(c.x * 10), r(c.z * 10), r(c.r * 10), r(c.life * 10)]),
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
     E: S.ebul.slice(0, 120).map(e => [e.k, r(e.x * 10), r(e.z * 10), r(e.vx * 10), r(e.vz * 10)]),

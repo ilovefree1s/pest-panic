@@ -826,6 +826,20 @@ export function buildBeam() {
   return m;
 }
 // wasp nest: a papery grey-tan lump with layered ridges and a dark entrance hole near the bottom
+// a little arched mouse hole in the cabinet kick plate (the golden bug's escape route)
+export function buildMouseHole() {
+  const g = new THREE.Group();
+  const dark = new THREE.MeshBasicMaterial({ color: '#000000' });
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(1.35, 28, 0, Math.PI), dark); g.add(hole);
+  const rimMat = std({ color: '#5a4630', roughness: 0.9, envMapIntensity: 0.2 });
+  const rim = new THREE.Mesh(new THREE.RingGeometry(1.35, 1.65, 28, 1, 0, Math.PI), rimMat); rim.position.z = -0.005; g.add(rim);
+  // a few chips of broken wood around the edge
+  for (const [x, y, r] of [[-1.8, 0.15, 0.4], [1.75, 0.4, -0.5], [0.5, 1.6, 0.2]]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.14), rimMat); c.position.set(x, y, 0.004); c.rotation.z = r; g.add(c); }
+  const shade = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.55, depthWrite: false }));
+  shade.rotation.x = -Math.PI / 2; shade.position.set(0, 0.03, 1); g.add(shade);   // dark patch on the floor in front of it
+  g.visible = false; scene.add(g);
+  return g;
+}
 export function buildNest() {
   const g = new THREE.Group();
   const paper = std({ color: '#b9aa8d', roughness: 0.95, envMapIntensity: 0.25 }), ridge = std({ color: '#9a8b70', roughness: 0.95, envMapIntensity: 0.2 });
