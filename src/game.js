@@ -175,23 +175,24 @@ const ICON = {
 
 // ---------------------------------------------------------------- world objects
 resize();
-let kitchen = buildKitchen(), roomShown = 0; scene.add(kitchen);
+let kitchen = buildKitchen(), roomShown = 0, houseShown = 1; scene.add(kitchen);
 // the kitchen is 10% bigger for each extra player (4 players = 30% bigger); it never shrinks mid-run
 function applyArena(a) {
   if (Math.abs(a - ARENA) < 0.01) return;
   setArena(a);
   scene.remove(kitchen);
   kitchen.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
-  kitchen = buildRoom(roomShown); scene.add(kitchen);
+  kitchen = buildRoom(roomShown, houseLook(houseShown)); scene.add(kitchen);
 }
-function setRoomVisual(k) {
-  if (k === roomShown) return;
-  roomShown = k;
+function setRoomVisual(k, h = 1) {
+  if (k === roomShown && h === houseShown) return;
+  roomShown = k; houseShown = h;
   scene.remove(kitchen);
   kitchen.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
-  kitchen = buildRoom(k); scene.add(kitchen);
+  kitchen = buildRoom(k, houseLook(h)); scene.add(kitchen);
 }
-const arenaFor = n => +(ARENA_BASE * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
+const roomSize = () => { const L = S && S.houseMode ? houseLook(S.house) : null; return L ? L.size[S.room || 0] : 1; };
+const arenaFor = n => +(ARENA_BASE * roomSize() * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
 function growArena(quiet) { const a = arenaFor(S.players.length); if (a > ARENA + 0.01) { applyArena(a); if (!quiet) ev(['ar', S.players.length]); } }
 const nestMesh = buildNest();
 const holeMesh = buildMouseHole();
@@ -1431,7 +1432,7 @@ function nextRoom(newHouse) {
   S.roomT0 = S.t; S.nextQueen = S.t + QUEEN_EVERY; S.nextNest = S.t + QUEEN_EVERY / 2; S.ringAt = S.t + 30; S.openWave2 = false; S.warned = false;
   S.nextGold = S.t + rand(55, 85); S.spawnT = 1.5;
   for (const p of S.players) { p.x = rand(-2, 2); p.z = rand(-2, 2); p.vx = p.vz = 0; if (p.down) { p.down = false; p.hp = 50; } p.rb = null; }
-  setRoomVisual(S.room);
+  setRoomVisual(S.room, S.house); applyArena(arenaFor(S.players.length));
   for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(mainType(), p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
   ev(['rn', S.room, S.house, newHouse ? 1 : 0]);
 }
@@ -1589,9 +1590,8 @@ const CL = { bugs: new Map(), players: new Map(), queen: null, bosses: [], coins
 function applySnapshot(s) {
   const now = performance.now();
   CL.hostSeen = now; CL.snapAt = now;
-  if (s.A) applyArena(s.A);
   CL.nestHp = s.N || null;
-  CL.house = s.HM || null; setRoomVisual(s.HM ? s.HM[1] : 0); S.fade = s.HM ? s.HM[2] / 100 : 0; S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
+  CL.house = s.HM || null; setRoomVisual(s.HM ? s.HM[1] : 0, s.HM ? s.HM[0] : 1); if (s.A) applyArena(s.A); S.fade = s.HM ? s.HM[2] / 100 : 0; S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
   S.t = s.t; S.lvl = s.lv; S.xp = s.xp; S.need = s.nd; S.kills = s.k; S.queens = s.qn;
   // bugs
   const seen = new Set();
