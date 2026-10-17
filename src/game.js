@@ -22,6 +22,7 @@ const BUG = [
   { name: 'spider', hp: 14, grow: 7, spd: 3.3, xp: 4, r: 1.0, dmg: 7 },
   { name: 'wasp', hp: 5, grow: 2, spd: 8.2, xp: 2, r: 0.6, dmg: 7 },
   { name: 'nest', hp: 1, grow: 0, spd: 0, xp: 0, r: 2.2, dmg: 0 },
+  { name: 'gold', hp: 1, grow: 0, spd: 11, xp: 0, r: 0.9, dmg: 0 },
 ];
 const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f / 60);
 const QUEEN_EVERY = 180, QUEEN_HP = 1000;
@@ -188,6 +189,8 @@ const IM = {
   paper: instanced(GEO.paper, MAT.paper, 60, true),
   flip: instanced(GEO.flip, MAT.flip, 60, true),
   glue: instanced(GEO.glue, MAT.glue, 60),
+  gold: instanced(GEO.antBody, MAT.gold, 4),
+  goldLeg: instanced(GEO.antLeg, MAT.goldLeg, 24),
 };
 const B = {
   shadow: new Batch(TEX.soft, 900, { bill: false, order: 2 }),
@@ -289,7 +292,7 @@ function newPlayer(id, name, color) {
 function newWorld() {
   S = {
     t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], clouds: [], ebul: [], decals: [], nums: [], rings: [],
-    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, nextNest: QUEEN_EVERY / 2, nestN: 0, nest: null, freePicks: 0, queen: null, bosses: [], bossKills: 0, bank: 0,
+    lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, nextNest: QUEEN_EVERY / 2, nestN: 0, nest: null, freePicks: 0, freeKinds: [], gold: null, nextGold: rand(55, 85), goldN: 0, queen: null, bosses: [], bossKills: 0, bank: 0,
     shake: 0, pendingLevels: 0, bugHp: [3, 2, 14], minute: -1, round: null, nextId: 1, ev: [], warned: false,
   };
   updateMinute();
@@ -468,6 +471,10 @@ const SND = (() => {
       for (const hz of [196, 203, 211]) { const osc = tone(f, 'sawtooth', hz, hz * 1.04, n, 1.1, 0.05, 0.7); }
       const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 23; lg.gain.value = 400; l.connect(lg); lg.connect(f.frequency); l.start(n); l.stop(n + 1.2);
     },
+    // golden bug: a sparkly little run of bells
+    gold() { const n = ctx.currentTime, o = out(0.16); notes(o, 'triangle', [1047, 1319, 1568, 2093], 0.07, 0.35, n); tone(o, 'sine', 3136, 3136, n + 0.3, 0.5, 0.01, 0.3); },
+    jackpot() { const n = ctx.currentTime, o = out(0.2); notes(o, 'square', [523, 659, 784, 1047, 1319], 0.06, 0.18, n); notes(o, 'triangle', [1568, 2093, 2637], 0.05, 0.4, n + 0.32); noise(o, n + 0.3, 0.5, 'highpass', 6000, 9000, 1, 0.01, 0.25); },
+    escape() { const n = ctx.currentTime, o = out(0.12); notes(o, 'triangle', [1319, 1047, 784, 523], 0.08, 0.25, n); },
     // the boss lights stutter: a quick electrical buzz and click
     flick() { const n = ctx.currentTime, o = out(0.06); noise(o, n, 0.09, 'bandpass', 3200, 2400, 3, 0.002, 0.8); tone(o, 'square', 120, 118, n, 0.11, 0.003, 0.35); noise(o, n + 0.1, 0.03, 'highpass', 5000, 5000, 1, 0.001, 0.6); },
     join() { const n = ctx.currentTime, o = out(0.14); tone(o, 'sine', 660, 660, n, 0.08); tone(o, 'sine', 990, 990, n + 0.09, 0.12); },
@@ -652,6 +659,9 @@ function eventSound(e) {
     case 'tp': SND.play(e[1] === 'aid' || e[3] ? 'pick' : 'tick'); break;
     case 'j': SND.play('join'); break;
     case 'nw': SND.play('buzz'); break;
+    case 'gs': SND.play('gold'); break;
+    case 'gk': SND.play('jackpot'); break;
+    case 'ge': SND.play('escape'); break;
     case 'nk': SND.play('bomb', e[1], e[2]); SND.play('pick'); break;
   }
 }
@@ -708,6 +718,14 @@ function playEvent(e) {
     }
     case 'j': banner(e[1] + ' joined'); break;
     case 'nw': banner('A wasp nest appeared! Follow the arrow'); break;
+    case 'gs': banner('Golden Bug! Catch it!'); for (let k = 0; k < 20; k++) { const a = k / 20 * TAU; FX.glow.spawn({ x: e[1], y: 0.8, z: e[2], vx: Math.cos(a) * 5, vy: rand(1, 4), vz: Math.sin(a) * 5, life: 0.7, s0: 0.45, s1: 0.1, c: [1.3, 1.05, 0.35], drag: 2 }); } break;
+    case 'ge': banner('The Golden Bug got away...'); for (let k = 0; k < 10; k++) FX.smoke.spawn({ x: e[1] + rand(-0.6, 0.6), y: 0.5, z: e[2] + rand(-0.6, 0.6), vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(-1, 1), life: 0.6, s0: 0.4, s1: 1.1, c: [0.85, 0.75, 0.4], a0: 0.5, a1: 0 }); break;
+    case 'gk': {
+      banner('Golden Bug caught!');
+      for (let k = 0; k < 60; k++) { const a = Math.random() * TAU, sp = rand(3, 12); FX.glow.spawn({ x: e[1], y: rand(0.5, 2), z: e[2], vx: Math.cos(a) * sp, vy: rand(3, 10), vz: Math.sin(a) * sp, life: rand(0.7, 1.2), s0: rand(0.3, 0.6), s1: 0.1, c: [1.4, 1.1, 0.35], a0: 1, a1: 0, grav: 12, drag: 1 }); }
+      S.rings.push({ x: e[1], z: e[2], r0: 1, r1: 10, life: 0.5, max: 0.5, c: [1, 0.85, 0.25] }); S.shake = Math.max(S.shake, 0.5);
+      break;
+    }
     case 'nb': { for (let k = 0; k < 6; k++) FX.smoke.spawn({ x: e[1] + rand(-0.5, 0.5), y: 1.3, z: e[2] + 1.6, vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(0.5, 2), life: 0.5, s0: 0.3, s1: 0.9, c: [0.6, 0.55, 0.45], a0: 0.4, a1: 0 }); break; }
     case 'nk': {
       banner('Nest destroyed!');
@@ -753,6 +771,7 @@ function director(dt) {
     for (let i = 0; i < n; i++) spawnAround(pickType(), spawnRadius() + rand(0, 4));
   }
   // wasp nest halfway between bosses (1:30, 4:30, ...); skipped if a boss is still alive
+  if (S.t >= S.nextGold) { if (S.bosses.length || S.gold) S.nextGold = S.t + 20; else { S.nextGold = S.t + rand(80, 130); spawnGold(); } }
   if (S.t >= S.nextNest) { S.nextNest += QUEEN_EVERY; if (!S.bosses.length && !S.nest) spawnNest(); }
   if (!S.openWave2 && S.t >= 3) {
     S.openWave2 = true;
@@ -797,8 +816,53 @@ function nestTick(b, dt) {
   for (let i = 0; i < k; i++) spawnBug(3, b.x + rand(-0.6, 0.6), b.z + 1.6 + rand(-0.3, 0.3), true);
   ev(['nb', b.x, b.z]);
 }
+// ---------------------------------------------------------------- golden bug: a shiny bug that runs AWAY. Catch it before it escapes for a free upgrade.
+const GOLD_LIFE = 15;
+function spawnGold() {
+  const al = alivePlayers(); if (!al.length) return;
+  const p = al[(Math.random() * al.length) | 0], m = ARENA - 5;
+  let x = 0, z = 0;
+  for (let tries = 0; tries < 30; tries++) {
+    const a = Math.random() * TAU, d = rand(12, 16);
+    x = clamp(p.x + Math.cos(a) * d, -m, m); z = clamp(p.z + Math.sin(a) * d, -m, m);
+    if (al.every(q => dist2(q.x, q.z, x, z) > 10 * 10)) break;
+  }
+  S.goldN++;
+  const hp = Math.round(45 * (1 + 0.3 * S.minute) * DIFF * (1 + 0.5 * Math.max(0, al.length - 1)));
+  const b = { id: S.nextId++ & 0xffff, t: 5, x, z, vx: 0, vz: 0, hp, max: hp, spd: BUG[5].spd, flash: 0, icd: 0, stuck: 0, cd: 0, ang: Math.random() * TAU, walk: 0, jit: 0, weave: Math.random() * TAU, spit: 0, life: GOLD_LIFE };
+  S.bugs.push(b); S.gold = b;
+  ev(['gs', x, z]);
+}
+function goldTick(b, dt) {
+  b.life -= dt;
+  if (b.life <= 0) { b.hp = 0; S.gold = null; ev(['ge', b.x, b.z]); return; }   // slipped into a crack in the wall
+  let fx = 0, fz = 0, close = 99;
+  for (const p of S.players) {   // run from everyone, most from whoever is closest
+    if (p.down) continue;
+    const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz) || 1;
+    close = Math.min(close, d);
+    if (d < 22) { const w = (22 - d) / 22; fx += dx / d * w; fz += dz / d * w; }
+  }
+  b.weave += dt * 1.6;
+  fx += Math.cos(b.weave) * 0.35; fz += Math.sin(b.weave * 0.8) * 0.35;   // zig-zag a little
+  const m = ARENA - 6;   // steer off the walls so it slides along them instead of getting pinned
+  if (b.x > m) fx -= (b.x - m) * 0.5; if (b.x < -m) fx += (-m - b.x) * 0.5;
+  if (b.z > m) fz -= (b.z - m) * 0.5; if (b.z < -m) fz += (-m - b.z) * 0.5;
+  const fl = Math.hypot(fx, fz) || 1, spd = b.spd * (b.stuck > 0 ? 0.3 : close < 12 ? 1 : 0.55);
+  if (b.stuck > 0) b.stuck -= dt;
+  const k = 1 - Math.exp(-dt * 5);
+  b.vx += (fx / fl * spd - b.vx) * k; b.vz += (fz / fl * spd - b.vz) * k;
+  b.x = clamp(b.x + b.vx * dt, -ARENA + 1, ARENA - 1); b.z = clamp(b.z + b.vz * dt, -ARENA + 1, ARENA - 1);
+  b.ang = lerpAng(b.ang, Math.atan2(b.vx, b.vz), Math.min(1, dt * 10));
+  b.walk += dt * (Math.hypot(b.vx, b.vz) * 4 + 0.5);
+}
+function goldDown(b) {
+  S.gold = null; S.freePicks++; S.freeKinds.push('gold'); S.pendingLevels++;
+  for (let i = 0; i < 10; i++) dropCoin(b.x + rand(-2.5, 2.5), b.z + rand(-2.5, 2.5), 3, true);
+  ev(['gk', b.x, b.z]);
+}
 function nestDown(b) {
-  S.nest = null; S.freePicks++; S.pendingLevels++;
+  S.nest = null; S.freePicks++; S.freeKinds.push('nest'); S.pendingLevels++;
   for (let i = 0; i < 6; i++) dropCoin(b.x + rand(-2, 2), b.z + rand(-2, 2), 3, false);
   ev(['nk', b.x, b.z]);
 }
@@ -886,9 +950,9 @@ function queenNear(p, r) { let best = null, bd = r * r; for (const q of S.bosses
 const BR = (q = S.queen) => q ? BOSSES[q.kind].r : 3;
 function hitBug(b, dmg, kx = 0, kz = 0) {
   if (b.hp <= 0) return;
-  b.hp -= dmg; b.flash = 0.09; if (b.t !== 4) { b.x += kx; b.z += kz; }
+  b.hp -= dmg; b.flash = 0.09; if (b.t < 4) { b.x += kx; b.z += kz; }
   if (dmg >= 8 || Math.random() < 0.12) ev(['n', b.x, b.z, Math.round(dmg), 0]);
-  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp, b.t === 2); }
+  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } if (b.t === 5) { goldDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp, b.t === 2); }
 }
 function dropCoin(x, z, v, big) {
   v += S.bank; S.bank = 0;
@@ -1138,6 +1202,7 @@ function updateBugs(dt, demo) {
     const b = S.bugs[i];
     b.flash = Math.max(0, b.flash - dt); b.icd = Math.max(0, b.icd - dt);
     if (b.t === 4) { if (!demo) nestTick(b, dt); continue; }
+    if (b.t === 5) { goldTick(b, dt); continue; }
     const tp = demo ? { x: S.demoX, z: S.demoZ } : nearestPlayer(b.x, b.z);
     if (!tp) continue;
     const dx = tp.x - b.x, dz = tp.z - b.z, d2 = dx * dx + dz * dz;
@@ -1277,7 +1342,7 @@ function voters() {
 }
 function startLevelRound() {
   S.pendingLevels--;
-  const free = S.freePicks > 0; if (free) S.freePicks--;
+  const free = S.freePicks > 0 ? ((S.freeKinds || []).shift() || 'nest') : false; if (free) S.freePicks--;
   const cards = teamCards();
   if (!cards.length) { ev(['tp', '', '', 2]); return; }                               // everything maxed: nothing this level
   if (cards.length === 1 && cards[0] === 'aid') { applyTeamUp('aid', ''); return; }   // maxed, 5th level: med kit for everyone
@@ -1353,7 +1418,7 @@ function renderVotes() {
   const tbp = ps.find(p => p.id === r.tb);
   const sig = JSON.stringify([votes, left, r.tb, multi, ps.length]);
   if (sig === voteSig) return; voteSig = sig;
-  $('lvtitle').textContent = r.free ? 'Nest destroyed! Free upgrade' : multi ? 'Team level up!' : 'Level up!';
+  $('lvtitle').textContent = r.free ? (r.free === 'gold' ? 'Golden Bug caught! Free upgrade' : 'Nest destroyed! Free upgrade') : multi ? 'Team level up!' : 'Level up!';
   $('lvnote').hidden = !multi;
   if (multi) {
     const n = ps.filter(p => votes[p.id]).length;
@@ -1518,7 +1583,7 @@ function setI(mesh, i, x, y, z, ry, s = 1, rx = 0, rz = 0) {
   return tmpM;
 }
 function drawBugs(list, t) {
-  const c = { ant: 0, antLeg: 0, fly: 0, wing: 0, spider: 0, spiderLeg: 0, wasp: 0 };
+  const c = { ant: 0, antLeg: 0, fly: 0, wing: 0, spider: 0, spiderLeg: 0, wasp: 0, gold: 0, goldLeg: 0 };
   let nestB = null;
   const sh = B.shadow;
   for (const b of list) {
@@ -1534,6 +1599,19 @@ function drawBugs(list, t) {
       }
       sh.add(b.x, 0.02, b.z, 1.6, 0, 0, 0, 0, 0.45);
     } else if (b.t === 4) { nestB = b; continue;
+    } else if (b.t === 5) {
+      if (c.gold >= 4) continue;
+      const i = c.gold++, base = baseM.copy(setI(IM.gold, i, b.x, 0.05, b.z, b.ang, 1.9));
+      IM.gold.setColorAt(i, b.flash > 0 ? flashC : white);
+      for (let l = 0; l < 6; l++) {
+        const L = GEO.antLegs[l >> 1], side = l & 1 ? -1 : 1, sw = Math.sin(b.walk + (l >> 1) * Math.PI + (side > 0 ? 0 : Math.PI)) * 0.45;
+        tmpE.set(0, side > 0 ? L[3] + sw : Math.PI - L[3] - sw, Math.sin(b.walk * 2 + l) * 0.08); tmpQ.setFromEuler(tmpE);
+        legLocal.compose(tmpV.set(L[0] * side, L[1], L[2]), tmpQ, ONE);
+        IM.goldLeg.setMatrixAt(c.goldLeg++, tmpM2.multiplyMatrices(base, legLocal));
+      }
+      sh.add(b.x, 0.02, b.z, 2.4, 0, 0, 0, 0, 0.45);
+      B.glow.add(b.x, 0.9, b.z, 3 + Math.sin(t * 6) * 0.4, 0, 1, 0.8, 0.25, 0.22);
+      if (Math.random() < 0.5) FX.glow.spawn({ x: b.x + rand(-0.8, 0.8), y: rand(0.4, 1.4), z: b.z + rand(-0.8, 0.8), vx: 0, vy: rand(1, 2.5), vz: 0, life: 0.6, s0: rand(0.2, 0.35), s1: 0.05, c: [1.3, 1.05, 0.35], a0: 1, a1: 0 });
     } else if (b.t === 3) {
       if (c.wasp >= 80) continue;
       const i = c.wasp++, hy = 1.0 + Math.sin(b.walk * 1.6) * 0.14, base = baseM.copy(setI(IM.wasp, i, b.x, hy, b.z, b.ang, 1.35));
@@ -1823,6 +1901,23 @@ function drawOverlay(dt) {
       }
     }
   }
+  { // golden bug: name tag + time-left bar on screen, a gold arrow when it is off screen
+    const gb = (role === 'client' ? [...CL.bugs.values()] : S.bugs).find(b => b.t === 5);
+    if (gb && !idle()) {
+      const [sx, sy] = project(gb.x, 2.6, gb.z), W = view.w, H = view.h, mg = 34;
+      if (sx > mg && sx < W - mg && sy > mg && sy < H - mg) {
+        fctx.font = '800 12px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.8)'; fctx.strokeText('GOLDEN BUG', sx, sy); fctx.fillStyle = '#ffd84a'; fctx.fillText('GOLDEN BUG', sx, sy);
+      } else {
+        const cx = W / 2, cy = H / 2, dx = sx - cx, dy = sy - cy, sc = Math.min((W / 2 - mg) / Math.abs(dx || 1e-3), (H / 2 - mg) / Math.abs(dy || 1e-3));
+        const ax = cx + dx * sc, ay = cy + dy * sc, an = Math.atan2(dy, dx), pulse = 1 + Math.sin(performance.now() / 110) * 0.15;
+        fctx.save(); fctx.translate(ax, ay); fctx.rotate(an); fctx.scale(pulse, pulse);
+        fctx.beginPath(); fctx.moveTo(16, 0); fctx.lineTo(-10, -12); fctx.lineTo(-5, 0); fctx.lineTo(-10, 12); fctx.closePath();
+        fctx.fillStyle = '#ffd84a'; fctx.lineWidth = 3; fctx.strokeStyle = '#000'; fctx.stroke(); fctx.fill(); fctx.restore();
+        fctx.font = '800 11px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.85)'; const tx = ax - Math.cos(an) * 26, ty = ay - Math.sin(an) * 26 + 4;
+        fctx.strokeText('GOLD', tx, ty); fctx.fillStyle = '#ffd84a'; fctx.fillText('GOLD', tx, ty);
+      }
+    }
+  }
   if (players.length > 1) for (const p of players) {
     const [sx, sy] = project(p.x, 3.4, p.z);
     fctx.font = '800 13px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.8)';
@@ -1846,6 +1941,7 @@ function drawMinimap() {
   mctx.fillStyle = 'rgba(230,80,60,.75)';
   const bugs = role === 'client' ? [...CL.bugs.values()] : S.bugs;
   for (let i = 0; i < bugs.length; i += 2) { const b = bugs[i]; mctx.fillRect(o + b.x * k - 1.5, o + b.z * k - 1.5, 3, 3); }
+  { const gb = bugs.find(b => b.t === 5); if (gb) { mctx.fillStyle = '#ffe14a'; mctx.strokeStyle = '#000'; mctx.lineWidth = 2; mctx.beginPath(); mctx.arc(o + gb.x * k, o + gb.z * k, 5 + Math.sin(performance.now() / 100) * 1.5, 0, TAU); mctx.fill(); mctx.stroke(); } }
   { const nb = bugs.find(b => b.t === 4); if (nb) { mctx.fillStyle = '#ffb21e'; mctx.strokeStyle = '#000'; mctx.lineWidth = 2; mctx.beginPath(); mctx.arc(o + nb.x * k, o + nb.z * k, 6 + Math.sin(performance.now() / 150) * 2, 0, TAU); mctx.fill(); mctx.stroke(); } }
   mctx.fillStyle = '#ffd24a';
   const coins = role === 'client' ? CL.coins : S.coins;
@@ -2468,6 +2564,6 @@ window.PP = {
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
   tipOffset() { const p = meP(), L = looks.get(me.id); if (!L) return null; L.body.updateMatrixWorld(true); const v = L.body.userData.tip.getWorldPosition(new THREE.Vector3()), f = L.body.rotation.y; const dx = v.x - p.x, dz = v.z - p.z; return { forward: +(dx * Math.sin(f) + dz * Math.cos(f)).toFixed(2), right: +(dx * Math.cos(f) - dz * Math.sin(f)).toFixed(2), y: +v.y.toFixed(2) }; },
-  arena: () => ARENA,   nest: () => spawnNest(), snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };

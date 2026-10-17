@@ -567,6 +567,8 @@ GEO.flip = merge([
 // ---------------------------------------------------------------- materials for instanced things
 export const MAT = {
   bug: std({ vertexColors: true, roughness: 0.32, metalness: 0.08, envMapIntensity: 0.9 }),
+  gold: std({ color: '#ffc93a', roughness: 0.22, metalness: 0.95, envMapIntensity: 1.6, emissive: '#5a3a00', emissiveIntensity: 0.35 }),
+  goldLeg: std({ color: '#c99412', roughness: 0.3, metalness: 0.9, envMapIntensity: 1.2 }),
   leg: std({ vertexColors: true, roughness: 0.5, metalness: 0.05, envMapIntensity: 0.5 }),
   wing: new THREE.MeshStandardMaterial({ color: '#d4ecf8', transparent: true, opacity: 0.42, side: THREE.DoubleSide, roughness: 0.08, metalness: 0.4, depthWrite: false, envMapIntensity: 1.2 }),
   coin: std({ color: '#f5c242', metalness: 1, roughness: 0.22, emissive: '#5a3a00', emissiveIntensity: 0.6, envMapIntensity: 1.4 }),
