@@ -123,6 +123,11 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 .joinrow input{width:120px;letter-spacing:.2em;text-transform:uppercase}
 .btn.alt{font-size:18px;padding:11px 22px;background:linear-gradient(#a6f27a,#5fc22e);color:#13300a;box-shadow:0 5px 0 #2f7d12,0 10px 20px rgba(0,0,0,.35)}
 .btn.dark{font-size:17px;padding:10px 22px;background:#2a333b;color:var(--text);box-shadow:0 5px 0 #11161a}
+#quitask{text-align:center}
+#quitask .qa{font-size:18px;margin:4px 0 14px;color:var(--text)}
+#quitask .qa span{display:block;font-size:14px;opacity:.75;margin-top:4px}
+#quitask .qbtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn.qyes{font-size:17px;padding:10px 22px;background:linear-gradient(#ff6a5c,#d8382b);color:#fff;box-shadow:0 5px 0 #8a1d14}
 .btn:disabled{opacity:.5;cursor:default}
 .status{margin:0;min-height:1.3em;font-weight:800;color:var(--sky);font-size:14px}
 .status.err{color:#ff8a7a}
@@ -273,6 +278,10 @@ body.menu #ver{display:block}
       <div class="volrow"><span>Music</span><input type="range" id="mvol" min="0" max="100" step="5" aria-label="Music volume"><b id="mvolv"></b><button class="btn dark" id="mmutebtn" type="button">Turn off</button></div>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
+      <div id="quitask" hidden>
+        <p class="qa">Leave this run? <span id="quitwhy">Your progress will be lost.</span></p>
+        <div class="qbtns"><button class="btn dark" id="quitno" type="button">Stay</button><button class="btn qyes" id="quityes" type="button">Yes, leave</button></div>
+      </div>
       <p class="hint pver">Pest Panic v__VERSION__</p>
     </div>
     <div class="screen" id="over" hidden>

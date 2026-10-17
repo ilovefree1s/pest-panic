@@ -1942,7 +1942,7 @@ function showOver(st) {
   setTimeout(() => { if (mode === 'over') screen('over'); }, 900);
 }
 function pause(on) {
-  if (on && (mode === 'play' || mode === 'level')) { screen('paused'); if (role === 'solo' && mode === 'play') mode = 'pause'; }
+  if (on && (mode === 'play' || mode === 'level')) { askQuit(false); screen('paused'); if (role === 'solo' && mode === 'play') mode = 'pause'; }
   else if (!on) { $('paused').hidden = true; if (mode === 'pause') mode = 'play'; }
 }
 function toTitle() {
@@ -1966,7 +1966,13 @@ $('lobbyleave').addEventListener('click', toTitle);
 $('play').addEventListener('click', () => { saveName(); role = 'solo'; beginRound(); });
 $('again').addEventListener('click', () => { if (role !== 'client') beginRound(); });
 $('resume').addEventListener('click', () => pause(false));
-$('quit').addEventListener('click', toTitle);
+function askQuit(on) {   // "are you sure?" before leaving a run
+  $('quitask').hidden = !on; $('quit').hidden = on; $('resume').hidden = on;
+  if (on) { $('quitwhy').textContent = role === 'solo' ? 'Your progress will be lost.' : role === 'host' ? 'You are the host. The game ends for everyone.' : 'You will drop out of this game.'; $('quitno').focus(); }
+}
+$('quit').addEventListener('click', () => askQuit(true));
+$('quitno').addEventListener('click', () => { askQuit(false); $('resume').focus(); });
+$('quityes').addEventListener('click', () => { askQuit(false); toTitle(); });
 $('leave2').addEventListener('click', toTitle);
 $('boardbtn').addEventListener('click', () => openBoard());
 function syncSoundUi() {

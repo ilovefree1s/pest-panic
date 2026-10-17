@@ -131,6 +131,11 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 .joinrow input{width:120px;letter-spacing:.2em;text-transform:uppercase}
 .btn.alt{font-size:18px;padding:11px 22px;background:linear-gradient(#a6f27a,#5fc22e);color:#13300a;box-shadow:0 5px 0 #2f7d12,0 10px 20px rgba(0,0,0,.35)}
 .btn.dark{font-size:17px;padding:10px 22px;background:#2a333b;color:var(--text);box-shadow:0 5px 0 #11161a}
+#quitask{text-align:center}
+#quitask .qa{font-size:18px;margin:4px 0 14px;color:var(--text)}
+#quitask .qa span{display:block;font-size:14px;opacity:.75;margin-top:4px}
+#quitask .qbtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn.qyes{font-size:17px;padding:10px 22px;background:linear-gradient(#ff6a5c,#d8382b);color:#fff;box-shadow:0 5px 0 #8a1d14}
 .btn:disabled{opacity:.5;cursor:default}
 .status{margin:0;min-height:1.3em;font-weight:800;color:var(--sky);font-size:14px}
 .status.err{color:#ff8a7a}
@@ -248,7 +253,7 @@ body.menu #ver{display:block}
       <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="6" y="12" width="18" height="27" rx="6" fill="#f1f1ec"/><rect x="10" y="8" width="10" height="5" rx="2" fill="#ff7a1f"/><rect x="5" y="37" width="20" height="5" rx="2" fill="#ff7a1f"/><path d="M22 36c6 3 9 0 10-3" stroke="#1c1d22" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M30 35L41 16" stroke="#c6ccd4" stroke-width="3" stroke-linecap="round"/><rect x="27" y="31" width="6" height="7" rx="2" transform="rotate(30 30 34.5)" fill="#1c1d22"/><path d="M40 18l3-5" stroke="#f2c53d" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="8" r="2.4" fill="#bfefff" opacity=".85"/><circle cx="41" cy="5" r="1.8" fill="#bfefff" opacity=".65"/><circle cx="47" cy="3" r="1.5" fill="#bfefff" opacity=".5"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
-    <div id="ver">v1.26</div>
+    <div id="ver">v1.27</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -281,7 +286,11 @@ body.menu #ver{display:block}
       <div class="volrow"><span>Music</span><input type="range" id="mvol" min="0" max="100" step="5" aria-label="Music volume"><b id="mvolv"></b><button class="btn dark" id="mmutebtn" type="button">Turn off</button></div>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
-      <p class="hint pver">Pest Panic v1.26</p>
+      <div id="quitask" hidden>
+        <p class="qa">Leave this run? <span id="quitwhy">Your progress will be lost.</span></p>
+        <div class="qbtns"><button class="btn dark" id="quitno" type="button">Stay</button><button class="btn qyes" id="quityes" type="button">Yes, leave</button></div>
+      </div>
+      <p class="hint pver">Pest Panic v1.27</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -3239,7 +3248,7 @@ function showOver(st) {
   setTimeout(() => { if (mode === 'over') screen('over'); }, 900);
 }
 function pause(on) {
-  if (on && (mode === 'play' || mode === 'level')) { screen('paused'); if (role === 'solo' && mode === 'play') mode = 'pause'; }
+  if (on && (mode === 'play' || mode === 'level')) { askQuit(false); screen('paused'); if (role === 'solo' && mode === 'play') mode = 'pause'; }
   else if (!on) { $('paused').hidden = true; if (mode === 'pause') mode = 'play'; }
 }
 function toTitle() {
@@ -3263,7 +3272,13 @@ $('lobbyleave').addEventListener('click', toTitle);
 $('play').addEventListener('click', () => { saveName(); role = 'solo'; beginRound(); });
 $('again').addEventListener('click', () => { if (role !== 'client') beginRound(); });
 $('resume').addEventListener('click', () => pause(false));
-$('quit').addEventListener('click', toTitle);
+function askQuit(on) {   // "are you sure?" before leaving a run
+  $('quitask').hidden = !on; $('quit').hidden = on; $('resume').hidden = on;
+  if (on) { $('quitwhy').textContent = role === 'solo' ? 'Your progress will be lost.' : role === 'host' ? 'You are the host. The game ends for everyone.' : 'You will drop out of this game.'; $('quitno').focus(); }
+}
+$('quit').addEventListener('click', () => askQuit(true));
+$('quitno').addEventListener('click', () => { askQuit(false); $('resume').focus(); });
+$('quityes').addEventListener('click', () => { askQuit(false); toTitle(); });
 $('leave2').addEventListener('click', toTitle);
 $('boardbtn').addEventListener('click', () => openBoard());
 function syncSoundUi() {
