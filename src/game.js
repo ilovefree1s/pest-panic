@@ -810,7 +810,7 @@ function spawnQueen() {
   const a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
   plan.list.forEach(([kind, duo], i) => {
     const ang = a + i * Math.PI;   // a pair comes in from opposite sides
-    const hp = Math.round(DIFF * QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
+    const hp = Math.round(1.1 * DIFF * QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
     S.bosses.push({ n, kind, duo, tier, hp, max: hp, x: t.x + Math.cos(ang) * (spawnRadius() + 4), z: t.z + Math.sin(ang) * (spawnRadius() + 4),
       vx: 0, vz: 0, ang: 0, t: i * 0.7, ring: 2 + i, fan: 3 + i, a1: 2 + i * 1.1, a2: 1.5 + i, a3: 6 + i * 3, flash: 0, fcd: 0, icd: 0, walk: 0,
       rate: Math.max(0.4, (48 - 6 * (tier - 1)) / 60), spin: 0, acc: 0, numT: 0, state: 0, st: 0, ddx: 0, ddz: 0, orbitA: ang, spiral: 4 });
