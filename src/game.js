@@ -121,7 +121,7 @@ function stats(id, L, p) {
     case 'flip': return [['Flip-flops', v(() => W.flip.n[i])], ['Damage', v(() => W.flip.dmg[i] + s)], ['Every', v(() => sec(W.flip.cd[i]))]];
     case 'roomba': return [['Damage', v(() => W.roomba.dmg[i] + s)], ['Speed', v(() => W.roomba.spd[i])], ['Suction size', v(() => W.roomba.r[i].toFixed(1))]];
     case 'lens': return [['Burn damage', v(() => W.lens.dmg[i] + s + '/tick')], ['Dot size', v(() => W.lens.r[i].toFixed(1))], ['Beams', v(() => W.lens.n[i])]];
-    case 'boots': return [['Damage taken', L ? '-' + L * 12 + '%' : 'normal']];
+    case 'boots': return [['Damage taken', L ? '-' + L * 10 + '%' : 'normal']];
     case 'shoes': return [['Speed', Math.round(100 + L * 25) + '%']];
     case 'vac': return [['Coin reach', W.vac[L].toFixed(1)]];
     case 'str': return [['Bonus damage', '+' + L]];
@@ -1041,7 +1041,7 @@ function dropCoin(x, z, v, big) {
 }
 function hurt(p, d) {
   if (p.inv > 0 || p.down || mode !== 'play' || window.__god) return;
-  p.hp -= d * DIFF * (1 - 0.12 * (p.up.boots || 0)); p.inv = 0.8;   // Rubber Boots: 12% less per level
+  p.hp -= d * DIFF * (1 - 0.10 * (p.up.boots || 0)); p.inv = 0.8;   // Rubber Boots: 10% less per level
   if (p.hp <= 0) {
     p.hp = 0; p.down = true; p.rev = 0; p.vx = p.vz = 0;
     ev(['dn', p.id, p.name]);
