@@ -470,6 +470,199 @@ export function buildKitchen() {
   return g;
 }
 
+// ---------------------------------------------------------------- House Mode rooms: living room, garage, basement
+const RT = {};   // room textures, made the first time a room is built
+function plankTex() {
+  const [c, x] = cnv(1024, 1024), r = rng(11), H = 64;
+  for (let row = 0; row < 1024 / H; row++) {
+    let px = -r() * 300;
+    while (px < 1024) {
+      const len = 220 + r() * 260, tone = 0.8 + r() * 0.35;
+      x.fillStyle = `rgb(${142 * tone | 0},${92 * tone | 0},${52 * tone | 0})`; x.fillRect(px, row * H, len, H);
+      for (let k = 0; k < 7; k++) { x.strokeStyle = `rgba(60,30,10,${0.08 + r() * 0.12})`; x.lineWidth = 1 + r() * 2; x.beginPath(); const y0 = row * H + 6 + r() * (H - 12); x.moveTo(px, y0); x.bezierCurveTo(px + len * 0.3, y0 + (r() - 0.5) * 10, px + len * 0.7, y0 + (r() - 0.5) * 10, px + len, y0); x.stroke(); }
+      if (r() < 0.35) { x.fillStyle = 'rgba(70,35,12,.35)'; x.beginPath(); x.ellipse(px + r() * len, row * H + H / 2, 8 + r() * 6, 4 + r() * 3, 0, 0, TAU); x.fill(); }
+      x.fillStyle = 'rgba(30,15,5,.75)'; x.fillRect(px, row * H, 3, H);
+      px += len;
+    }
+    x.fillStyle = 'rgba(30,15,5,.8)'; x.fillRect(0, row * H, 1024, 3);
+  }
+  return tex(c, true);
+}
+function concreteTex(dark) {
+  const [c, x] = cnv(1024, 1024), r = rng(dark ? 23 : 17);
+  x.fillStyle = dark ? '#4a4a48' : '#8b8a85'; x.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 2600; i++) { const s = 2 + r() * 26; x.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${0.02 + r() * 0.05})`; x.beginPath(); x.arc(r() * 1024, r() * 1024, s, 0, TAU); x.fill(); }
+  for (let i = 0; i < 9000; i++) { x.fillStyle = `rgba(0,0,0,${0.1 + r() * 0.2})`; x.fillRect(r() * 1024, r() * 1024, 1.5, 1.5); }
+  x.strokeStyle = 'rgba(20,20,20,.55)'; x.lineWidth = 4;
+  for (const p of [0, 512]) { x.beginPath(); x.moveTo(p + 2, 0); x.lineTo(p + 2, 1024); x.stroke(); x.beginPath(); x.moveTo(0, p + 2); x.lineTo(1024, p + 2); x.stroke(); }
+  x.strokeStyle = 'rgba(25,25,25,.45)'; x.lineWidth = 1.5;
+  for (let k = 0; k < 7; k++) { let px = r() * 1024, py = r() * 1024; x.beginPath(); x.moveTo(px, py); for (let s = 0; s < 8; s++) { px += (r() - 0.5) * 70; py += (r() - 0.5) * 70; x.lineTo(px, py); } x.stroke(); }
+  return tex(c, true);
+}
+function stainTex() {
+  const [c, x] = cnv(256, 256), r = rng(5);
+  for (let i = 0; i < 14; i++) { const g = x.createRadialGradient(128 + (r() - 0.5) * 80, 128 + (r() - 0.5) * 80, 0, 128, 128, 40 + r() * 70); g.addColorStop(0, 'rgba(10,8,6,.5)'); g.addColorStop(1, 'rgba(10,8,6,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 256); }
+  return tex(c, true);
+}
+function wallpaperTex() {
+  const [c, x] = cnv(256, 512);
+  x.fillStyle = '#6e8b74'; x.fillRect(0, 0, 256, 512);
+  for (let i = 0; i < 256; i += 64) { x.fillStyle = 'rgba(255,255,255,.07)'; x.fillRect(i, 0, 26, 512); }
+  x.fillStyle = 'rgba(240,226,180,.35)';
+  for (let y = 24; y < 512; y += 64) for (let xx = 45; xx < 256; xx += 64) { x.beginPath(); x.arc(xx + ((y / 64) & 1 ? 0 : 0), y, 6, 0, TAU); x.fill(); for (let k = 0; k < 4; k++) { x.beginPath(); x.ellipse(xx + Math.cos(k * 1.57) * 9, y + Math.sin(k * 1.57) * 9, 5, 2.5, k * 1.57, 0, TAU); x.fill(); } }
+  return tex(c, true);
+}
+function blockTex() {
+  const [c, x] = cnv(512, 512), r = rng(31);
+  x.fillStyle = '#3a3936'; x.fillRect(0, 0, 512, 512);
+  for (let row = 0; row < 8; row++) for (let col = -1; col < 4; col++) {
+    const ox = (row & 1) * 64, tone = 0.85 + r() * 0.25;
+    x.fillStyle = `rgb(${110 * tone | 0},${108 * tone | 0},${102 * tone | 0})`; x.fillRect(col * 128 + ox + 4, row * 64 + 4, 120, 56);
+    for (let k = 0; k < 60; k++) { x.fillStyle = `rgba(0,0,0,${r() * 0.18})`; x.fillRect(col * 128 + ox + 4 + r() * 120, row * 64 + 4 + r() * 56, 2, 2); }
+  }
+  x.fillStyle = 'rgba(40,30,15,.25)'; x.fillRect(0, 380, 512, 132);   // damp near the floor
+  return tex(c, true);
+}
+function pegTex() {
+  const [c, x] = cnv(256, 256);
+  x.fillStyle = '#a07a4e'; x.fillRect(0, 0, 256, 256);
+  x.fillStyle = '#3a2814'; for (let y = 8; y < 256; y += 16) for (let xx = 8; xx < 256; xx += 16) { x.beginPath(); x.arc(xx, y, 2.6, 0, TAU); x.fill(); }
+  return tex(c, true);
+}
+function doorTex() {
+  const [c, x] = cnv(256, 256);
+  x.fillStyle = '#d9d7d0'; x.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y += 64) { x.fillStyle = '#a9a69d'; x.fillRect(0, y, 256, 5); x.fillStyle = '#efede6'; x.fillRect(0, y + 5, 256, 3);
+    for (let xx = 10; xx < 256; xx += 62) { x.strokeStyle = '#bdbab1'; x.lineWidth = 3; x.strokeRect(xx, y + 14, 50, 40); } }
+  return tex(c, true);
+}
+function rectRugTex() {
+  const [c, x] = cnv(512, 320);
+  x.fillStyle = '#7c2a2a'; x.fillRect(0, 0, 512, 320);
+  x.strokeStyle = '#e2c27a'; x.lineWidth = 10; x.strokeRect(18, 18, 476, 284);
+  x.strokeStyle = '#2b3d5c'; x.lineWidth = 16; x.strokeRect(40, 40, 432, 240);
+  x.fillStyle = '#e2c27a'; x.beginPath(); x.moveTo(256, 90); x.lineTo(340, 160); x.lineTo(256, 230); x.lineTo(172, 160); x.closePath(); x.fill();
+  x.fillStyle = '#2b3d5c'; x.beginPath(); x.moveTo(256, 120); x.lineTo(306, 160); x.lineTo(256, 200); x.lineTo(206, 160); x.closePath(); x.fill();
+  for (let i = 0; i < 1800; i++) { x.fillStyle = `rgba(0,0,0,${Math.random() * 0.08})`; x.fillRect(Math.random() * 512, Math.random() * 320, 2, 2); }
+  return tex(c, true);
+}
+function roomTex() {
+  if (RT.ready) return RT;
+  Object.assign(RT, { plank: plankTex(), conc: concreteTex(false), concD: concreteTex(true), stain: stainTex(), paper: wallpaperTex(), block: blockTex(), peg: pegTex(), door: doorTex(), rug: rectRugTex(), ready: true });
+  return RT;
+}
+export const ROOMS = [
+  { id: 'kitchen', name: 'Kitchen' },
+  { id: 'living', name: 'Living Room' },
+  { id: 'garage', name: 'Garage' },
+  { id: 'basement', name: 'Basement' },
+];
+export function buildRoom(kind = 0) {
+  if (!kind) return buildKitchen();
+  const T = roomTex(), g = new THREE.Group();
+  const E = ARENA + 1.2, L = 2 * E + 8, D = 3.8, W = kind === 3 ? 9 : 11;
+  // floor
+  const ft = (kind === 1 ? T.plank : kind === 2 ? T.conc : T.concD).clone(); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(240 / (kind === 1 ? 14 : 22), 240 / (kind === 1 ? 14 : 22)); ft.needsUpdate = true;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), std({ map: ft, color: kind === 1 ? '#d8c8b4' : '#ffffff', roughness: kind === 1 ? 0.5 : 0.85, envMapIntensity: kind === 1 ? 0.5 : 0.25 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; g.add(floor);
+  const flat = (w, h, mat, x, z, rot = 0, y = 0.03) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.rotation.x = -Math.PI / 2; m.rotation.z = rot; m.position.set(x, y, z); m.receiveShadow = true; g.add(m); return m; };
+  const box = (parent, w, h, d, mat, x, y, z, ry = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
+  const cyl = (parent, r0, r1, h, mat, x, y, z, seg = 18) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, seg), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
+  const C = h => std({ color: h, roughness: 0.75, envMapIntensity: 0.3 });
+  // walls on three sides with a low trim at the arena edge (same height as the kitchen kick plate, so the golden bug's hole still fits)
+  const wallMap = kind === 1 ? T.paper : T.block;
+  const trimMat = C(kind === 1 ? '#6e4e32' : kind === 2 ? '#5e5c56' : '#45433e');
+  const sides = [];
+  for (const [x, z, ry] of [[0, -E, 0], [-E, 0, Math.PI / 2], [E, 0, -Math.PI / 2]]) {
+    const s = new THREE.Group(); s.position.set(x, 0, z); s.rotation.y = ry; g.add(s); sides.push(s);
+    const wt = wallMap.clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(L / (kind === 1 ? 4 : 8), W / (kind === 1 ? 8 : 8)); wt.needsUpdate = true;
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(L, W), std({ map: wt, roughness: 0.85, envMapIntensity: 0.15 }));
+    wall.position.set(0, W / 2, -D); wall.receiveShadow = true; s.add(wall);
+    box(s, L, 0.5, 0.3, trimMat, 0, 0.25, 0.05);
+    if (kind === 1) box(s, L, 0.6, 0.2, trimMat, 0, 0.3, -D + 0.1);   // baseboard on the wall
+  }
+  const front = box(g, L, 0.7, 0.6, C(kind === 1 ? '#6b4a30' : '#55534d'), 0, 0.35, E + 0.3);
+  const [back, left, right] = sides;   // in each side group: +x runs along the wall, -z goes back toward the wall
+  if (kind === 1) {   // ---- living room: couch, TV, bookshelf, lamp, armchair, plant, rugs
+    const rug = flat(26, 16, std({ map: T.rug, roughness: 0.95, envMapIntensity: 0.15 }), -4, 4, 0.04, 0.03);
+    const rr = new THREE.Mesh(new THREE.CircleGeometry(6, 48), std({ map: TEX.rug, roughness: 0.95, envMapIntensity: 0.2 })); rr.rotation.x = -Math.PI / 2; rr.position.set(22, 0.03, -20); g.add(rr);
+    const fab = C('#3f6f8f'), fabD = C('#2f566f'), wood = C('#5a3a22'), woodL = C('#8a5f3a');
+    const couch = new THREE.Group(); couch.position.set(-10, 0, -D / 2 - 0.2); back.add(couch);
+    box(couch, 12, 1.4, 3.2, fabD, 0, 0.7, 0); box(couch, 12, 2.6, 0.9, fab, 0, 2.2, -1.2);
+    for (const sx of [-6.2, 6.2]) box(couch, 0.9, 2.2, 3.2, fab, sx, 1.1, 0);
+    for (const sx of [-3.8, 0, 3.8]) box(couch, 3.7, 0.5, 2.6, fab, sx, 1.65, 0.2);
+    box(couch, 1.6, 1.2, 0.5, C('#e0b84a'), -4.3, 2.4, -0.6, 0.2); box(couch, 1.6, 1.2, 0.5, C('#c4573a'), 4.4, 2.4, -0.6, -0.25);
+    const tv = new THREE.Group(); tv.position.set(14, 0, -D / 2); back.add(tv);
+    box(tv, 9, 2, 2.6, wood, 0, 1, 0); box(tv, 8, 4.4, 0.35, C('#111214'), 0, 4.6, -0.6);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 3.9), std({ color: '#0a1830', emissive: '#4a8cff', emissiveIntensity: 0.55, roughness: 0.3 })); scr.position.set(0, 4.6, -0.42); tv.add(scr);
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(8, 5), std({ color: '#cfe6ff', emissive: '#a8d0ff', emissiveIntensity: 0.4 })); win.position.set(-24, 6, -D + 0.05); back.add(win);
+    for (const sx of [-28.6, -19.4]) box(back, 1.2, 7, 0.3, C('#b0473a'), sx, 5.6, -D + 0.3);
+    const shelf = new THREE.Group(); shelf.position.set(-8, 0, -D / 2); left.add(shelf);
+    box(shelf, 8, 8, 2.4, wood, 0, 4, -0.3);
+    const bookC = ['#b03a2e', '#2e6db0', '#e0b84a', '#3a8a4a', '#7a3ab0', '#e07a2e'];
+    for (let r = 0; r < 3; r++) { box(shelf, 7.4, 0.2, 2.2, woodL, 0, 1.6 + r * 2.4, 0); for (let b = 0; b < 9; b++) box(shelf, 0.6, 1.5 + (b % 3) * 0.2, 1.6, C(bookC[(b + r * 2) % 6]), -3.2 + b * 0.78, 2.5 + r * 2.4, 0.2); }
+    const lamp = new THREE.Group(); lamp.position.set(6, 0, -D / 2); left.add(lamp);
+    cyl(lamp, 0.8, 0.9, 0.3, C('#222'), 0, 0.15, 0); cyl(lamp, 0.1, 0.1, 6, C('#333'), 0, 3, 0);
+    cyl(lamp, 0.9, 1.6, 1.8, std({ color: '#c9b48a', emissive: '#ffb84a', emissiveIntensity: 0.22 }), 0, 6.4, 0);
+    const chair = new THREE.Group(); chair.position.set(10, 0, -D / 2); right.add(chair);
+    box(chair, 4, 1.4, 3.2, C('#8a4a3a'), 0, 0.7, 0); box(chair, 4, 2.6, 0.8, C('#9a5a48'), 0, 2.2, -1.2); for (const sx of [-2.1, 2.1]) box(chair, 0.7, 2, 3.2, C('#9a5a48'), sx, 1, 0);
+    const plant = new THREE.Group(); plant.position.set(-14, 0, -D / 2); right.add(plant);
+    cyl(plant, 1, 0.8, 1.8, C('#b0603a'), 0, 0.9, 0);
+    for (let k = 0; k < 7; k++) { const lf = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 8), C('#3f8a3a')); lf.scale.set(1, 1.6, 0.5); lf.position.set(Math.cos(k) * 0.9, 3 + (k % 3) * 0.6, Math.sin(k) * 0.9); lf.rotation.y = k; lf.castShadow = true; plant.add(lf); }
+    const table = new THREE.Group(); table.position.set(-22, 0, -D / 2); right.add(table);
+    box(table, 3, 2.4, 2.4, wood, 0, 1.2, 0); cyl(table, 0.4, 0.6, 1.4, C('#d9d2c0'), 0, 3.1, 0); cyl(table, 0.7, 1.1, 1, std({ color: '#8a7a5a', emissive: '#ffb84a', emissiveIntensity: 0.12 }), 0, 4.2, 0);
+  } else if (kind === 2) {   // ---- garage: big door, workbench, pegboard tools, shelves, tool chest, oil stains, parking stripes
+    const st = std({ map: T.stain, transparent: true, depthWrite: false, roughness: 0.4 });
+    for (const [x, z, s, rot] of [[-6, -8, 12, 0.3], [10, 14, 9, 1.2], [-24, 18, 7, 2], [26, -22, 8, 0.7]]) flat(s, s, st, x, z, rot, 0.035);
+    const yel = std({ color: '#9a7e2a', roughness: 0.95, envMapIntensity: 0.1 });
+    for (const x of [-16, 16]) flat(0.45, 50, yel, x, 4, 0, 0.032);
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(26, 8.5), std({ map: (() => { const t = T.door.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.needsUpdate = true; return t; })(), roughness: 0.7, color: '#8f8c84', envMapIntensity: 0.2 }));
+    door.position.set(0, 4.3, -D + 0.06); back.add(door); box(back, 27, 0.5, 0.4, C('#8a877e'), 0, 8.7, -D + 0.2);
+    const bench = new THREE.Group(); bench.position.set(-6, 0, -D / 2); left.add(bench);
+    box(bench, 12, 0.5, 3, C('#7a5532'), 0, 3, 0); for (const sx of [-5.6, 5.6]) for (const sz of [-1.2, 1.2]) box(bench, 0.4, 3, 0.4, C('#555'), sx, 1.5, sz);
+    box(bench, 1.6, 1, 1.2, C('#c23a2a'), -3, 3.75, 0.2); box(bench, 2.2, 0.6, 0.9, C('#2a5a9a'), 2.5, 3.55, 0.3); cyl(bench, 0.5, 0.5, 1.2, C('#d9d2c0'), 4.8, 3.85, 0);
+    const peg = new THREE.Mesh(new THREE.PlaneGeometry(12, 5), std({ map: (() => { const t = T.peg.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1.25); t.needsUpdate = true; return t; })(), roughness: 0.8 }));
+    peg.position.set(-6, 6.4, -D + 0.08); left.add(peg);
+    for (let k = 0; k < 6; k++) box(left, 0.25, 1.6 + (k % 2), 0.15, C(['#666', '#c23a2a', '#e8c330', '#444'][k % 4]), -10.5 + k * 1.8, 6.3, -D + 0.25, 0);
+    const shelf = new THREE.Group(); shelf.position.set(12, 0, -D / 2); left.add(shelf);
+    for (let r = 0; r < 4; r++) box(shelf, 8, 0.25, 2.6, C('#8a8a86'), 0, 0.8 + r * 2.2, 0);
+    for (const sx of [-3.9, 3.9]) box(shelf, 0.25, 8, 2.6, C('#6a6a66'), sx, 4, 0);
+    for (let r = 0; r < 3; r++) for (let b = 0; b < 4; b++) cyl(shelf, 0.6, 0.6, 1.1, C(['#3a7ac0', '#e05a3a', '#e8c330', '#eeeeee'][(b + r) % 4]), -2.6 + b * 1.7, 1.5 + r * 2.2, 0);
+    const chest = new THREE.Group(); chest.position.set(-12, 0, -D / 2); right.add(chest);
+    box(chest, 5, 5, 2.6, std({ color: '#c42a22', roughness: 0.4, metalness: 0.3 }), 0, 2.5, 0);
+    for (let r = 0; r < 5; r++) box(chest, 4.4, 0.12, 0.1, C('#ddd'), 0, 0.8 + r * 0.9, 1.33);
+    const mower = new THREE.Group(); mower.position.set(8, 0, -D / 2); right.add(mower);
+    box(mower, 3, 1.2, 2.6, C('#2f8a3a'), 0, 1, 0); for (const sx of [-1.5, 1.5]) for (const sz of [-1.1, 1.1]) { const w = cyl(mower, 0.5, 0.5, 0.4, C('#111'), sx, 0.5, sz); w.rotation.z = Math.PI / 2; }
+    box(mower, 0.2, 3, 0.2, C('#444'), 0, 2.6, -1.3);
+    cyl(right, 1.3, 1.3, 3.6, C('#3a3f45'), 22, 1.8, -D / 2);   // trash can
+  } else {   // ---- basement: furnace, water heater, pipes, stairs, boxes, a hanging bulb
+    const st = std({ map: T.stain, transparent: true, depthWrite: false, roughness: 0.4 });
+    for (const [x, z, s, rot] of [[8, -10, 14, 0.3], [-20, 16, 10, 1.4], [18, 20, 8, 2.2]]) flat(s, s, st, x, z, rot, 0.035);
+    const metal = std({ color: '#7a7e82', metalness: 0.6, roughness: 0.5, envMapIntensity: 0.4 });
+    const heater = new THREE.Group(); heater.position.set(16, 0, -D / 2); back.add(heater);
+    cyl(heater, 1.6, 1.6, 7, std({ color: '#8e8a80', roughness: 0.6, envMapIntensity: 0.3 }), 0, 3.5, 0, 24); cyl(heater, 0.3, 0.3, 3, metal, 0, 8.3, 0);
+    const furn = new THREE.Group(); furn.position.set(4, 0, -D / 2); back.add(furn);
+    box(furn, 5, 6.5, 3, std({ color: '#5a5e62', metalness: 0.4, roughness: 0.6 }), 0, 3.25, 0);
+    box(furn, 3, 3, 3, metal, 0, 7.8, -0.4);
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.8), std({ color: '#3a1205', emissive: '#ff5a10', emissiveIntensity: 0.9 })); glow.position.set(0, 1.4, 1.52); furn.add(glow);
+    for (const s of sides) { const p = cyl(s, 0.25, 0.25, L, metal, 0, W - 1.2, -D + 0.5, 10); p.rotation.z = Math.PI / 2; const p2 = cyl(s, 0.18, 0.18, L, std({ color: '#b06a3a', metalness: 0.7, roughness: 0.35 }), 0, W - 1.9, -D + 0.5, 10); p2.rotation.z = Math.PI / 2; }
+    const stairs = new THREE.Group(); stairs.position.set(-16, 0, -D / 2); back.add(stairs);
+    for (let k = 0; k < 7; k++) box(stairs, 5, 0.35, 1.2, C('#6a4a2e'), 0, 0.6 + k * 1.2, 1.4 - k * 0.55);
+    box(stairs, 0.3, 9, 0.3, C('#4a3020'), 2.6, 4.5, -0.4);
+    const boxesL = new THREE.Group(); boxesL.position.set(0, 0, -D / 2); left.add(boxesL);
+    const card = C('#a07a4a');
+    for (const [x, y, s] of [[-14, 1.2, 2.4], [-11.4, 1, 2], [-12.8, 3.3, 1.8], [10, 1.3, 2.6], [12.8, 1, 2], [11, 3.6, 2]]) box(boxesL, s, s, s, card, x, y, 0.2, (x * 7) % 1);
+    const shelfR = new THREE.Group(); shelfR.position.set(-6, 0, -D / 2); right.add(shelfR);
+    for (let r = 0; r < 3; r++) box(shelfR, 9, 0.25, 2.4, C('#5a4a38'), 0, 1 + r * 2.4, 0);
+    for (const sx of [-4.5, 4.5]) box(shelfR, 0.3, 7, 2.4, C('#4a3a28'), sx, 3.5, 0);
+    for (let k = 0; k < 6; k++) cyl(shelfR, 0.45, 0.45, 1, std({ color: ['#7a9a5a', '#c0a060', '#9a5a3a'][k % 3], transparent: true, opacity: 0.85, roughness: 0.2 }), -3.5 + k * 1.4, 1.65 + (k % 3) * 2.4, 0.2);
+    // a bare bulb on a cord, glowing over the room
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10), std({ color: '#fff3c0', emissive: '#ffd27a', emissiveIntensity: 2 })); bulb.position.set(0, 12, -6); g.add(bulb);
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 6, 4), C('#111')); cord.position.set(0, 15.2, -6); g.add(cord);
+  }
+  return g;
+}
+
 // ---------------------------------------------------------------- geometry helpers
 function colorize(geo, hex) {
   const c = new THREE.Color(hex), n = geo.attributes.position.count, a = new Float32Array(n * 3);
@@ -508,6 +701,20 @@ GEO.antBody = merge([
 ]);
 GEO.antLeg = merge([seg([0, 0, 0], [0.34, 0.14, 0], 0.04, 0.032, '#4a0f0a'), seg([0.34, 0.14, 0], [0.66, -0.36, 0], 0.032, 0.018, '#3a0b07')]);
 GEO.antLegs = [[0.1, 0.38, 0.22, 0.65], [0.12, 0.38, 0.1, 0], [0.1, 0.38, -0.02, -0.6]]; // attach x, y, z, yaw
+// roach: flat glossy brown oval with wing cases, a little head shield and long whippy antennae (faces +z)
+GEO.roachBody = merge([
+  P(sph(0.5, 18, 12), '#5a2d14', [0, 0.32, -0.15], [0, 0, 0], [0.78, 0.36, 1.45]),
+  P(sph(0.5, 18, 12), '#7a3d1a', [0.17, 0.4, -0.2], [0, 0, 0.12], [0.38, 0.2, 1.3]),
+  P(sph(0.5, 18, 12), '#7a3d1a', [-0.17, 0.4, -0.2], [0, 0, -0.12], [0.38, 0.2, 1.3]),
+  P(sph(0.3, 14, 10), '#c08a4a', [0, 0.36, 0.5], [0, 0, 0], [0.95, 0.32, 0.6]),
+  P(sph(0.16), '#3a1c0c', [0, 0.3, 0.68], [0, 0, 0], [1, 0.7, 0.8]),
+  P(sph(0.05), '#0d0d0d', [0.1, 0.34, 0.76]), P(sph(0.05), '#0d0d0d', [-0.1, 0.34, 0.76]),
+  seg([0.06, 0.32, 0.78], [0.36, 0.42, 1.25], 0.018, 0.01, '#2a140a', 4), seg([0.36, 0.42, 1.25], [0.7, 0.36, 1.7], 0.01, 0.006, '#2a140a', 4),
+  seg([-0.06, 0.32, 0.78], [-0.36, 0.42, 1.25], 0.018, 0.01, '#2a140a', 4), seg([-0.36, 0.42, 1.25], [-0.7, 0.36, 1.7], 0.01, 0.006, '#2a140a', 4),
+  seg([0.08, 0.3, -0.85], [0.2, 0.3, -1.1], 0.025, 0.01, '#3a1c0c', 4), seg([-0.08, 0.3, -0.85], [-0.2, 0.3, -1.1], 0.025, 0.01, '#3a1c0c', 4),
+]);
+GEO.roachLeg = merge([seg([0, 0, 0], [0.38, 0.1, 0], 0.04, 0.03, '#4a2410'), seg([0.38, 0.1, 0], [0.78, -0.3, 0], 0.03, 0.014, '#3a1c0c')]);
+GEO.roachLegs = [[0.22, 0.28, 0.3, 0.75], [0.26, 0.28, 0.0, 0.05], [0.22, 0.28, -0.3, -0.7]];
 
 GEO.flyBody = merge([
   P(sph(0.24), '#363c35', [0, 0, 0.05], [0, 0, 0], [1, 0.9, 1.1]),

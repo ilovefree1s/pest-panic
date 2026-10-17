@@ -23,6 +23,7 @@ const BUG = [
   { name: 'wasp', hp: 5, grow: 2, spd: 8.2, xp: 2, r: 0.6, dmg: 7 },
   { name: 'nest', hp: 1, grow: 0, spd: 0, xp: 0, r: 2.2, dmg: 0 },
   { name: 'gold', hp: 1, grow: 0, spd: 11, xp: 0, r: 0.9, dmg: 0 },
+  { name: 'roach', hp: 6, grow: 3, spd: 6.4, xp: 2, r: 0.85, dmg: 6 },
 ];
 const RATE = [30, 25, 21, 18, 16, 14, 12, 11, 10, 9, 8, 7, 7, 6, 6].map(f => f / 60);
 const QUEEN_EVERY = 180, QUEEN_HP = 1000;
@@ -48,7 +49,20 @@ function bossPlan(n) {   // which bosses the n-th boss fight brings
   const i = n - L - 1, pair = DUOS[i % DUOS.length];
   return { tier: Math.floor(i / DUOS.length) + 1, list: [[pair[0], 1], [pair[1], 2]] };
 }
-const planText = n => { const pl = bossPlan(n); return pl.list.map(([k, d]) => bossTitle(k, d, pl.tier)).join(' & '); };
+// ---------------------------------------------------------------- House Mode: clear the house room by room, then on to the next house
+// kitchen = ants + Ant Prince, living room = roaches + Roach Queen, garage = spiders + Spider King, basement = everything + Fly Lord & Spider King
+let gameMode = 'survival';
+try { gameMode = localStorage.getItem('pestpanic-mode') === 'house' ? 'house' : 'survival'; } catch (e) {}
+const ROOM_BOSS = [[[2, 0]], [[0, 0]], [[1, 0]], [[3, 0], [1, 0]]];
+const ROOM_BUGS = ['Ants', 'Roaches', 'Spiders', 'Everything'];
+const STREETS = ['Maple Street', 'Oak Lane', 'Elm Street', 'Cedar Court', 'Birch Road', 'Willow Way', 'Pine Avenue', 'Aspen Drive'];
+const houseName = h => (h * 12 + 3) + ' ' + STREETS[(h - 1) % STREETS.length];
+const houseK = () => S && S.houseMode ? 1 + 0.6 * ((S.house || 1) - 1) : 1;   // each new house is tougher
+function curPlan(n) {
+  if (S && S.houseMode) { const list = ROOM_BOSS[S.room || 0]; return { tier: S.house || 1, list, hpK: list.length > 1 ? 0.7 : 1 }; }
+  return bossPlan(n);
+}
+const planText = n => { const pl = curPlan(n); return pl.list.map(([k, d]) => bossTitle(k, d, pl.tier)).join(' & '); };
 const EB_DMG = [12, 12, 6, 8, 8];                       // goo, fire, venom, web, fly spit
 const EB_COL = [[0.5, 1.3, 0.3], [1.4, 0.6, 0.15], [0.5, 1.3, 0.3], [1.3, 1.3, 1.3], [1.4, 1.2, 0.25]];
 const EB_CORE = [[0.55, 0.95, 0.3], [1, 0.55, 0.2], [0.55, 0.95, 0.3], [0.95, 0.95, 0.95], [1, 0.9, 0.3]];
@@ -161,14 +175,21 @@ const ICON = {
 
 // ---------------------------------------------------------------- world objects
 resize();
-let kitchen = buildKitchen(); scene.add(kitchen);
+let kitchen = buildKitchen(), roomShown = 0; scene.add(kitchen);
 // the kitchen is 10% bigger for each extra player (4 players = 30% bigger); it never shrinks mid-run
 function applyArena(a) {
   if (Math.abs(a - ARENA) < 0.01) return;
   setArena(a);
   scene.remove(kitchen);
   kitchen.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
-  kitchen = buildKitchen(); scene.add(kitchen);
+  kitchen = buildRoom(roomShown); scene.add(kitchen);
+}
+function setRoomVisual(k) {
+  if (k === roomShown) return;
+  roomShown = k;
+  scene.remove(kitchen);
+  kitchen.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
+  kitchen = buildRoom(k); scene.add(kitchen);
 }
 const arenaFor = n => +(ARENA_BASE * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
 function growArena(quiet) { const a = arenaFor(S.players.length); if (a > ARENA + 0.01) { applyArena(a); if (!quiet) ev(['ar', S.players.length]); } }
@@ -190,6 +211,8 @@ const IM = {
   paper: instanced(GEO.paper, MAT.paper, 60, true),
   flip: instanced(GEO.flip, MAT.flip, 60, true),
   glue: instanced(GEO.glue, MAT.glue, 60),
+  roach: instanced(GEO.roachBody, MAT.bug, MAX_BUGS),
+  roachLeg: instanced(GEO.roachLeg, MAT.leg, MAX_BUGS * 6),
   gold: instanced(GEO.antBody, MAT.gold, 4),
   goldLeg: instanced(GEO.antLeg, MAT.goldLeg, 24),
 };
@@ -295,6 +318,7 @@ function newWorld() {
     t: 0, players: [], bugs: [], coins: [], shots: [], traps: [], clouds: [], ebul: [], decals: [], nums: [], rings: [],
     lvl: 1, xp: 0, need: xpNeed(1), kills: 0, queens: 0, spawnT: 1, ringAt: 30, nextQueen: QUEEN_EVERY, nextNest: QUEEN_EVERY / 2, nestN: 0, nest: null, freePicks: 0, freeKinds: [], gold: null, goldHole: null, nextGold: rand(55, 85), goldN: 0, queen: null, bosses: [], bossKills: 0, bank: 0,
     shake: 0, pendingLevels: 0, bugHp: [3, 2, 14], minute: -1, round: null, nextId: 1, ev: [], warned: false,
+    houseMode: false, house: 1, room: 0, roomT0: 0, roomsCleared: 0, clear: null, fade: 0,
   };
   updateMinute();
 }
@@ -307,7 +331,7 @@ function updateMinute() {
   const m = Math.floor(S.t / 60);
   if (m === S.minute) return;
   S.minute = m;
-  S.bugHp = BUG.map(b => (b.hp + b.grow * m) * DIFF);
+  S.bugHp = BUG.map(b => (b.hp + b.grow * m) * DIFF * houseK());
 }
 function nearestPlayer(x, z) {
   let best = null, bd = Infinity;
@@ -318,7 +342,7 @@ const spawnRadius = () => Math.max(view.spawnR, role === 'solo' ? 0 : 30);
 
 // ---------------------------------------------------------------- events (played locally, and sent to clients by the host)
 function ev(e) { playEvent(e); if (role === 'host') S.ev.push(e); }
-const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25], [0.95, 0.8, 0.2], [0.75, 0.7, 0.55]];
+const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25], [0.95, 0.8, 0.2], [0.75, 0.7, 0.55], [1, 0.85, 0.3], [0.62, 0.48, 0.2]];
 // ---------------------------------------------------------------- sound effects (all synthesized with Web Audio, no files)
 // sliders follow how ears hear loudness (squared), with a little headroom off the top
 const loud = v => v * v * 0.7;
@@ -629,7 +653,8 @@ function moodTick(dt, boss, q) {
       SND.play('flick');
     }
   }
-  const tg = boss ? 1 : 0;
+  const base = S && S.houseMode && S.room === 3 && !idle() ? 0.45 : S && S.houseMode && S.room === 2 && !idle() ? 0.12 : 0;
+  const tg = boss ? 1 : base;
   M.g += (tg - M.g) * Math.min(1, dt * (boss ? 1.4 : 0.6));
   if (M.g < 0.002) M.g = 0;
   let f = 1;
@@ -663,6 +688,8 @@ function eventSound(e) {
     case 'j': SND.play('join'); break;
     case 'nw': SND.play('buzz'); break;
     case 'gs': SND.play('gold'); break;
+    case 'rc': SND.play('bossdie'); break;
+    case 'rn': SND.play('join'); break;
     case 'gh': SND.play('escape'); break;
     case 'gk': SND.play('jackpot'); break;
     case 'ge': SND.play('pop'); break;
@@ -722,6 +749,8 @@ function playEvent(e) {
     }
     case 'j': banner(e[1] + ' joined'); break;
     case 'nw': banner('A wasp nest appeared! Follow the arrow'); break;
+    case 'rc': banner(e[2] ? 'HOUSE CLEARED!' : e[1] + ' cleared!', true); S.shake = Math.max(S.shake, 0.6); break;
+    case 'rn': setTimeout(() => banner(e[3] ? 'On to ' + houseName(e[2]) + '!' : ROOMS[e[1]].name + ': ' + ROOM_BUGS[e[1]] + '!', true), 300); break;
     case 'gs': banner('Golden Bug! Catch it!'); for (let k = 0; k < 20; k++) { const a = k / 20 * TAU; FX.glow.spawn({ x: e[1], y: 0.8, z: e[2], vx: Math.cos(a) * 5, vy: rand(1, 4), vz: Math.sin(a) * 5, life: 0.7, s0: 0.45, s1: 0.1, c: [1.3, 1.05, 0.35], drag: 2 }); } break;
     case 'gh': banner("It's running for its hole!"); break;
     case 'ge': banner('The Golden Bug got away...'); for (let k = 0; k < 10; k++) FX.smoke.spawn({ x: e[1] + rand(-0.6, 0.6), y: 0.5, z: e[2] + rand(-0.6, 0.6), vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(-1, 1), life: 0.6, s0: 0.4, s1: 1.1, c: [0.85, 0.75, 0.4], a0: 0.5, a1: 0 }); break;
@@ -756,6 +785,15 @@ function spawnBug(type, x, z, force) {
     walk: Math.random() * TAU, jit: rand(-0.5, 0.5), weave: Math.random() * TAU, spit: 0 });
 }
 function pickType() {
+  if (S.houseMode) {
+    const r = Math.random(), rt = S.t - S.roomT0;
+    switch (S.room) {
+      case 0: return rt > 25 && r < 0.15 ? 1 : 0;
+      case 1: return r < 0.75 ? 6 : 0;
+      case 2: return r < 0.38 ? 2 : r < 0.85 ? 6 : 0;
+      default: return r < 0.3 ? 0 : r < 0.55 ? 6 : r < 0.75 ? 1 : r < 0.9 ? 2 : 3;
+    }
+  }
   const ph = Math.min(14, Math.floor(S.t / 20)), r = Math.random() * 16;
   if (ph >= 1 && r < 4) return 1;
   if (ph >= 4 && r >= 14) return 2;
@@ -767,26 +805,28 @@ function spawnAround(type, radius) {
   const p = al[(Math.random() * al.length) | 0], a = Math.random() * TAU;
   spawnBug(type, p.x + Math.cos(a) * radius, p.z + Math.sin(a) * radius);
 }
+const mainType = () => S.houseMode ? [0, 6, 6, 0][S.room] : 0;   // what fills the opening waves and the rings
 function director(dt) {
+  if (S.clear) return;   // room cleared: no new bugs while we move rooms
   S.spawnT -= dt;
   if (S.spawnT <= 0) {
     const ph = Math.min(14, Math.floor(S.t / 20));
-    S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF;
+    S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF / (S.houseMode ? 1 + 0.2 * (S.house - 1) : 1);
     const n = 1 + (ph >= 4 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
     for (let i = 0; i < n; i++) spawnAround(pickType(), spawnRadius() + rand(0, 4));
   }
   // wasp nest halfway between bosses (1:30, 4:30, ...); skipped if a boss is still alive
   if (S.t >= S.nextGold) { if (S.bosses.length || S.gold) S.nextGold = S.t + 20; else { S.nextGold = S.t + rand(80, 130); spawnGold(); } }
   if (S.t >= S.nextNest) { S.nextNest += QUEEN_EVERY; if (!S.bosses.length && !S.nest) spawnNest(); }
-  if (!S.openWave2 && S.t >= 3) {
+  if (!S.openWave2 && S.t >= S.roomT0 + 3) {
     S.openWave2 = true;
-    for (const p of alivePlayers()) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + Math.PI / 6 + rand(-0.3, 0.3); const d = spawnRadius() + rand(1, 4); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }   // off screen, like normal spawns
+    for (const p of alivePlayers()) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + Math.PI / 6 + rand(-0.3, 0.3); const d = spawnRadius() + rand(1, 4); spawnBug(mainType(), p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }   // off screen, like normal spawns
   }
   if (S.t >= S.ringAt) {
     S.ringAt += 30;
     for (const p of alivePlayers()) {
       const n = 12 + Math.min(12, S.minute * 2), R = spawnRadius() * 0.85;
-      for (let i = 0; i < n; i++) { const a = i / n * TAU; spawnBug(0, p.x + Math.cos(a) * R, p.z + Math.sin(a) * R, true); }
+      for (let i = 0; i < n; i++) { const a = i / n * TAU; spawnBug(mainType(), p.x + Math.cos(a) * R, p.z + Math.sin(a) * R, true); }
     }
   }
   if (!S.bosses.length && S.t >= S.nextQueen - 5 && !S.warned) { S.warned = true; ev(['w', planText(S.queens + 1)]); }
@@ -907,12 +947,13 @@ function nestDown(b) {
 function spawnQueen() {
   // the boss chases off any wasp nest still standing
   if (S.nest) { S.bugs = S.bugs.filter(b => b.t !== 4); S.nest = null; }
-  S.queens++; S.nextQueen += QUEEN_EVERY; S.warned = false;
-  const n = S.queens, plan = bossPlan(n), tier = plan.tier;
+  S.queens++; S.nextQueen = S.houseMode ? Infinity : S.nextQueen + QUEEN_EVERY; S.warned = false;
+  const n = S.queens, plan = curPlan(n), tier = plan.tier;
+  if (S.houseMode) S.roomBoss = true;
   const a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
   plan.list.forEach(([kind, duo], i) => {
     const ang = a + i * Math.PI;   // a pair comes in from opposite sides
-    const hp = Math.round(1.1 * DIFF * QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
+    const hp = Math.round(1.1 * DIFF * QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (plan.hpK || 1) * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
     S.bosses.push({ n, kind, duo, tier, hp, max: hp, x: t.x + Math.cos(ang) * (spawnRadius() + 4), z: t.z + Math.sin(ang) * (spawnRadius() + 4),
       vx: 0, vz: 0, ang: 0, t: i * 0.7, ring: 2 + i, fan: 3 + i, a1: 2 + i * 1.1, a2: 1.5 + i, a3: 6 + i * 3, flash: 0, fcd: 0, icd: 0, walk: 0,
       rate: Math.max(0.4, (48 - 6 * (tier - 1)) / 60), spin: 0, acc: 0, numT: 0, state: 0, st: 0, ddx: 0, ddz: 0, orbitA: ang, spiral: 4 });
@@ -1361,8 +1402,38 @@ function step(dt) {
   updateClouds(dt);
   goldHoleTick(dt);
   updateQueen(dt);
+  if (S.houseMode) houseTick(dt);
   updateCoins(dt);
   if (S.pendingLevels > 0 && mode === 'play') startLevelRound();
+}
+// room boss down -> "Room cleared!", the leftover bugs scatter, crumbs fly to you, fade out, next room, fade in
+function houseTick(dt) {
+  if (S.roomBoss && !S.bosses.length && !S.clear) {
+    S.roomBoss = false; S.roomsCleared++;
+    const last = S.room === ROOMS.length - 1;
+    S.clear = { t: 0, last };
+    for (const b of S.bugs) if (b.t !== 5) { b.hp = 0; ev(['k', b.x, b.z, b.t]); }
+    S.bugs = S.bugs.filter(b => b.hp > 0); S.ebul = []; buildGrid();
+    for (const c of S.coins) c.pull = true;
+    ev(['rc', ROOMS[S.room].name, last ? 1 : 0]);
+  }
+  const C = S.clear; if (!C) return;
+  C.t += dt;
+  for (const p of S.players) p.inv = Math.max(p.inv, 0.3);   // nothing can hurt you between rooms
+  S.fade = C.t < 4 ? 0 : C.t < 5 ? C.t - 4 : C.t < 6 ? 1 - (C.t - 5) : 0;
+  if (C.t >= 5 && !C.moved) { C.moved = true; nextRoom(C.last); }
+  if (C.t >= 6) { S.clear = null; S.fade = 0; }
+}
+function nextRoom(newHouse) {
+  for (const c of S.coins) S.xp += c.v;   // anything left on the floor comes with you
+  S.coins = []; S.bugs = []; S.shots = []; S.traps = []; S.clouds = []; S.ebul = []; S.decals = []; S.nest = null; S.gold = null; S.goldHole = null;
+  if (newHouse) { S.house++; S.room = 0; S.minute = -1; updateMinute(); } else S.room++;
+  S.roomT0 = S.t; S.nextQueen = S.t + QUEEN_EVERY; S.nextNest = S.t + QUEEN_EVERY / 2; S.ringAt = S.t + 30; S.openWave2 = false; S.warned = false;
+  S.nextGold = S.t + rand(55, 85); S.spawnT = 1.5;
+  for (const p of S.players) { p.x = rand(-2, 2); p.z = rand(-2, 2); p.vx = p.vz = 0; if (p.down) { p.down = false; p.hp = 50; } p.rb = null; }
+  setRoomVisual(S.room);
+  for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(mainType(), p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
+  ev(['rn', S.room, S.house, newHouse ? 1 : 0]);
 }
 
 // ---------------------------------------------------------------- level-up rounds (team vote, one upgrade for everyone)
@@ -1520,6 +1591,7 @@ function applySnapshot(s) {
   CL.hostSeen = now; CL.snapAt = now;
   if (s.A) applyArena(s.A);
   CL.nestHp = s.N || null;
+  CL.house = s.HM || null; setRoomVisual(s.HM ? s.HM[1] : 0); S.fade = s.HM ? s.HM[2] / 100 : 0; S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
   S.t = s.t; S.lvl = s.lv; S.xp = s.xp; S.need = s.nd; S.kills = s.k; S.queens = s.qn;
   // bugs
   const seen = new Set();
@@ -1624,7 +1696,7 @@ function setI(mesh, i, x, y, z, ry, s = 1, rx = 0, rz = 0) {
 }
 let holeT = 0;
 function drawBugs(list, t) {
-  const c = { ant: 0, antLeg: 0, fly: 0, wing: 0, spider: 0, spiderLeg: 0, wasp: 0, gold: 0, goldLeg: 0 };
+  const c = { ant: 0, antLeg: 0, fly: 0, wing: 0, spider: 0, spiderLeg: 0, wasp: 0, gold: 0, goldLeg: 0, roach: 0, roachLeg: 0 };
   let nestB = null;
   const sh = B.shadow;
   for (const b of list) {
@@ -1640,6 +1712,16 @@ function drawBugs(list, t) {
       }
       sh.add(b.x, 0.02, b.z, 1.6, 0, 0, 0, 0, 0.45);
     } else if (b.t === 4) { nestB = b; continue;
+    } else if (b.t === 6) {
+      const i = c.roach++, base = baseM.copy(setI(IM.roach, i, b.x, 0, b.z, b.ang, 1.05));
+      IM.roach.setColorAt(i, fl);
+      for (let l = 0; l < 6; l++) {
+        const L = GEO.roachLegs[l >> 1], side = l & 1 ? -1 : 1, sw = Math.sin(b.walk * 1.4 + (l >> 1) * Math.PI + (side > 0 ? 0 : Math.PI)) * 0.45;
+        tmpE.set(0, side > 0 ? L[3] + sw : Math.PI - L[3] - sw, Math.sin(b.walk * 2.6 + l) * 0.1); tmpQ.setFromEuler(tmpE);
+        legLocal.compose(tmpV.set(L[0] * side, L[1], L[2]), tmpQ, ONE);
+        IM.roachLeg.setMatrixAt(c.roachLeg++, tmpM2.multiplyMatrices(base, legLocal));
+      }
+      sh.add(b.x, 0.02, b.z, 1.9, 0, 0, 0, 0, 0.45);
     } else if (b.t === 5) {
       if (c.gold >= 4) continue;
       const i = c.gold++, base = baseM.copy(setI(IM.gold, i, b.x, 0.05, b.z, b.ang, 1.9));
@@ -2014,7 +2096,9 @@ function updateHud(dt) {
   const qsig = qs.map(q => bossTitle(q.kind, q.duo, q.tier).toUpperCase()).join('|');
   if ($('queen').dataset.v !== qsig) { $('queen').dataset.v = qsig; $('queen').innerHTML = qsig ? qsig.split('|').map(n => `<div class="n">${n}</div><div class="bar"><i></i></div>`).join('') : ''; }
   $('queen').querySelectorAll('.bar i').forEach((el, i) => { const q = qs[i]; if (q) el.style.width = Math.max(0, q.hp / q.max * 100).toFixed(1) + '%'; });
+  { const f = $('fade'), o = (S.fade || 0).toFixed(2); if (f.style.opacity !== o) f.style.opacity = o; }
   hudT -= dt; if (hudT > 0) return; hudT = 0.1;
+  { const w = $('where'), txt = S.houseMode ? ROOMS[S.room || 0].name.toUpperCase() + ' · HOUSE ' + (S.house || 1) : ''; if (w.textContent !== txt) { w.textContent = txt; w.hidden = !txt; } }
   $('lvl').textContent = S.lvl; $('hpt').textContent = Math.max(0, Math.ceil(p.hp));
   $('clock').firstChild.textContent = fmt(S.t); $('kills').textContent = S.kills.toLocaleString();
   const g = UP.filter(u => u.id !== 'aid' && p.up[u.id] > 0).map(u => `<div class="g">${ICON[u.id]}<em>${p.up[u.id]}</em></div>`).join('');
@@ -2040,6 +2124,8 @@ function enterGameUi() {
 }
 function beginRound() {   // solo and host
   newWorld();
+  S.houseMode = gameMode === 'house';
+  setRoomVisual(0);
   applyArena(ARENA_BASE);
   const id = me.id;
   S.players.push(newPlayer(id, me.name || 'You', 0));
@@ -2048,7 +2134,7 @@ function beginRound() {   // solo and host
   // open with a handful of ants already in view at the screen edges, so there's something to squash right away
   for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
   mode = 'play'; lastHp = 100;
-  enterGameUi(); banner("Squash 'em!");
+  enterGameUi(); banner(S.houseMode ? houseName(1) + ': Kitchen. Ants!' : "Squash 'em!");
 }
 function addRemote(id, name) {
   if (S.players.some(p => p.id === id) || S.players.length >= 4) return;
@@ -2069,7 +2155,7 @@ function removeRemote(id) {
 }
 function endRound() {
   mode = 'over';
-  const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills };
+  const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, hm: S.houseMode ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room };
   showOver(st);
   submitRun(st);
 }
@@ -2077,11 +2163,11 @@ function showOver(st) {
   mode = 'over'; $('banner').classList.remove('on'); bannerT = 0;
   SND.play('over'); SND.hum(false, 0);
   overBoardKey = ''; $('oboard').hidden = true; $('oboard').innerHTML = '';
-  const newBest = st.t > best.t;
+  const newBest = !st.hm && st.t > best.t;
   if (newBest) best = { t: st.t, k: st.k };
   try { localStorage.setItem('pestpanic-best', JSON.stringify(best)); } catch (e) {}
   $('overt').textContent = newBest ? 'New best time!' : 'Bugged out!';
-  $('ostats').innerHTML = `<dt>Survived</dt><dd>${fmt(st.t)}</dd><dt>Bugs squashed</dt><dd>${st.k.toLocaleString()}</dd><dt>Level</dt><dd>${st.lvl}</dd><dt>Bosses</dt><dd>${st.q}</dd><dt>Best time</dt><dd>${fmt(best.t)}</dd>`;
+  $('ostats').innerHTML = (st.hm ? `<dt>Made it to</dt><dd>${ROOMS[st.rm || 0].name}, house ${st.hs || 1}</dd><dt>Rooms cleared</dt><dd>${st.rc || 0}</dd>` : '') + `<dt>Survived</dt><dd>${fmt(st.t)}</dd><dt>Bugs squashed</dt><dd>${st.k.toLocaleString()}</dd><dt>Level</dt><dd>${st.lvl}</dd><dt>Bosses</dt><dd>${st.q}</dd><dt>Best time</dt><dd>${fmt(best.t)}</dd>`;
   $('again').hidden = role === 'client'; $('waithost').hidden = role !== 'client';
   setTimeout(() => { if (mode === 'over') screen('over'); }, 900);
 }
@@ -2098,6 +2184,7 @@ function toTitle() {
 function showBest() { $('best').textContent = best.t > 0 ? `Best: ${fmt(best.t)}  ·  ${best.k.toLocaleString()} bugs` : ''; }
 function demo() {
   newWorld();
+  setRoomVisual(0);
   applyArena(ARENA_BASE);
   for (let i = 0; i < 40; i++) spawnBug(i % 7 === 0 ? 2 : i % 3 === 0 ? 1 : 0, rand(-20, 20), rand(-16, 16), true);
   S.bugs.forEach(b => b.spd *= 0.5);
@@ -2108,6 +2195,14 @@ function status(msg, err) { const s = $('netstatus'); s.textContent = msg; s.cla
 $('startbtn').addEventListener('click', startGame);
 $('lobbyleave').addEventListener('click', toTitle);
 $('play').addEventListener('click', () => { saveName(); role = 'solo'; beginRound(); });
+function syncModeUi() {
+  document.querySelectorAll('.modes .mode').forEach(b => { const on = b.dataset.m === gameMode; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+  $('title').querySelector('.sub').textContent = gameMode === 'house'
+    ? 'The whole house is infested. Clear the kitchen, living room, garage and basement, one boss at a time.'
+    : 'The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 3 minutes.';
+}
+document.querySelectorAll('.modes .mode').forEach(b => b.addEventListener('click', () => { gameMode = b.dataset.m; try { localStorage.setItem('pestpanic-mode', gameMode); } catch (e) {} syncModeUi(); }));
+syncModeUi();
 $('again').addEventListener('click', () => { if (role !== 'client') beginRound(); });
 $('resume').addEventListener('click', () => pause(false));
 function askQuit(on) {   // "are you sure?" before leaving a run
@@ -2239,7 +2334,7 @@ function boardRows(rows, mine) {
 // game over: the host (or solo player) posts the run
 async function submitRun(st) {
   S.boardRank = 0; S.boardMode = '';
-  if (role !== 'solo') return;   // the leaderboard is solo-only for now
+  if (role !== 'solo' || st.hm) return;   // the leaderboard is solo survival only for now
   const ps = S.players.slice(0, 4), team = ps.length > 1;
   const row = { name: (team ? ps.map(p => p.name).join(' & ') : (me.name || 'Player')).slice(0, 60), mode: team ? 'team' : 'solo', players: ps.length,
     seconds: Math.floor(st.t), kills: st.k | 0, level: st.lvl | 0, bosses: st.q | 0 };
@@ -2401,13 +2496,12 @@ function enterLobby() {
 function renderLobby(L) {
   $('lobbylist').innerHTML = L.map(([id, name, c, h]) => `<li><i style="background:${CSS_COL[c % 4]}"></i>${esc(name)}${id === me.id ? ' <em>(you)</em>' : ''}${h ? ' <small>HOST</small>' : ''}</li>`).join('') +
     (L.length < 4 ? '<li class="empty">Waiting for players…</li>' : '');
-  $('lobbycount').textContent = L.length + ' / 4 players';
+  $('lobbycount').textContent = L.length + ' / 4 players' + (role === 'host' ? (gameMode === 'house' ? ' · House mode' : ' · Survival mode') : '');
   if (role === 'host') $('startbtn').textContent = L.length > 1 ? 'Start game' : 'Start alone';
 }
 function startGame() {
   if (role !== 'host' || mode !== 'lobby') return;
   beginRound();
-  banner("Squash 'em!");
 }
 function hostId() { for (const p of roster.values()) if (p.host) return p.id; return null; }
 function hostGone() {
@@ -2435,7 +2529,8 @@ function sendSnapshot() {
     ev: S.ev.splice(0, S.ev.length).slice(-120).map(e => e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)),
     R: S.round ? { n: S.round.n, free: S.round.free, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
     N: S.nest ? [Math.round(S.nest.hp), S.nest.max] : 0,
-    st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, rk: S.boardRank || 0, bm: S.boardMode || '' } : null,
+    st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, rk: S.boardRank || 0, bm: S.boardMode || '', hm: S.houseMode ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room } : null,
+    HM: S.houseMode ? [S.house, S.room, Math.round(S.fade * 100)] : 0,
   };
   net.send('snap', snap);
 }
@@ -2613,7 +2708,7 @@ window.PP = {
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
   tipOffset() { const p = meP(), L = looks.get(me.id); if (!L) return null; L.body.updateMatrixWorld(true); const v = L.body.userData.tip.getWorldPosition(new THREE.Vector3()), f = L.body.rotation.y; const dx = v.x - p.x, dz = v.z - p.z; return { forward: +(dx * Math.sin(f) + dz * Math.cos(f)).toFixed(2), right: +(dx * Math.cos(f) - dz * Math.sin(f)).toFixed(2), y: +v.y.toFixed(2) }; },
-  arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(false); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
 

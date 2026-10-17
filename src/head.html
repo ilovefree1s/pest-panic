@@ -21,6 +21,12 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-fami
 #hurt{position:absolute;inset:0;pointer-events:none;opacity:0;
   background:radial-gradient(ellipse at center,rgba(255,0,0,0) 45%,rgba(200,0,0,.55) 100%);transition:opacity .25s}
 #dread{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 38%,rgba(20,0,4,.55) 78%,rgba(8,0,2,.85) 100%)}
+#fade{position:absolute;inset:0;pointer-events:none;opacity:0;background:#000;z-index:5}
+.modes{display:flex;gap:8px;justify-content:center;width:100%}
+.modes .mode{flex:1;max-width:190px;pointer-events:auto;cursor:pointer;font-family:var(--display);font-size:18px;letter-spacing:.04em;color:var(--text);background:rgba(20,26,30,.75);border:2px solid #3a444c;border-radius:14px;padding:8px 10px 7px;line-height:1.1}
+.modes .mode small{display:block;font-family:var(--body);font-weight:700;font-size:11px;letter-spacing:0;opacity:.7;margin-top:2px}
+.modes .mode.on{border-color:#ffd23f;background:rgba(80,62,10,.8);color:#ffe27a;box-shadow:0 0 0 3px rgba(255,210,63,.18)}
+.modes .mode:focus-visible{outline:3px solid #fff;outline-offset:2px}
 #vign{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.45) 100%)}
 
 /* ---------- HUD */
@@ -228,6 +234,7 @@ body.menu #ver{display:block}
     <canvas id="fx"></canvas>
     <div id="vign"></div>
     <div id="dread"></div>
+    <div id="fade"></div>
     <div id="hurt"></div>
     <div id="float"><i></i></div>
     <div id="hud" hidden>
@@ -237,7 +244,7 @@ body.menu #ver{display:block}
         <div id="gear"></div>
         <div id="team"></div>
       </div>
-      <div class="clock" id="clock">0:00<small id="room" hidden></small></div>
+      <div class="clock" id="clock">0:00<small id="where" hidden></small><small id="room" hidden></small></div>
       <div class="kills"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="6" ry="7" fill="#86e34b"/><circle cx="12" cy="6" r="3.5" fill="#86e34b"/><path d="M5 10l-3-2M5 14H1M5 18l-3 2M19 10l3-2M19 14h4M19 18l3 2" stroke="#86e34b" stroke-width="2" stroke-linecap="round"/></svg><span id="kills">0</span></div>
       <div id="queen" hidden></div>
       <canvas id="minimap" width="224" height="224"></canvas>
@@ -253,6 +260,7 @@ body.menu #ver{display:block}
       <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 3 minutes.</p>
       <div class="menu">
         <input id="pname" maxlength="12" placeholder="Your name" autocomplete="off" aria-label="Your name">
+        <div class="modes" role="radiogroup" aria-label="Game mode"><button type="button" class="mode" data-m="survival" role="radio">Survival<small>Endless kitchen</small></button><button type="button" class="mode" data-m="house" role="radio">House<small>Clear room by room</small></button></div>
         <button class="btn" id="play" type="button">Play solo</button>
         <div class="split">
           <button class="btn alt" id="hostbtn" type="button">Host online</button>
