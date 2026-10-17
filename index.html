@@ -253,7 +253,7 @@ body.menu #ver{display:block}
       <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="6" y="12" width="18" height="27" rx="6" fill="#f1f1ec"/><rect x="10" y="8" width="10" height="5" rx="2" fill="#ff7a1f"/><rect x="5" y="37" width="20" height="5" rx="2" fill="#ff7a1f"/><path d="M22 36c6 3 9 0 10-3" stroke="#1c1d22" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M30 35L41 16" stroke="#c6ccd4" stroke-width="3" stroke-linecap="round"/><rect x="27" y="31" width="6" height="7" rx="2" transform="rotate(30 30 34.5)" fill="#1c1d22"/><path d="M40 18l3-5" stroke="#f2c53d" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="8" r="2.4" fill="#bfefff" opacity=".85"/><circle cx="41" cy="5" r="1.8" fill="#bfefff" opacity=".65"/><circle cx="47" cy="3" r="1.5" fill="#bfefff" opacity=".5"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
-    <div id="ver">v1.30</div>
+    <div id="ver">v1.31</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -290,7 +290,7 @@ body.menu #ver{display:block}
         <p class="qa">Leave this run? <span id="quitwhy">Your progress will be lost.</span></p>
         <div class="qbtns"><button class="btn dark" id="quitno" type="button">Stay</button><button class="btn qyes" id="quityes" type="button">Yes, leave</button></div>
       </div>
-      <p class="hint pver">Pest Panic v1.30</p>
+      <p class="hint pver">Pest Panic v1.31</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -3938,6 +3938,9 @@ window.PP = {
   arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
+
+// installable app: register the (pass-through) service worker on the live site
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('./sw.js').catch(() => {});
 
 </script>
 

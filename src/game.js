@@ -2616,3 +2616,6 @@ window.PP = {
   arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
+
+// installable app: register the (pass-through) service worker on the live site
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('./sw.js').catch(() => {});
