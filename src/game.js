@@ -88,6 +88,14 @@ const UP = [
   { id: 'aid', name: 'First Aid Kit', max: 1e9, d: 'Restore 50 health.', up: 'Restore 50 health.' },
 ];
 const UPIDS = UP.map(u => u.id);
+// wasp nest rewards: the team votes on one of these instead of a normal upgrade
+const NEST_REWARDS = [
+  { id: 'beesuit', name: 'Bee Suit' },
+  { id: 'honey', name: 'Honey Jar' },
+  { id: 'swarm', name: 'Bee Swarm' },
+];
+const SUIT_TIME = 15, SWARM_TIME = 20;
+const findCard = id => UP.find(u => u.id === id) || NEST_REWARDS.find(u => u.id === id);
 const HOW = {
   spray: 'Automatically sprays the closest bug. Each puff hits one bug.',
   swat: 'Swatters circle close around you and smack every bug they touch, knocking it back.',
@@ -104,6 +112,9 @@ const HOW = {
   vac: 'Coins fly to you from farther away.',
   str: 'You\'re a licensed pro now. Every weapon you have does 1 more damage.',
   aid: 'Heals you right now.',
+  beesuit: 'Everyone suits up like a beekeeper. Nothing can hurt the team for 15 seconds.',
+  honey: 'Sweet, sweet honey. Heals the whole team to full, gets downed teammates back up, and spills crumbs for everyone.',
+  swarm: 'A cloud of friendly bees follows each player for 20 seconds and stings any bug that gets close. Bosses too.',
 };
 const sec = v => v.toFixed(2).replace(/0$/, '') + 's';
 // the numbers a weapon has at level L (0 = not owned yet)
@@ -130,6 +141,11 @@ function stats(id, L, p) {
   return [];
 }
 function cardHtml(u, p, i) {
+  if (NEST_REWARDS.some(r => r.id === u.id)) {
+    const rows = { beesuit: [['Immune to damage', SUIT_TIME + 's'], ['Who', 'Whole team']], honey: [['Health', 'Full'], ['Downed teammates', 'Back up'], ['Crumbs', '+12 XP each']],
+      swarm: [['Bees', '10 each'], ['Lasts', SWARM_TIME + 's'], ['Sting damage', Math.round(swarmDmg(p))]] }[u.id];
+    return `<button class="card${i === 0 ? ' sel' : ''}" data-i="${i}" type="button"><span class="ic">${ICON[u.id]}</span><span><small>NEST REWARD</small><b>${u.name}</b></span><p>${HOW[u.id]}</p><ul class="st">${rows.map(r => `<li><span>${r[0]}</span><b class="up">${r[1]}</b></li>`).join('')}</ul></button>`;
+  }
   const l = p.up[u.id] || 0, next = u.id === 'aid' ? l : l + 1;
   const tag = u.id === 'aid' ? 'HEAL 50' : l === 0 ? 'NEW!' : 'LEVEL ' + l + ' → ' + (l + 1);
   const a = stats(u.id, l, p);
@@ -156,6 +172,9 @@ const W = {
 };
 
 const ICON = {
+  beesuit: '<svg viewBox="0 0 48 48"><ellipse cx="24" cy="14" rx="17" ry="4" fill="#f4f1e6"/><path d="M15 14a9 9 0 0 1 18 0z" fill="#f4f1e6"/><path d="M10 15h28l-4 18H14z" fill="#1d1d1d" opacity=".75"/><path d="M12 19h24M12 24h24M13 29h22" stroke="#555" stroke-width="1"/><rect x="13" y="33" width="22" height="11" rx="4" fill="#ffd23f"/><path d="M13 37h22M13 41h22" stroke="#1d1d1d" stroke-width="2.4"/></svg>',
+  honey: '<svg viewBox="0 0 48 48"><rect x="12" y="8" width="24" height="7" rx="2" fill="#c9852a"/><path d="M11 15h26l-2 25a5 5 0 0 1-5 4H18a5 5 0 0 1-5-4z" fill="#f2a516"/><path d="M14 22h20" stroke="#ffd56a" stroke-width="3" stroke-linecap="round"/><rect x="17" y="26" width="14" height="9" rx="2" fill="#fff3c4"/><text x="24" y="33.5" font-size="7" font-weight="900" text-anchor="middle" fill="#9a5a0a">HONEY</text><path d="M30 15c0 5 3 5 3 9" stroke="#f2a516" stroke-width="3" fill="none" stroke-linecap="round"/></svg>',
+  swarm: '<svg viewBox="0 0 48 48"><g fill="#ffd23f" stroke="#1d1d1d" stroke-width="1.6"><ellipse cx="15" cy="16" rx="6" ry="4.5"/><ellipse cx="33" cy="12" rx="5" ry="3.8"/><ellipse cx="30" cy="31" rx="7" ry="5"/><ellipse cx="13" cy="34" rx="5" ry="3.8"/></g><g stroke="#1d1d1d" stroke-width="1.6"><path d="M13 12v8M17 12v8M31 9v6M35 9v6M27 26v10M32 26v10M11 31v6M15 31v6"/></g><g fill="#cfefff" opacity=".85"><ellipse cx="14" cy="10" rx="3" ry="2"/><ellipse cx="33" cy="7" rx="2.6" ry="1.8"/><ellipse cx="29" cy="24" rx="3.4" ry="2.2"/><ellipse cx="12" cy="29" rx="2.6" ry="1.8"/></g></svg>',
   spray: '<svg viewBox="0 0 48 48"><rect x="15" y="16" width="16" height="26" rx="4" fill="#7fd36a"/><rect x="15" y="22" width="16" height="9" fill="#f4efe4"/><rect x="18" y="9" width="10" height="8" rx="2" fill="#c9ced6"/><rect x="26" y="10" width="8" height="4" fill="#c9ced6"/><circle cx="39" cy="10" r="3" fill="#bfefff" opacity=".8"/><circle cx="43" cy="16" r="2.4" fill="#bfefff" opacity=".6"/><circle cx="41" cy="5" r="2" fill="#bfefff" opacity=".6"/></svg>',
   swat: '<svg viewBox="0 0 48 48"><rect x="7" y="5" width="20" height="22" rx="4" fill="#d23a2c"/><path d="M11 9h12M11 14h12M11 19h12M15 7v18M20 7v18" stroke="#7a1710" stroke-width="2"/><rect x="21" y="25" width="4" height="20" rx="2" transform="rotate(-30 23 35)" fill="#f0ece2"/></svg>',
   bomb: '<svg viewBox="0 0 48 48"><rect x="14" y="16" width="20" height="26" rx="5" fill="#d8dce2"/><rect x="14" y="24" width="20" height="8" fill="#e04a3a"/><rect x="20" y="10" width="8" height="7" fill="#7b828c"/><circle cx="12" cy="10" r="6" fill="#a7d98a" opacity=".7"/><circle cx="36" cy="8" r="5" fill="#a7d98a" opacity=".6"/><circle cx="24" cy="5" r="4" fill="#a7d98a" opacity=".6"/></svg>',
@@ -740,7 +759,7 @@ function playEvent(e) {
       S.rings.push({ x: p.x, z: p.z, r0: 1, r1: 9, life: 0.4, max: 0.4, c: [1, 0.85, 0.3] });
       break;
     }
-    case 'tp': if (e[3] === 2) banner('Level ' + S.lvl + ' — all gear maxed!'); else if (!e[3] && e[1] === 'aid') banner('Med kit!  +50 HP'); else if (e[3]) { const u = UP.find(q => q.id === e[1]); banner('Team got ' + (u ? u.name : e[1]) + (e[2] ? ' — ' + e[2] + '\'s tiebreak' : '')); } break;
+    case 'tp': if (e[3] === 2) banner('Level ' + S.lvl + ' — all gear maxed!'); else if (!e[3] && e[1] === 'aid') banner('Med kit!  +50 HP'); else if (e[3]) { const u = findCard(e[1]); banner('Team got ' + (u ? u.name : e[1]) + (e[2] ? ' — ' + e[2] + '\'s tiebreak' : '')); } else if (NEST_REWARDS.some(r => r.id === e[1])) banner(findCard(e[1]).name + '!'); break;
     case 'dn': banner(e[1] === me.id ? (roundPlayersCount() > 1 ? 'You are down! A teammate can revive you' : 'You are down!') : e[2] + ' is down! Stand still on them to revive', true); break;
     case 'rv': {
       banner(e[1] === me.id ? e[3] + ' revived you!' : e[2] + ' is back up!');
@@ -1039,8 +1058,19 @@ function dropCoin(x, z, v, big) {
   if (S.coins.length >= 400) { S.coins[(Math.random() * S.coins.length) | 0].v += v; return; }
   S.coins.push({ x, z, v, big: big || v >= 4, t: Math.random() * TAU, vy: 4, y: 0.5 });
 }
+// Bee Swarm: every quarter second the bees sting up to 3 bugs within reach (bosses take a sting too)
+const swarmDmg = p => (4 + 1.5 * Math.max(0, S ? S.minute : 0) + ((p && p.up && p.up.str) || 0));
+function swarmTick(p, dt) {
+  p.stingT = (p.stingT || 0) - dt; if (p.stingT > 0) return;
+  p.stingT = 0.25;
+  const dmg = swarmDmg(p), hits = [];
+  near(p.x, p.z, 6, b => hits.push([dist2(b.x, b.z, p.x, p.z), b]));
+  hits.sort((a, b) => a[0] - b[0]);
+  for (const [, b] of hits.slice(0, 3)) hitBug(b, dmg);
+  const q = queenNear(p, 6 + 3); if (q) hitQueen(dmg, q.x, q.z, q);
+}
 function hurt(p, d) {
-  if (p.inv > 0 || p.down || mode !== 'play' || window.__god) return;
+  if (p.inv > 0 || p.down || mode !== 'play' || window.__god || p.suit > 0) return;
   p.hp -= d * DIFF * (1 - 0.10 * (p.up.boots || 0)); p.inv = 0.8;   // Rubber Boots: 10% less per level
   if (p.hp <= 0) {
     p.hp = 0; p.down = true; p.rev = 0; p.vx = p.vz = 0;
@@ -1393,6 +1423,8 @@ function step(dt) {
     p.bpCd = Math.max(0, (p.bpCd || 0) - dt);
     p.aimT = Math.max(0, (p.aimT || 0) - dt); if (p.aimT <= 0) p.tw = (p.tw || 0) * Math.max(0, 1 - dt * 6);
     if (p.bp > 0) backpackTick(p, dt);
+    if (p.suit > 0) p.suit = Math.max(0, p.suit - dt);
+    if (p.swarm > 0) { p.swarm = Math.max(0, p.swarm - dt); if (!p.down) swarmTick(p, dt); }
     if (!p.down) p.hp = Math.min(100, p.hp + dt * 0.4);
   }
   revives(dt);
@@ -1454,7 +1486,7 @@ function voters() {
 function startLevelRound() {
   S.pendingLevels--;
   const free = S.freePicks > 0 ? ((S.freeKinds || []).shift() || 'nest') : false; if (free) S.freePicks--;
-  const cards = teamCards();
+  const cards = free === 'nest' ? NEST_REWARDS.map(r => r.id) : teamCards();
   if (!cards.length) { ev(['tp', '', '', 2]); return; }                               // everything maxed: nothing this level
   if (cards.length === 1 && cards[0] === 'aid') { applyTeamUp('aid', ''); return; }   // maxed, 5th level: med kit for everyone
   const vs = voters();
@@ -1492,7 +1524,18 @@ function checkRound() {
   mode = 'play'; S.round = null; hideCards();
 }
 function applyTeamUp(win, breaker) {
-  const u = UP.find(x => x.id === win);
+  const u = findCard(win), reward = NEST_REWARDS.some(r => r.id === win);
+  if (reward) {
+    for (const p of S.players) {
+      if (win === 'beesuit') p.suit = SUIT_TIME;
+      else if (win === 'swarm') { p.swarm = SWARM_TIME; p.stingT = 0; }
+      else if (win === 'honey') { if (p.down) { p.down = false; p.rev = 0; ev(['rv', p.id]); } p.hp = 100; for (let i = 0; i < 4; i++) dropCoin(p.x + rand(-2, 2), p.z + rand(-2, 2), 3, true); }
+      p.inv = Math.max(p.inv, 1);
+      ev(['lv', p.id]);
+    }
+    ev(['tp', win, breaker, S.players.length > 1 ? 1 : 0]);
+    return;
+  }
   for (const p of S.players) {
     if (win === 'aid') { if (!p.down) p.hp = Math.min(100, p.hp + 50); }
     else if (p.up[win] < u.max) p.up[win]++;
@@ -1513,7 +1556,7 @@ function showCards() {
   if (!r || !r.cards) return;
   $('levelup').hidden = false; $('banner').classList.remove('on'); bannerT = 0;
   if (shownRound !== r.n || !cards.length) {
-    shownRound = r.n; voteSig = ''; SND.play('levelup'); cards = r.cards.map(id => UP.find(u => u.id === id)); sel = 0;
+    shownRound = r.n; voteSig = ''; SND.play('levelup'); cards = r.cards.map(findCard); sel = 0;
     const pl = (role === 'client' ? CL.me : meP()) || { up: {}, hp: 100 };
     $('cards').innerHTML = cards.map((u, i) => cardHtml(u, pl, i)).join('');
     $('cards').querySelectorAll('.card').forEach(c => c.addEventListener('click', () => choose(+c.dataset.i)));
@@ -1529,7 +1572,7 @@ function renderVotes() {
   const tbp = ps.find(p => p.id === r.tb);
   const sig = JSON.stringify([votes, left, r.tb, multi, ps.length]);
   if (sig === voteSig) return; voteSig = sig;
-  $('lvtitle').textContent = r.free ? (r.free === 'gold' ? 'Golden Bug caught! Free upgrade' : 'Nest destroyed! Free upgrade') : multi ? 'Team level up!' : 'Level up!';
+  $('lvtitle').textContent = r.free ? (r.free === 'gold' ? 'Golden Bug caught! Free upgrade' : 'Nest destroyed! Pick a reward') : multi ? 'Team level up!' : 'Level up!';
   $('lvnote').hidden = !multi;
   if (multi) {
     const n = ps.filter(p => votes[p.id]).length;
@@ -1606,7 +1649,7 @@ function applySnapshot(s) {
   // players
   const ps = new Set();
   for (const r of s.P) {
-    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms, bpc, tw] = r;
+    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms, bpc, tw, suit, swarm] = r;
     ps.add(id);
     let p = CL.players.get(id);
     if (!p) { p = { id, name, color, x: x / 10, z: z / 10, face: face / 100, walk: 0, vx: 0, vz: 0, citroA: 0, sprayPuff: 0 }; CL.players.set(id, p); }
@@ -1614,6 +1657,7 @@ function applySnapshot(s) {
       up: Object.fromEntries(UPIDS.map((k, i) => [k, ups[i]])) });
     if (id !== me.id) { p.tx = x / 10; p.tz = z / 10; p.tface = face / 100; }
     if (flags & 4) p.sprayPuff = 0.12;
+    p.suit = suit || 0; p.swarm = swarm || 0;
     p.slow = flags & 8 ? 0.2 : 0;
     p.bp = flags & 16 ? 0.3 : 0;
     p.tw = (tw || 0) / 100;
@@ -1799,7 +1843,14 @@ function drawPlayer(p, dt, t) {
   u.body.position.y = Math.abs(sw) * 0.06;
   L.body.rotation.z = p.down ? Math.PI / 2 : 0;
   L.body.position.y = p.down ? 0.4 : 0;
-  L.body.visible = !idle() && !(p.inv > 0 && !p.down && Math.floor(t * 20) % 2);
+  L.body.visible = !idle() && !(p.inv > 0 && !p.down && !(p.suit > 0) && Math.floor(t * 20) % 2);
+  if (u.veil) u.veil.visible = p.suit > 0;
+  if (p.suit > 0) B.ring.add(p.x, 0.07, p.z, 4.2 + Math.sin(t * 6) * 0.3, 0, 1, 0.82, 0.2, p.suit < 3 && Math.floor(t * 6) % 2 ? 0.25 : 0.7);
+  if (p.swarm > 0) for (let k = 0; k < 10; k++) {   // little bees buzzing round you
+    const a = t * (2.4 + (k % 3) * 0.5) + k * 0.63, rr = 1.6 + Math.sin(t * 3 + k * 1.7) * 0.6 + (k % 2) * 0.5;
+    const bx = p.x + Math.cos(a) * rr, bz = p.z + Math.sin(a) * rr, by = 1.3 + Math.sin(t * 9 + k) * 0.35;
+    B.glow.add(bx, by, bz, 0.75, 0, 1.2, 0.9, 0.15, 0.85); B.smoke.add(bx, by, bz, 0.3, 0, 0.12, 0.1, 0.03, 0.95);
+  }
   B.shadow.add(p.x, 0.02, p.z, 2.6, 0, 0, 0, 0, 0.4);
   const col = new THREE.Color(CSS_COL[p.color % 4]);
   if (!idle()) B.ring.add(p.x, 0.05, p.z, 3.4, 0, col.r, col.g, col.b, p.down ? 0.25 : 0.5);
@@ -2515,7 +2566,7 @@ function sendSnapshot() {
   const r = Math.round;
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
-  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0) | (p.bp > 0 ? 16 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0, Math.ceil(p.bpCd || 0), Math.round((p.tw || 0) * 100)]);
+  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0) | (p.bp > 0 ? 16 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0, Math.ceil(p.bpCd || 0), Math.round((p.tw || 0) * 100), Math.ceil(p.suit || 0), Math.ceil(p.swarm || 0)]);
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 400); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {

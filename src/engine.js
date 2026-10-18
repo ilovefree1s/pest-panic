@@ -888,7 +888,14 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   body.add(hose);
   const tipMark = new THREE.Object3D(); tipMark.position.set(0, 0.06, 1.24); wand.add(tipMark);   // the very end of the nozzle
   arms[1].rotation.order = 'YXZ';   // the spraying arm swings left/right at the shoulder first
-  root.userData = { body, legs, arms, head, tank, candle, tip: tipMark };
+  // beekeeper hat with a mesh veil, worn while the Bee Suit nest reward is on
+  const veil = new THREE.Group(); veil.visible = false; head.add(veil);
+  const white = std({ color: '#cfc9b4', roughness: 0.95, envMapIntensity: 0.2 });
+  const vb = mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.04, 24), white); vb.position.y = 0.2; veil.add(vb);
+  const vc = mesh(new THREE.SphereGeometry(0.32, 18, 10, 0, TAU, 0, Math.PI / 2), white); vc.position.y = 0.2; veil.add(vc);
+  const net = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.42, 0.62, 20, 1, true), new THREE.MeshStandardMaterial({ color: '#1a1a1a', transparent: true, opacity: 0.55, side: THREE.DoubleSide, roughness: 0.9, depthWrite: false }));
+  net.position.y = -0.11; veil.add(net);
+  root.userData = { body, legs, arms, head, tank, candle, tip: tipMark, veil };
   root.traverse(o => { if (o.isMesh) o.castShadow = true; });
   root.scale.setScalar(1.6);
   return root;
