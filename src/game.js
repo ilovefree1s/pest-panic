@@ -2314,8 +2314,10 @@ const fx = $('fx'), fctx = fx.getContext('2d'), mm = $('minimap'), mctx = mm.get
 function project(x, y, z) { tmpV.set(x, y, z).project(camera); return [(tmpV.x * 0.5 + 0.5) * view.w, (-tmpV.y * 0.5 + 0.5) * view.h]; }
 function drawOverlay(dt) {
   const dpr = Math.min(devicePixelRatio || 1, 2);
-  if (fx.width !== Math.round(view.w * dpr)) { fx.width = Math.round(view.w * dpr); fx.height = Math.round(view.h * dpr); }
-  fctx.setTransform(dpr, 0, 0, dpr, 0, 0); fctx.clearRect(0, 0, view.w, view.h);
+  const fw = Math.round(view.w * dpr), fh = Math.round(view.h * dpr);
+  if (fx.width !== fw || fx.height !== fh) { fx.width = fw; fx.height = fh; }   // height too: phones change it when the address bar slides
+  fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, fx.width, fx.height);   // wipe the whole canvas, every frame
+  fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (!S || idle()) return;
   fctx.textAlign = 'center'; fctx.lineJoin = 'round';
   const keep = [];
