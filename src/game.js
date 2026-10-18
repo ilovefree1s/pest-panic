@@ -92,7 +92,7 @@ const UPIDS = UP.map(u => u.id);
 const NEST_REWARDS = [
   { id: 'beesuit', name: 'Bee Suit' },
   { id: 'honey', name: 'Honey Jar' },
-  { id: 'swarm', name: 'Bee Swarm' },
+  { id: 'swarm', name: 'Buddy Bee' },
 ];
 const SUIT_TIME = 15, SWARM_TIME = 20;
 const findCard = id => UP.find(u => u.id === id) || NEST_REWARDS.find(u => u.id === id);
@@ -114,7 +114,7 @@ const HOW = {
   aid: 'Heals you right now.',
   beesuit: 'Everyone suits up like a beekeeper. Nothing can hurt the team for 15 seconds.',
   honey: 'Sweet, sweet honey. Heals the whole team to full, gets downed teammates back up, and spills crumbs for everyone.',
-  swarm: 'A cloud of friendly bees follows each player for 20 seconds and stings any bug that gets close. Bosses too.',
+  swarm: 'A super fast bee buddy follows each player for 20 seconds, zipping from bug to bug and stinging them. Bosses too.',
 };
 const sec = v => v.toFixed(2).replace(/0$/, '') + 's';
 // the numbers a weapon has at level L (0 = not owned yet)
@@ -143,7 +143,7 @@ function stats(id, L, p) {
 function cardHtml(u, p, i) {
   if (NEST_REWARDS.some(r => r.id === u.id)) {
     const rows = { beesuit: [['Immune to damage', SUIT_TIME + 's'], ['Who', 'Whole team']], honey: [['Health', 'Full'], ['Downed teammates', 'Back up'], ['Crumbs', '+12 XP each']],
-      swarm: [['Bees', '10 each'], ['Lasts', SWARM_TIME + 's'], ['Sting damage', Math.round(swarmDmg(p))]] }[u.id];
+      swarm: [['Bees', '1 each'], ['Lasts', SWARM_TIME + 's'], ['Sting damage', Math.round(swarmDmg(p))]] }[u.id];
     return `<button class="card${i === 0 ? ' sel' : ''}" data-i="${i}" type="button"><span class="ic">${ICON[u.id]}</span><span><small>NEST REWARD</small><b>${u.name}</b></span><p>${HOW[u.id]}</p><ul class="st">${rows.map(r => `<li><span>${r[0]}</span><b class="up">${r[1]}</b></li>`).join('')}</ul></button>`;
   }
   const l = p.up[u.id] || 0, next = u.id === 'aid' ? l : l + 1;
@@ -289,7 +289,7 @@ function lookFor(p) {
   let L = looks.get(p.id);
   if (!L) {
     const c = COLORS[p.color % COLORS.length];
-    L = { body: buildPlayer(c[0], c[1]), swats: [0, 1, 2, 3].map(() => { const s = buildSwatter(); s.visible = false; return s; }), zap: buildZapper(), roomba: buildRoomba(), lens: buildMagnifier(), beams: [buildBeam(), buildBeam()], walk: 0 };
+    L = { body: buildPlayer(c[0], c[1]), swats: [0, 1, 2, 3].map(() => { const s = buildSwatter(); s.visible = false; return s; }), zap: buildZapper(), roomba: buildRoomba(), lens: buildMagnifier(), beams: [buildBeam(), buildBeam()], bee: buildBee(), jar: buildHoneyJar(), jarT: 0, walk: 0 };
     scene.add(L.body);
     looks.set(p.id, L);
   }
@@ -297,7 +297,7 @@ function lookFor(p) {
 }
 function dropLook(id) {
   const L = looks.get(id); if (!L) return;
-  scene.remove(L.body); L.swats.forEach(s => scene.remove(s)); scene.remove(L.zap); scene.remove(L.roomba); scene.remove(L.lens); L.beams.forEach(b => scene.remove(b));
+  scene.remove(L.body); L.swats.forEach(s => scene.remove(s)); scene.remove(L.zap); scene.remove(L.roomba); scene.remove(L.lens); L.beams.forEach(b => scene.remove(b)); scene.remove(L.bee); scene.remove(L.jar);
   looks.delete(id);
 }
 
@@ -753,6 +753,7 @@ function playEvent(e) {
       S.shake = 1.2; banner((e[4] || BOSSES[kind || 0].title) + ' squashed!  +40 HP');
       break;
     }
+    case 'hj': { const L = looks.get(e[1]); if (L) L.jarT = 0.001; SND.play('pick'); break; }
     case 'lv': {
       const p = role === 'client' ? CL.players.get(e[1]) : S.players.find(q => q.id === e[1]); if (!p) break;
       for (let k = 0; k < 20; k++) { const a = k / 20 * TAU; FX.glow.spawn({ x: p.x, y: 0.5, z: p.z, vx: Math.cos(a) * 9, vy: rand(1, 4), vz: Math.sin(a) * 9, life: 0.5, s0: 0.6, s1: 0.1, c: [1.3, 1.1, 0.4], drag: 2 }); }
@@ -1058,16 +1059,32 @@ function dropCoin(x, z, v, big) {
   if (S.coins.length >= 400) { S.coins[(Math.random() * S.coins.length) | 0].v += v; return; }
   S.coins.push({ x, z, v, big: big || v >= 4, t: Math.random() * TAU, vy: 4, y: 0.5 });
 }
-// Bee Swarm: every quarter second the bees sting up to 3 bugs within reach (bosses take a sting too)
-const swarmDmg = p => (4 + 1.5 * Math.max(0, S ? S.minute : 0) + ((p && p.up && p.up.str) || 0));
+// Buddy Bee: one very fast bee per player that zips from bug to bug stinging them (bosses too)
+const swarmDmg = p => (6 + 1.5 * Math.max(0, S ? S.minute : 0) + ((p && p.up && p.up.str) || 0));
+const BEE_SPD = 34, BEE_REACH = 10;
 function swarmTick(p, dt) {
-  p.stingT = (p.stingT || 0) - dt; if (p.stingT > 0) return;
-  p.stingT = 0.25;
-  const dmg = swarmDmg(p), hits = [];
-  near(p.x, p.z, 6, b => hits.push([dist2(b.x, b.z, p.x, p.z), b]));
-  hits.sort((a, b) => a[0] - b[0]);
-  for (const [, b] of hits.slice(0, 3)) hitBug(b, dmg);
-  const q = queenNear(p, 6 + 3); if (q) hitQueen(dmg, q.x, q.z, q);
+  const b = p.bee || (p.bee = { x: p.x + 1.2, z: p.z, ang: 0, cd: 0, tgt: null, o: Math.random() * TAU });
+  b.cd -= dt;
+  let tg = b.tgt;
+  if (tg && (tg.hp <= 0 || dist2(tg.x, tg.z, p.x, p.z) > (BEE_REACH + 4) ** 2 || (tg.kind === undefined && !S.bugs.includes(tg)))) tg = b.tgt = null;
+  if (!tg) {   // pick the bug nearest the bee that's still close to its player
+    let bd = Infinity;
+    near(p.x, p.z, BEE_REACH, o => { const d = dist2(o.x, o.z, b.x, b.z); if (o.hp > 0 && d < bd) { bd = d; tg = o; } });
+    const q = queenNear(p, BEE_REACH + 3); if (q && !tg) tg = q;
+    b.tgt = tg;
+  }
+  let tx, tz;
+  if (tg) { tx = tg.x; tz = tg.z; } else { b.o += dt * 3; tx = p.x + Math.cos(b.o) * 1.6; tz = p.z + Math.sin(b.o) * 1.6; }
+  const dx = tx - b.x, dz = tz - b.z, d0 = Math.hypot(dx, dz), d = d0 || 1, step = Math.min(d0, BEE_SPD * dt);
+  b.x += dx / d * step; b.z += dz / d * step;
+  if (d > 0.05) b.ang = Math.atan2(dx, dz);
+  const reach = tg && tg.kind !== undefined ? BR(tg) + 0.6 : 0.9;
+  if (tg && d0 < reach && b.cd <= 0) {
+    b.cd = 0.18;
+    if (tg.kind !== undefined) hitQueen(swarmDmg(p), tg.x, tg.z, tg); else hitBug(tg, swarmDmg(p));
+    b.x -= dx / d * 0.7; b.z -= dz / d * 0.7;   // little bounce back after each sting
+    if (tg.hp <= 0) b.tgt = null;
+  }
 }
 function hurt(p, d) {
   if (p.inv > 0 || p.down || mode !== 'play' || window.__god || p.suit > 0) return;
@@ -1424,7 +1441,7 @@ function step(dt) {
     p.aimT = Math.max(0, (p.aimT || 0) - dt); if (p.aimT <= 0) p.tw = (p.tw || 0) * Math.max(0, 1 - dt * 6);
     if (p.bp > 0) backpackTick(p, dt);
     if (p.suit > 0) p.suit = Math.max(0, p.suit - dt);
-    if (p.swarm > 0) { p.swarm = Math.max(0, p.swarm - dt); if (!p.down) swarmTick(p, dt); }
+    if (p.swarm > 0) { p.swarm = Math.max(0, p.swarm - dt); if (!p.down) swarmTick(p, dt); if (p.swarm <= 0) p.bee = null; }
     if (!p.down) p.hp = Math.min(100, p.hp + dt * 0.4);
   }
   revives(dt);
@@ -1529,7 +1546,8 @@ function applyTeamUp(win, breaker) {
     for (const p of S.players) {
       if (win === 'beesuit') p.suit = SUIT_TIME;
       else if (win === 'swarm') { p.swarm = SWARM_TIME; p.stingT = 0; }
-      else if (win === 'honey') { if (p.down) { p.down = false; p.rev = 0; ev(['rv', p.id]); } p.hp = 100; for (let i = 0; i < 4; i++) dropCoin(p.x + rand(-2, 2), p.z + rand(-2, 2), 3, true); }
+      else if (win === 'honey') { if (p.down) { p.down = false; p.rev = 0; ev(['rv', p.id]); } p.hp = 100; for (let i = 0; i < 4; i++) dropCoin(p.x + rand(-2, 2), p.z + rand(-2, 2), 3, true); ev(['hj', p.id]); }
+      else if (win === 'swarm') p.bee = { x: p.x + 1.2, z: p.z, ang: 0, cd: 0, tgt: null, o: 0 };
       p.inv = Math.max(p.inv, 1);
       ev(['lv', p.id]);
     }
@@ -1649,7 +1667,7 @@ function applySnapshot(s) {
   // players
   const ps = new Set();
   for (const r of s.P) {
-    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms, bpc, tw, suit, swarm] = r;
+    const [id, name, color, x, z, face, hp, flags, ups, swatA, cf, rv, rbs, bms, bpc, tw, suit, swarm, bee] = r;
     ps.add(id);
     let p = CL.players.get(id);
     if (!p) { p = { id, name, color, x: x / 10, z: z / 10, face: face / 100, walk: 0, vx: 0, vz: 0, citroA: 0, sprayPuff: 0 }; CL.players.set(id, p); }
@@ -1658,6 +1676,7 @@ function applySnapshot(s) {
     if (id !== me.id) { p.tx = x / 10; p.tz = z / 10; p.tface = face / 100; }
     if (flags & 4) p.sprayPuff = 0.12;
     p.suit = suit || 0; p.swarm = swarm || 0;
+    if (bee) { if (!p.bee) p.bee = { x: bee[0] / 10, z: bee[1] / 10, ang: bee[2] / 100 }; p.bee.tx = bee[0] / 10; p.bee.tz = bee[1] / 10; p.bee.ta = bee[2] / 100; } else p.bee = null;
     p.slow = flags & 8 ? 0.2 : 0;
     p.bp = flags & 16 ? 0.3 : 0;
     p.tw = (tw || 0) / 100;
@@ -1846,10 +1865,31 @@ function drawPlayer(p, dt, t) {
   L.body.visible = !idle() && !(p.inv > 0 && !p.down && !(p.suit > 0) && Math.floor(t * 20) % 2);
   if (u.setBee) u.setBee(p.suit > 0);
   if (p.suit > 0) B.ring.add(p.x, 0.07, p.z, 4.2 + Math.sin(t * 6) * 0.3, 0, 1, 0.82, 0.2, p.suit < 3 && Math.floor(t * 6) % 2 ? 0.25 : 0.7);
-  if (p.swarm > 0) for (let k = 0; k < 10; k++) {   // little bees buzzing round you
-    const a = t * (2.4 + (k % 3) * 0.5) + k * 0.63, rr = 1.6 + Math.sin(t * 3 + k * 1.7) * 0.6 + (k % 2) * 0.5;
-    const bx = p.x + Math.cos(a) * rr, bz = p.z + Math.sin(a) * rr, by = 1.3 + Math.sin(t * 9 + k) * 0.35;
-    B.glow.add(bx, by, bz, 0.75, 0, 1.2, 0.9, 0.15, 0.85); B.smoke.add(bx, by, bz, 0.3, 0, 0.12, 0.1, 0.03, 0.95);
+  { // Buddy Bee
+    const bb = p.bee, show = p.swarm > 0 && bb && !idle();
+    L.bee.visible = !!show;
+    if (show) {
+      if (role === 'client' && bb.tx !== undefined) { const k = Math.min(1, dt * 14); bb.x += (bb.tx - bb.x) * k; bb.z += (bb.tz - bb.z) * k; bb.ang = lerpAng(bb.ang, bb.ta, k); }
+      L.bee.position.set(bb.x, 1.4 + Math.sin(t * 11 + p.color) * 0.18, bb.z); L.bee.rotation.y = bb.ang; L.bee.scale.setScalar(1.8);
+      const fl = Math.sin(t * 70) * 0.9; L.bee.userData.wings[0].rotation.z = fl; L.bee.userData.wings[1].rotation.z = -fl;
+      B.shadow.add(bb.x, 0.02, bb.z, 0.9, 0, 0, 0, 0, 0.3);
+      if (Math.random() < 0.4) FX.glow.spawn({ x: bb.x, y: 1.4, z: bb.z, vx: 0, vy: 0.3, vz: 0, life: 0.25, s0: 0.25, s1: 0.05, c: [1.2, 0.95, 0.3], a0: 0.7, a1: 0 });
+    }
+  }
+  { // Honey Jar: a jar pops up over your head, tips over and pours honey on you
+    if (L.jarT > 0) {
+      L.jarT += dt; const k = L.jarT, J = L.jar;
+      J.visible = true; J.position.set(p.x, 3.4 + Math.min(k, 0.3) * 1.5, p.z);
+      const pop = k < 0.25 ? k / 0.25 * 1.25 : k > 1.5 ? Math.max(0, 1 - (k - 1.5) / 0.3) : 1.25 - Math.min(0.25, (k - 0.25)) ;
+      J.scale.setScalar(Math.max(0.001, pop) * 2.4);
+      J.rotation.y = p.face || 0; J.rotation.z = k < 0.35 ? 0 : -Math.min(2.2, (k - 0.35) * 5);
+      if (k > 0.5 && k < 1.4) for (let i = 0; i < 3; i++) FX.goo.spawn({ x: p.x + rand(-0.3, 0.3), y: 3.6, z: p.z + rand(-0.3, 0.3), vx: rand(-0.6, 0.6), vy: rand(-1, 0), vz: rand(-0.6, 0.6), life: 0.55, s0: rand(0.22, 0.36), s1: 0.18, c: [1, 0.66, 0.1], a0: 1, a1: 0.9, grav: 14 });
+      if (k > 0.75 && !L.jarSplash) {
+        L.jarSplash = true; S.rings.push({ x: p.x, z: p.z, r0: 0.8, r1: 6, life: 0.5, max: 0.5, c: [1, 0.7, 0.15] }); addDecal(p.x, p.z, 4.5, [0.95, 0.62, 0.12], 6);
+        for (let i = 0; i < 26; i++) { const a = Math.random() * TAU, sp = rand(2, 7); FX.goo.spawn({ x: p.x, y: 0.4, z: p.z, vx: Math.cos(a) * sp, vy: rand(2, 6), vz: Math.sin(a) * sp, life: 0.8, s0: rand(0.25, 0.45), s1: 0.2, c: [1, 0.68, 0.12], a0: 1, a1: 0.8, grav: 18 }); }
+      }
+      if (k > 1.8) { L.jarT = 0; L.jarSplash = false; J.visible = false; }
+    } else L.jar.visible = false;
   }
   B.shadow.add(p.x, 0.02, p.z, 2.6, 0, 0, 0, 0, 0.4);
   const col = new THREE.Color(CSS_COL[p.color % 4]);
@@ -2566,7 +2606,7 @@ function sendSnapshot() {
   const r = Math.round;
   const B = [];
   for (const b of S.bugs) B.push(b.id, b.t, r(b.x * 10), r(b.z * 10), r(b.ang * 100), (b.flash > 0 ? 1 : 0) | (b.stuck > 0 ? 2 : 0));
-  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0) | (p.bp > 0 ? 16 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0, Math.ceil(p.bpCd || 0), Math.round((p.tw || 0) * 100), Math.ceil(p.suit || 0), Math.ceil(p.swarm || 0)]);
+  const P = S.players.map(p => [p.id, p.name, p.color, r(p.x * 10), r(p.z * 10), r(p.face * 100), Math.ceil(p.hp), (p.down ? 1 : 0) | (p.inv > 0 ? 2 : 0) | (p.sprayPuff > 0 ? 4 : 0) | ((p.slow || 0) > 0 ? 8 : 0) | (p.bp > 0 ? 16 : 0), UPIDS.map(k => p.up[k]), r(p.swatA * 100), r(p.citroFlash * 10), r((p.rev || 0) * 100), p.up.roomba && p.rb ? [r(p.rb.x * 10), r(p.rb.z * 10), r(p.rb.ang * 100)] : 0, p.up.lens && p.beams ? p.beams.map(b => [r(b.x * 10), r(b.z * 10)]) : 0, Math.ceil(p.bpCd || 0), Math.round((p.tw || 0) * 100), Math.ceil(p.suit || 0), Math.ceil(p.swarm || 0), p.bee ? [r(p.bee.x * 10), r(p.bee.z * 10), r(p.bee.ang * 100)] : 0]);
   const C = []; for (let i = 0; i < Math.min(S.coins.length, 400); i++) { const c = S.coins[i]; C.push(r(c.x * 10), r(c.z * 10), c.big ? 1 : 0); }
   const q = S.queen;
   const snap = {
@@ -2759,7 +2799,7 @@ window.PP = {
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
   tipOffset() { const p = meP(), L = looks.get(me.id); if (!L) return null; L.body.updateMatrixWorld(true); const v = L.body.userData.tip.getWorldPosition(new THREE.Vector3()), f = L.body.rotation.y; const dx = v.x - p.x, dz = v.z - p.z; return { forward: +(dx * Math.sin(f) + dz * Math.cos(f)).toFixed(2), right: +(dx * Math.cos(f) - dz * Math.sin(f)).toFixed(2), y: +v.y.toFixed(2) }; },
-  arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(false); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  looks: () => looks, arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(false); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
 

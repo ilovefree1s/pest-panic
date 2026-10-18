@@ -1049,6 +1049,35 @@ export function buildRoomba() {
   return g;
 }
 // magnifying glass: brass rim, clear lens, wooden handle. The lens faces local -y (down at the floor).
+// helper bee (Buddy Bee nest reward): chunky striped bee with flapping wings, faces +z
+export function buildBee() {
+  const g = new THREE.Group();
+  const yel = std({ color: '#ffc928', roughness: 0.45, emissive: '#5a3a00', emissiveIntensity: 0.25 }), blk = std({ color: '#151515', roughness: 0.5 });
+  const ab = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), yel); ab.scale.set(0.85, 0.8, 1.25); ab.position.z = -0.12; g.add(ab);
+  for (const z of [-0.02, -0.2]) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.235, 0.045, 8, 18), blk); band.position.z = z; band.scale.set(1.05, 1, 1); g.add(band); }
+  const th = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 10), std({ color: '#3a2a10', roughness: 0.8 })); th.position.z = 0.24; g.add(th);
+  const hd = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10), blk); hd.position.z = 0.42; g.add(hd);
+  for (const s of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), std({ color: '#222', roughness: 0.2, metalness: 0.4 })); eye.position.set(0.08 * s, 0.05, 0.5); g.add(eye);
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.26, 5), blk); ant.position.set(0.07 * s, 0.16, 0.55); ant.rotation.x = 0.7; ant.rotation.z = -0.4 * s; g.add(ant); }
+  const st = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.18, 8), blk); st.rotation.x = -Math.PI / 2; st.position.z = -0.55; g.add(st);
+  const wm = new THREE.MeshStandardMaterial({ color: '#dff4ff', transparent: true, opacity: 0.6, side: THREE.DoubleSide, roughness: 0.2, depthWrite: false });
+  const wings = [-1, 1].map(s => { const w = new THREE.Mesh(new THREE.CircleGeometry(0.26, 14), wm); w.scale.set(1, 0.55, 1); w.rotation.x = -Math.PI / 2;
+    const piv = new THREE.Group(); piv.position.set(0.1 * s, 0.17, 0.2); w.position.x = 0.24 * s; piv.add(w); g.add(piv); return piv; });
+  g.userData.wings = wings; g.visible = false; scene.add(g);
+  return g;
+}
+// honey jar (Honey Jar nest reward): amber glass jar with a wooden lid and a cream label
+export function buildHoneyJar() {
+  const g = new THREE.Group();
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.38, 0.8, 22), std({ color: '#d98a12', emissive: '#6a3a00', emissiveIntensity: 0.12, roughness: 0.35, metalness: 0.05, envMapIntensity: 0.4 }));
+  glass.position.y = 0.4; g.add(glass);
+  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.41, 0.32, 22, 1, true), std({ color: '#e8d8a8', roughness: 0.9, envMapIntensity: 0.2 })); label.position.y = 0.38; g.add(label);
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.14, 22), std({ color: '#8a5a2a', roughness: 0.7 })); lid.position.y = 0.87; g.add(lid);
+  const cloth = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.5, 0.1, 22), std({ color: '#c0392b', roughness: 0.9 })); cloth.position.y = 0.82; g.add(cloth);
+  const drip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), std({ color: '#d98a12', emissive: '#6a3a00', emissiveIntensity: 0.15, roughness: 0.3 })); drip.scale.set(1, 1.6, 1); drip.position.set(0.36, 0.7, 0.1); g.add(drip);
+  g.visible = false; scene.add(g);
+  return g;
+}
 export function buildMagnifier() {
   const g = new THREE.Group();
   const rimM = std({ color: '#c9a24a', metalness: 0.9, roughness: 0.28, envMapIntensity: 1.2 });
