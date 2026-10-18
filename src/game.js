@@ -1052,7 +1052,7 @@ function hitBug(b, dmg, kx = 0, kz = 0) {
   if (b.hp <= 0) return;
   b.hp -= dmg; b.flash = 0.09; if (b.t < 4) { b.x += kx; b.z += kz; }
   if (dmg >= 8 || Math.random() < 0.12) ev(['n', b.x, b.z, Math.round(dmg), 0]);
-  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } if (b.t === 5) { goldDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp, b.t === 2); }
+  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } if (b.t === 5) { goldDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp * (S.kills <= 10 ? 1.3 : 1), b.t === 2); }   // first 10 kills give 30% more XP
 }
 function dropCoin(x, z, v, big) {
   v += S.bank; S.bank = 0;
@@ -1524,7 +1524,7 @@ function checkRound() {
   for (const p of vs) if (r.votes[p.id]) count[r.votes[p.id]]++;
   const cast = vs.filter(p => r.votes[p.id]).length;
   const majority = r.cards.some(id => count[id] > vs.length / 2);
-  if (!majority && cast < vs.length && performance.now() < r.until) return;
+  if (!majority && cast < vs.length) return;   // no time limit: wait for the votes
   // decide
   const top = Math.max(...r.cards.map(id => count[id]));
   const tied = r.cards.filter(id => count[id] === top);
@@ -1594,7 +1594,7 @@ function renderVotes() {
   $('lvnote').hidden = !multi;
   if (multi) {
     const n = ps.filter(p => votes[p.id]).length;
-    $('lvnote').innerHTML = `Vote for the power-up your <b>whole team</b> gets · ${n}/${ps.length} voted · <b>${left}s</b>` +
+    $('lvnote').innerHTML = `Vote for the power-up your <b>whole team</b> gets · ${n}/${ps.length} voted` +
       (tbp ? `<br><span class="tb">Tie? <i style="background:${CSS_COL[tbp.color % 4]}"></i>${esc(tbp.id === me.id ? 'You' : tbp.name)} ${tbp.id === me.id ? 'break' : 'breaks'} it this time</span>` : '');
   }
   $('lvhint').innerHTML = multi ? 'Tap a card to vote (you can change it). Most votes wins; ties take turns.' : 'Tap a card, or choose with the stick and press <b>Cross</b> / <b>Enter</b>.';

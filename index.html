@@ -260,7 +260,7 @@ body.menu #ver{display:block}
       <button id="abil" type="button" aria-label="Backpack sprayer"><span class="ring"></span><svg viewBox="0 0 48 48"><rect x="6" y="12" width="18" height="27" rx="6" fill="#f1f1ec"/><rect x="10" y="8" width="10" height="5" rx="2" fill="#ff7a1f"/><rect x="5" y="37" width="20" height="5" rx="2" fill="#ff7a1f"/><path d="M22 36c6 3 9 0 10-3" stroke="#1c1d22" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M30 35L41 16" stroke="#c6ccd4" stroke-width="3" stroke-linecap="round"/><rect x="27" y="31" width="6" height="7" rx="2" transform="rotate(30 30 34.5)" fill="#1c1d22"/><path d="M40 18l3-5" stroke="#f2c53d" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="8" r="2.4" fill="#bfefff" opacity=".85"/><circle cx="41" cy="5" r="1.8" fill="#bfefff" opacity=".65"/><circle cx="47" cy="3" r="1.5" fill="#bfefff" opacity=".5"/></svg><b id="abilt">SPACE</b></button>
     </div>
     <div id="banner"></div>
-    <div id="ver">v1.38</div>
+    <div id="ver">v1.39</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -298,7 +298,7 @@ body.menu #ver{display:block}
         <p class="qa">Leave this run? <span id="quitwhy">Your progress will be lost.</span></p>
         <div class="qbtns"><button class="btn dark" id="quitno" type="button">Stay</button><button class="btn qyes" id="quityes" type="button">Yes, leave</button></div>
       </div>
-      <p class="hint pver">Pest Panic v1.38</p>
+      <p class="hint pver">Pest Panic v1.39</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -2658,7 +2658,7 @@ function hitBug(b, dmg, kx = 0, kz = 0) {
   if (b.hp <= 0) return;
   b.hp -= dmg; b.flash = 0.09; if (b.t < 4) { b.x += kx; b.z += kz; }
   if (dmg >= 8 || Math.random() < 0.12) ev(['n', b.x, b.z, Math.round(dmg), 0]);
-  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } if (b.t === 5) { goldDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp, b.t === 2); }
+  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } if (b.t === 5) { goldDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp * (S.kills <= 10 ? 1.3 : 1), b.t === 2); }   // first 10 kills give 30% more XP
 }
 function dropCoin(x, z, v, big) {
   v += S.bank; S.bank = 0;
@@ -3130,7 +3130,7 @@ function checkRound() {
   for (const p of vs) if (r.votes[p.id]) count[r.votes[p.id]]++;
   const cast = vs.filter(p => r.votes[p.id]).length;
   const majority = r.cards.some(id => count[id] > vs.length / 2);
-  if (!majority && cast < vs.length && performance.now() < r.until) return;
+  if (!majority && cast < vs.length) return;   // no time limit: wait for the votes
   // decide
   const top = Math.max(...r.cards.map(id => count[id]));
   const tied = r.cards.filter(id => count[id] === top);
@@ -3200,7 +3200,7 @@ function renderVotes() {
   $('lvnote').hidden = !multi;
   if (multi) {
     const n = ps.filter(p => votes[p.id]).length;
-    $('lvnote').innerHTML = `Vote for the power-up your <b>whole team</b> gets · ${n}/${ps.length} voted · <b>${left}s</b>` +
+    $('lvnote').innerHTML = `Vote for the power-up your <b>whole team</b> gets · ${n}/${ps.length} voted` +
       (tbp ? `<br><span class="tb">Tie? <i style="background:${CSS_COL[tbp.color % 4]}"></i>${esc(tbp.id === me.id ? 'You' : tbp.name)} ${tbp.id === me.id ? 'break' : 'breaks'} it this time</span>` : '');
   }
   $('lvhint').innerHTML = multi ? 'Tap a card to vote (you can change it). Most votes wins; ties take turns.' : 'Tap a card, or choose with the stick and press <b>Cross</b> / <b>Enter</b>.';
