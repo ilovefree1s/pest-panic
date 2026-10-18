@@ -399,12 +399,21 @@ export const TEX = {
 
 // ---------------------------------------------------------------- kitchen
 function std(opts) { return new THREE.MeshStandardMaterial(opts); }
-export function buildKitchen(look = null) {
-  const g = new THREE.Group(), K = look ? look.pal : null;
+// a floor plane `w` wide and 240 deep whose texture tiles at the same density as a 240x240 one
+function floorGeo(w) {
+  const g = new THREE.PlaneGeometry(w, 240), uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * w / 240);
+  return g;
+}
+// which side walls get a doorway, as seen in the world (the room may be mirrored, so flip to local sides)
+const localDoors = (doors, look) => !doors ? null : look && look.mirror ? { L: doors.R, R: doors.L } : doors;
+export function buildKitchen(look = null, doors = null) {
+  const g = new THREE.Group(), K = look ? look.pal : null, LD = localDoors(doors, look);
+  const E0 = ARENA + 1.2;
   const f = TEX.floor;
   const rep = 240 / 12;
   for (const t of [f.map, f.normal, f.rough]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); }
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(240, 240),
+  const floor = new THREE.Mesh(doors ? floorGeo(2 * (E0 + 3.6)) : new THREE.PlaneGeometry(240, 240),
     std({ map: f.map, color: K ? K.tile : '#ffffff', normalMap: f.normal, normalScale: new THREE.Vector2(0.8, 0.8), roughnessMap: f.rough, roughness: 0.55, metalness: 0.0, envMapIntensity: 0.6 }));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -426,28 +435,39 @@ export function buildKitchen(look = null) {
   TEX.cab.wrapS = THREE.RepeatWrapping; TEX.subway.wrapS = TEX.subway.wrapT = THREE.RepeatWrapping;
   TEX.top.wrapS = TEX.top.wrapT = THREE.RepeatWrapping;
   const E = ARENA + 1.2, L = 2 * E + 8, H = 4.2, D = 3.6;
-  const side = (x, z, rotY, len) => {
+  const doorsOut = {};
+  const side = (x, z, rotY, len, gap = false) => {
     const grp = new THREE.Group();
-    const cabTex = TEX.cab.clone(); cabTex.repeat.set(len / 7, 1); cabTex.needsUpdate = true;
-    const cc = K ? K.cab : '#2f555e';
-    const cab = new THREE.Mesh(new THREE.BoxGeometry(len, H, D), [std({ color: cc, roughness: .7 }), std({ color: cc, roughness: .7 }),
-      std({ color: cc }), std({ color: cc }), std({ map: cabTex, color: K ? K.cabFace : '#a9b4b6', roughness: 0.7, envMapIntensity: 0.3 }), std({ color: cc })]);
-    cab.position.set(0, H / 2, -D / 2); cab.castShadow = cab.receiveShadow = true; grp.add(cab);
-    const kick = new THREE.Mesh(new THREE.BoxGeometry(len, 0.5, 0.3), std({ color: '#1b1f22', roughness: 0.9 }));
-    kick.position.set(0, 0.25, 0.05); grp.add(kick);
-    const topTex = TEX.top.clone(); topTex.repeat.set(len / 10, 0.4); topTex.needsUpdate = true;
-    const top = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.35, D + 0.5), std({ map: topTex, color: K ? K.top : '#6f6b64', roughness: 0.6, envMapIntensity: 0.25 }));
-    top.position.set(0, H + 0.17, -D / 2 + 0.25); top.castShadow = top.receiveShadow = true; grp.add(top);
-    const wt = TEX.subway.clone(); wt.repeat.set(len / 8, 1); wt.needsUpdate = true;
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(len, 8), std({ map: wt, color: K ? K.wall : '#5d5a54', roughness: 0.7, envMapIntensity: 0.15 }));
-    wall.position.set(0, H + 4, -D); grp.add(wall);
+    // with a doorway the run of cabinets is split in two, leaving a 4.2-wide gap in the middle
+    const segs = gap ? [[-len / 4 - 1.05, len / 2 - 2.1], [len / 4 + 1.05, len / 2 - 2.1]] : [[0, len]];
+    for (const [cx, sl] of segs) {
+      const cabTex = TEX.cab.clone(); cabTex.repeat.set(sl / 7, 1); cabTex.needsUpdate = true;
+      const cc = K ? K.cab : '#2f555e';
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(sl, H, D), [std({ color: cc, roughness: .7 }), std({ color: cc, roughness: .7 }),
+        std({ color: cc }), std({ color: cc }), std({ map: cabTex, color: K ? K.cabFace : '#a9b4b6', roughness: 0.7, envMapIntensity: 0.3 }), std({ color: cc })]);
+      cab.position.set(cx, H / 2, -D / 2); cab.castShadow = cab.receiveShadow = true; grp.add(cab);
+      const kick = new THREE.Mesh(new THREE.BoxGeometry(sl, 0.5, 0.3), std({ color: '#1b1f22', roughness: 0.9 }));
+      kick.position.set(cx, 0.25, 0.05); grp.add(kick);
+      const topTex = TEX.top.clone(); topTex.repeat.set(sl / 10, 0.4); topTex.needsUpdate = true;
+      const top = new THREE.Mesh(new THREE.BoxGeometry(sl + 0.4, 0.35, D + 0.5), std({ map: topTex, color: K ? K.top : '#6f6b64', roughness: 0.6, envMapIntensity: 0.25 }));
+      top.position.set(cx, H + 0.17, -D / 2 + 0.25); top.castShadow = top.receiveShadow = true; grp.add(top);
+      const wt = TEX.subway.clone(); wt.repeat.set(sl / 8, 1); wt.needsUpdate = true;
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(sl, 8), std({ map: wt, color: K ? K.wall : '#5d5a54', roughness: 0.7, envMapIntensity: 0.15 }));
+      wall.position.set(cx, H + 4, -D); grp.add(wall);
+    }
+    if (gap) {
+      const lin = new THREE.Mesh(new THREE.PlaneGeometry(4.4, H + 8 - 6.9), std({ color: K ? K.wall : '#5d5a54', roughness: 0.8 })); lin.position.set(0, (6.9 + H + 8) / 2, -D); grp.add(lin);
+      const linF = new THREE.Mesh(new THREE.BoxGeometry(4.4, H + 8 - 6.9, 0.3), std({ color: K ? K.wall : '#5d5a54', roughness: 0.8 })); linF.position.set(0, (6.9 + H + 8) / 2, 0); grp.add(linF);
+      const d = makeDoor(); grp.add(d); grp.userData.door = d;
+    }
     grp.position.set(x, 0, z); grp.rotation.y = rotY;
     g.add(grp);
     return grp;
   };
   side(0, -E, 0, L);            // back
-  side(-E, 0, Math.PI / 2, L);  // left
-  side(E, 0, -Math.PI / 2, L);  // right
+  const sL = side(-E, 0, Math.PI / 2, L, !!(LD && LD.L));  // left
+  const sR = side(E, 0, -Math.PI / 2, L, !!(LD && LD.R));  // right
+  doorsOut.L = sL.userData.door; doorsOut.R = sR.userData.door;
   const base = new THREE.Mesh(new THREE.BoxGeometry(L, 0.7, 0.6), std({ color: '#6b5a48', roughness: 0.7, envMapIntensity: 0.3 }));
   base.position.set(0, 0.35, E + 0.3); base.castShadow = true; g.add(base);
   // fridge and stove on the back wall
@@ -469,6 +489,7 @@ export function buildKitchen(look = null) {
   stove.position.set(-16, 0, -E); g.add(stove);
   // shade outside the arena so the edge reads clearly
   if (look && look.mirror) g.scale.x = -1;   // fridge and stove swap sides
+  g.userData.doors = look && look.mirror ? { L: doorsOut.R, R: doorsOut.L } : doorsOut;
   return g;
 }
 
@@ -577,13 +598,13 @@ export const ROOMS = [
   { id: 'garage', name: 'Garage' },
   { id: 'basement', name: 'Basement' },
 ];
-export function buildRoom(kind = 0, look = null) {
-  if (!kind) return buildKitchen(look);
-  const T = roomTex(), g = new THREE.Group(), K = look ? look.pal : null;
+export function buildRoom(kind = 0, look = null, doors = null) {
+  if (!kind) return buildKitchen(look, doors);
+  const T = roomTex(), g = new THREE.Group(), K = look ? look.pal : null, LD = localDoors(doors, look);
   const E = ARENA + 1.2, L = 2 * E + 8, D = 3.8, W = kind === 3 ? 9 : 11;
   // floor
   const ft = (kind === 1 ? T.plank : kind === 2 ? T.conc : T.concD).clone(); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(240 / (kind === 1 ? 14 : 22), 240 / (kind === 1 ? 14 : 22)); ft.needsUpdate = true;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), std({ map: ft, color: K ? (kind === 1 ? K.floor : K.conc) : kind === 1 ? '#d8c8b4' : '#ffffff', roughness: kind === 1 ? 0.5 : 0.85, envMapIntensity: kind === 1 ? 0.5 : 0.25 }));
+  const floor = new THREE.Mesh(doors ? floorGeo(2 * (E + D)) : new THREE.PlaneGeometry(240, 240), std({ map: ft, color: K ? (kind === 1 ? K.floor : K.conc) : kind === 1 ? '#d8c8b4' : '#ffffff', roughness: kind === 1 ? 0.5 : 0.85, envMapIntensity: kind === 1 ? 0.5 : 0.25 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; g.add(floor);
   const flat = (w, h, mat, x, z, rot = 0, y = 0.03) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.rotation.x = -Math.PI / 2; m.rotation.z = rot; m.position.set(x, y, z); m.receiveShadow = true; g.add(m); return m; };
   const box = (parent, w, h, d, mat, x, y, z, ry = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
@@ -595,14 +616,24 @@ export function buildRoom(kind = 0, look = null) {
   const sides = [];
   for (const [x, z, ry] of [[0, -E, 0], [-E, 0, Math.PI / 2], [E, 0, -Math.PI / 2]]) {
     const s = new THREE.Group(); s.position.set(x, 0, z); s.rotation.y = ry; g.add(s); sides.push(s);
-    const wt = wallMap.clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(L / (kind === 1 ? 4 : 8), W / (kind === 1 ? 8 : 8)); wt.needsUpdate = true;
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(L, W), std({ map: wt, color: K && kind !== 1 ? K.block : '#ffffff', roughness: 0.85, envMapIntensity: 0.15 }));
-    wall.position.set(0, W / 2, -D); wall.receiveShadow = true; s.add(wall);
-    box(s, L, 0.5, 0.3, trimMat, 0, 0.25, 0.05);
-    if (kind === 1) box(s, L, 0.6, 0.2, trimMat, 0, 0.3, -D + 0.1);   // baseboard on the wall
+    const si = sides.length - 1, gap = !!(LD && ((si === 1 && LD.L) || (si === 2 && LD.R)));
+    const segs = gap ? [[-L / 4 - 1.05, L / 2 - 2.1], [L / 4 + 1.05, L / 2 - 2.1]] : [[0, L]];
+    for (const [cx, sl] of segs) {
+      const wt = wallMap.clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(sl / (kind === 1 ? 4 : 8), W / 8); wt.needsUpdate = true;
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(sl, W), std({ map: wt, color: K && kind !== 1 ? K.block : '#ffffff', roughness: 0.85, envMapIntensity: 0.15 }));
+      wall.position.set(cx, W / 2, -D); wall.receiveShadow = true; s.add(wall);
+      box(s, sl, 0.5, 0.3, trimMat, cx, 0.25, 0.05);
+      if (kind === 1) box(s, sl, 0.6, 0.2, trimMat, cx, 0.3, -D + 0.1);   // baseboard on the wall
+    }
+    if (gap) {   // a little hallway through the wall, with a door at the room's edge
+      const wt2 = wallMap.clone(); wt2.wrapS = wt2.wrapT = THREE.RepeatWrapping; wt2.repeat.set(1, (W - 6.9) / 8); wt2.needsUpdate = true;
+      const lin = new THREE.Mesh(new THREE.PlaneGeometry(4.4, W - 6.9), std({ map: wt2, color: K && kind !== 1 ? K.block : '#ffffff', roughness: 0.85 })); lin.position.set(0, (6.9 + W) / 2, -D); s.add(lin);
+      for (const sx of [-2.2, 2.2]) { const jamb = new THREE.Mesh(new THREE.PlaneGeometry(D, 6.9), std({ map: wallMap, color: K && kind !== 1 ? K.block : '#ffffff', roughness: 0.9, side: THREE.DoubleSide })); jamb.rotation.y = Math.PI / 2; jamb.position.set(sx, 3.45, -D / 2); s.add(jamb); }
+      const d = makeDoor(); s.add(d); s.userData.door = d;
+    }
   }
   const front = box(g, L, 0.7, 0.6, C(kind === 1 ? '#6b4a30' : '#55534d'), 0, 0.35, E + 0.3);
-  const pm = look ? look.perm : [0, 1, 2], back = sides[pm[0]], left = sides[pm[1]], right = sides[pm[2]];   // in each side group: +x runs along the wall, -z goes back toward the wall
+  const pm = look ? (look.perm[0] === 0 ? look.perm : [0, look.perm[1] === 1 ? 1 : 2, look.perm[1] === 1 ? 2 : 1]) : [0, 1, 2], back = sides[pm[0]], left = sides[pm[1]], right = sides[pm[2]];   // the back wall stays the back wall (doors are on the sides)   // in each side group: +x runs along the wall, -z goes back toward the wall
   if (kind === 1) {   // ---- living room: couch, TV, bookshelf, lamp, armchair, plant, rugs
     const rug = flat(26, 16, std({ map: T.rug, roughness: 0.95, envMapIntensity: 0.15 }), look ? look.rug[0] * 0.5 : -4, look ? look.rug[1] * 0.5 : 4, look ? look.rug[4] : 0.04, 0.03);
     const rr = new THREE.Mesh(new THREE.CircleGeometry(6, 48), std({ map: TEX.rug, roughness: 0.95, envMapIntensity: 0.2 })); rr.rotation.x = -Math.PI / 2; rr.position.set(look ? look.rug[2] : 22, 0.03, look ? look.rug[3] : -20); g.add(rr);
@@ -638,12 +669,12 @@ export function buildRoom(kind = 0, look = null) {
     for (const x of [-16, 16]) flat(0.45, 50, yel, x, 4, 0, 0.032);
     const door = new THREE.Mesh(new THREE.PlaneGeometry(26, 8.5), std({ map: (() => { const t = T.door.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.needsUpdate = true; return t; })(), roughness: 0.7, color: K ? K.door : '#8f8c84', envMapIntensity: 0.2 }));
     door.position.set(0, 4.3, -D + 0.06); back.add(door); box(back, 27, 0.5, 0.4, C('#8a877e'), 0, 8.7, -D + 0.2);
-    const bench = new THREE.Group(); bench.position.set(-6, 0, -D / 2); left.add(bench);
+    const bench = new THREE.Group(); bench.position.set(-10, 0, -D / 2); left.add(bench);
     box(bench, 12, 0.5, 3, C('#7a5532'), 0, 3, 0); for (const sx of [-5.6, 5.6]) for (const sz of [-1.2, 1.2]) box(bench, 0.4, 3, 0.4, C('#555'), sx, 1.5, sz);
     box(bench, 1.6, 1, 1.2, C('#c23a2a'), -3, 3.75, 0.2); box(bench, 2.2, 0.6, 0.9, C('#2a5a9a'), 2.5, 3.55, 0.3); cyl(bench, 0.5, 0.5, 1.2, C('#d9d2c0'), 4.8, 3.85, 0);
     const peg = new THREE.Mesh(new THREE.PlaneGeometry(12, 5), std({ map: (() => { const t = T.peg.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1.25); t.needsUpdate = true; return t; })(), roughness: 0.8 }));
-    peg.position.set(-6, 6.4, -D + 0.08); left.add(peg);
-    for (let k = 0; k < 6; k++) box(left, 0.25, 1.6 + (k % 2), 0.15, C(['#666', '#c23a2a', '#e8c330', '#444'][k % 4]), -10.5 + k * 1.8, 6.3, -D + 0.25, 0);
+    peg.position.set(-10, 6.4, -D + 0.08); left.add(peg);
+    for (let k = 0; k < 6; k++) box(left, 0.25, 1.6 + (k % 2), 0.15, C(['#666', '#c23a2a', '#e8c330', '#444'][k % 4]), -14.5 + k * 1.8, 6.3, -D + 0.25, 0);
     const shelf = new THREE.Group(); shelf.position.set(12, 0, -D / 2); left.add(shelf);
     for (let r = 0; r < 4; r++) box(shelf, 8, 0.25, 2.6, C('#8a8a86'), 0, 0.8 + r * 2.2, 0);
     for (const sx of [-3.9, 3.9]) box(shelf, 0.25, 8, 2.6, C('#6a6a66'), sx, 4, 0);
@@ -680,10 +711,18 @@ export function buildRoom(kind = 0, look = null) {
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10), std({ color: '#fff3c0', emissive: '#ffd27a', emissiveIntensity: 2 })); bulb.position.set(0, 12, -6); g.add(bulb);
     const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 6, 4), C('#111')); cord.position.set(0, 15.2, -6); g.add(cord);
   }
-  if (look) {
-    sides.forEach((s, i) => s.children.forEach(ch => { if (ch.isGroup) ch.position.x = Math.max(-E + 6, Math.min(E - 6, ch.position.x + look.shift[i])); }));
-    if (look.mirror) g.scale.x = -1;
-  }
+  sides.forEach((s, i) => s.children.forEach(ch => {
+    if (!ch.isGroup || ch === s.userData.door) return;
+    if (look) ch.position.x = Math.max(-E + 6, Math.min(E - 6, ch.position.x + look.shift[i]));
+    if (s.userData.door) {   // nothing may block the doorway
+      const hw = new THREE.Box3().setFromObject(ch).getSize(new THREE.Vector3());
+      const half = hw.x / 2 + 4.6;   // (measured in the wall's own axes: the side groups have no world matrix yet)
+      if (Math.abs(ch.position.x) < half) ch.position.x = (ch.position.x < 0 ? -1 : 1) * half;
+    }
+  }));
+  if (look && look.mirror) g.scale.x = -1;
+  const dl = sides[1].userData.door, dr = sides[2].userData.door;
+  g.userData.doors = look && look.mirror ? { L: dr, R: dl } : { L: dl, R: dr };
   return g;
 }
 
@@ -1050,9 +1089,10 @@ export function buildRoomba() {
 }
 // magnifying glass: brass rim, clear lens, wooden handle. The lens faces local -y (down at the floor).
 // a doorway in a side wall: frame, dark opening and a door that swings (House Mode room-to-room)
-export function buildDoor() {
+export function buildDoor() { const g = makeDoor(); g.visible = false; scene.add(g); return g; }
+function makeDoor() {
   const g = new THREE.Group();
-  const trim = std({ color: '#e8e2d4', roughness: 0.6 }), W = 3.8, H = 6.6;
+  const trim = std({ color: '#b8b0a0', roughness: 0.9, envMapIntensity: 0.15 }), W = 3.8, H = 6.6;
   const dark = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ color: '#07080a' })); dark.position.set(0, H / 2, -0.05); g.add(dark);
   for (const s of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.35, H + 0.2, 0.5), trim); post.position.set(s * (W / 2 + 0.17), H / 2, 0); post.castShadow = true; g.add(post); }
   const head = new THREE.Mesh(new THREE.BoxGeometry(W + 0.7, 0.4, 0.5), trim); head.position.set(0, H + 0.2, 0); g.add(head);
@@ -1061,7 +1101,7 @@ export function buildDoor() {
   const panel = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.22), panelMat); panel.position.set(W / 2, H / 2, 0); panel.castShadow = true; hinge.add(panel);
   for (const [y, h] of [[1.7, 2.2], [4.7, 2.6]]) { const inset = new THREE.Mesh(new THREE.BoxGeometry(W - 0.9, h, 0.06), std({ color: '#74482a', roughness: 0.7 })); inset.position.set(W / 2, y, 0.13); hinge.add(inset); }
   const knob = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), std({ color: '#d8b04a', metalness: 0.9, roughness: 0.3 })); knob.position.set(W - 0.45, 3.1, 0.25); hinge.add(knob);
-  g.userData.hinge = hinge; g.visible = false; scene.add(g);
+  g.userData.hinge = hinge; g.userData.dark = dark;
   return g;
 }
 // the exterminator's office, used for the phone-call cutscene between House Mode days (built far away from the arena)

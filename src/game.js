@@ -199,24 +199,63 @@ const ICON = {
 
 // ---------------------------------------------------------------- world objects
 resize();
-let kitchen = buildKitchen(), roomShown = 0, houseShown = 1; scene.add(kitchen);
+let kitchen = buildKitchen(), roomShown = 0, houseShown = 1, doorsShown = false; scene.add(kitchen);
 // the kitchen is 10% bigger for each extra player (4 players = 30% bigger); it never shrinks mid-run
 function applyArena(a) {
   if (Math.abs(a - ARENA) < 0.01) return;
   setArena(a);
   scene.remove(kitchen);
   kitchen.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
-  kitchen = buildRoom(roomShown, houseLook(houseShown)); scene.add(kitchen);
+  kitchen = buildRoom(roomShown, houseLook(houseShown), doorsFor(roomShown)); scene.add(kitchen);
+}
+// House Mode rooms have a doorway on the right (and on the left after the kitchen)
+const doorsFor = k => S && S.houseMode ? { L: k > 0, R: true } : null;
+const wallDepth = k => k ? 3.8 : 3.6;
+let neighbor = null;   // the next room, already built on the other side of the right-hand wall
+function buildNeighbor(room, house, A, off) {
+  if (neighbor && neighbor.key === room + ':' + house) return;
+  dropNeighbor();
+  const keep = ARENA; setArena(A);
+  const grp = buildRoom(room, houseLook(house), { L: room > 0, R: true });
+  setArena(keep);
+  grp.position.x = off; scene.add(grp);
+  neighbor = { grp, key: room + ':' + house, room, house, A, off };
+  for (const d of [kitchen.userData.doors && kitchen.userData.doors.R, grp.userData.doors && grp.userData.doors.L]) if (d) d.userData.dark.visible = false;   // see straight through
+}
+function dropNeighbor() {
+  dropBehind();
+  if (!neighbor) return;
+  scene.remove(neighbor.grp);
+  neighbor.grp.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
+  neighbor = null;
+}
+let behind = null;   // the room you just left, kept behind the door until it slams
+function dropBehind() {
+  if (!behind) return;
+  scene.remove(behind);
+  behind.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
+  behind = null;
+}
+function promoteNeighbor() {   // walk-through finished: the next room becomes THE room, slid back to the middle of the world
+  const N = neighbor; neighbor = null;
+  dropBehind();
+  behind = kitchen; behind.position.x = -N.off;
+  kitchen = N.grp; kitchen.position.x = 0;
+  roomShown = N.room; houseShown = N.house; setArena(N.A);
 }
 function setRoomVisual(k, h = 1) {
-  if (k === roomShown && h === houseShown) return;
+  const dk = !!(S && S.houseMode);
+  if (k === roomShown && h === houseShown && dk === doorsShown) return;
+  doorsShown = dk;
+  if (neighbor && neighbor.key === k + ':' + h) { promoteNeighbor(); return; }
+  dropNeighbor();
   roomShown = k; houseShown = h;
   scene.remove(kitchen);
   kitchen.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
-  kitchen = buildRoom(k, houseLook(h)); scene.add(kitchen);
+  kitchen = buildRoom(k, houseLook(h), doorsFor(k)); scene.add(kitchen);
 }
-const roomSize = () => { const L = S && S.houseMode ? houseLook(S.house) : null; return L ? L.size[S.room || 0] : 1; };
-const arenaFor = n => +(ARENA_BASE * roomSize() * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
+const roomSize = (room = S && S.room || 0) => { const L = S && S.houseMode ? houseLook(S.house) : null; return L ? L.size[room] : 1; };
+const arenaFor = (n, room) => +(ARENA_BASE * roomSize(room) * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
 function growArena(quiet) { const a = arenaFor(S.players.length); if (a > ARENA + 0.01) { applyArena(a); if (!quiet) ev(['ar', S.players.length]); } }
 const nestMesh = buildNest();
 const holeMesh = buildMouseHole();
@@ -782,7 +821,8 @@ function playEvent(e) {
     case 'j': banner(e[1] + ' joined'); break;
     case 'nw': banner('A wasp nest appeared! Follow the arrow'); break;
     case 'rc': banner(e[2] ? 'HOUSE CLEARED!' : e[1] + ' cleared!', true); S.shake = Math.max(S.shake, 0.6); break;
-    case 'rn': if (role === 'client' && CL.me) { CL.me.x = -ARENA + 3; CL.me.z = rand(-2, 2); CL.me.face = Math.PI / 2; } setTimeout(() => banner(ROOMS[e[1]].name + ': ' + ROOM_BUGS[e[1]] + '!', true), 300); break;
+    case 'rs': if (role === 'client') { for (const q of CL.players.values()) { q.x -= e[1]; if (q.tx !== undefined && q.id !== me.id) q.tx = q.x + (q.tx - q.x); } camX -= e[1]; } break;
+    case 'rn': setTimeout(() => banner(ROOMS[e[1]].name + ': ' + ROOM_BUGS[e[1]] + '!', true), 300); break;
     case 'do': banner(e[1] ? 'House cleared! Head out the door' : 'This way to the ' + e[2] + ' →', true); break;
     case 'ds': S.shake = Math.max(S.shake, 0.5); for (let k = 0; k < 14; k++) FX.smoke.spawn({ x: e[1] + rand(-0.4, 0.4), y: rand(0.3, 4), z: e[2] + rand(-1.8, 1.8), vx: rand(0.5, 2.5), vy: rand(0, 1), vz: rand(-1, 1), life: 0.6, s0: 0.5, s1: 1.4, c: [0.75, 0.72, 0.65], a0: 0.4, a1: 0 }); break;
     case 'ct': unlockDay(e[1]); break;
@@ -1438,8 +1478,17 @@ function movePlayer(p, mv, dt) {
   const spd = (PLAYER_SPEED + p.up.shoes * 3.75) * ((p.slow || 0) > 0 ? 0.55 : 1), k = 1 - Math.exp(-dt * 14);
   const m = p.down ? { x: 0, z: 0 } : mv;
   p.vx += (m.x * spd - p.vx) * k; p.vz += (m.z * spd - p.vz) * k;
-  p.x = clamp(p.x + p.vx * dt, -ARENA + 0.8, ARENA - 0.8); p.z = clamp(p.z + p.vz * dt, -ARENA + 0.8, ARENA - 0.8);
+  const T = S && S.trans;
+  if (T && S.door && S.door.exit && S.door.open > 0.6) {   // the doorway is open: you can walk through into the next room
+    const nx = p.x + p.vx * dt, nz = p.z + p.vz * dt;
+    if (canStand(nx, nz, T)) { p.x = nx; p.z = nz; } else if (canStand(nx, p.z, T)) p.x = nx; else if (canStand(p.x, nz, T)) p.z = nz;
+  } else { p.x = clamp(p.x + p.vx * dt, -ARENA + 0.8, ARENA - 0.8); p.z = clamp(p.z + p.vz * dt, -ARENA + 0.8, ARENA - 0.8); }
   if (Math.hypot(p.vx, p.vz) > 1) p.face = Math.atan2(p.vx, p.vz);
+}
+function canStand(x, z, T) {
+  if (x >= -ARENA + 0.8 && x <= ARENA - 0.8 && Math.abs(z) <= ARENA - 0.8) return true;   // this room
+  if (x >= ARENA - 1 && x <= T.off - T.A + 1 && Math.abs(z) <= 1.3) return true;           // the doorway
+  return Math.abs(x - T.off) <= T.A - 0.8 && Math.abs(z) <= T.A - 0.8;                         // the next room
 }
 function step(dt) {
   if (S.cut) { cutTick(dt); return; }
@@ -1449,7 +1498,7 @@ function step(dt) {
     if (p.id === me.id) movePlayer(p, input.move, dt);
     else if (role === 'host' && p.net) {   // remote players report their own position
       const n = p.net;
-      p.x += (n.x - p.x) * Math.min(1, dt * 15); p.z += (n.z - p.z) * Math.min(1, dt * 15);
+      if (!(performance.now() - (S.shiftAt || 0) < 800 && Math.abs(n.x - p.x) > 40)) { p.x += (n.x - p.x) * Math.min(1, dt * 15); p.z += (n.z - p.z) * Math.min(1, dt * 15); }
       p.vx = n.vx; p.vz = n.vz; p.face = n.face;
     }
     p.inv = Math.max(0, p.inv - dt); p.slow = Math.max(0, (p.slow || 0) - dt);
@@ -1491,8 +1540,20 @@ function houseTick(dt) {
   if (!C) { if (S.fade > 0) S.fade = Math.max(0, S.fade - dt * 2); return; }
   C.t += dt;
   for (const p of S.players) p.inv = Math.max(p.inv, 0.3);   // nothing can hurt you between rooms
-  if (C.t >= 2.5 && !S.door) { const d = doorPos(); S.door = { x: d.x, z: d.z, exit: 1, open: 0, t: 0, last: C.last ? 1 : 0 }; ev(['do', C.last ? 1 : 0, C.last ? '' : ROOMS[S.room + 1].name]); }
-  if (C.go < 0 && S.door && S.door.exit && S.door.open > 0.6) {
+  if (C.t >= 2.5 && !S.door) {
+    const d = doorPos(); S.door = { x: d.x, z: d.z, exit: 1, open: 0, t: 0, last: C.last ? 1 : 0 }; ev(['do', C.last ? 1 : 0, C.last ? '' : ROOMS[S.room + 1].name]);
+    if (!C.last) {
+      const nr = S.room + 1, A = arenaFor(S.players.length, nr), off = +(ARENA + 1.2 + wallDepth(S.room) + A + 1.2 + wallDepth(nr)).toFixed(2);
+      S.trans = { room: nr, off, A };
+      buildNeighbor(nr, S.house, A, off);
+    }
+  }
+  if (S.trans && S.door && S.door.open > 0.6) {   // everyone (still standing) has to make it into the next room
+    const T = S.trans, al = alivePlayers(), inN = al.filter(p => p.x > T.off - T.A + 3).length;
+    S.doorWait = [inN, al.length];
+    if (al.length && inN === al.length) { walkedThrough(); return; }
+  }
+  if (C.last && C.go < 0 && S.door && S.door.exit && S.door.open > 0.6) {
     const al = alivePlayers(), d = S.door;
     const inN = al.filter(p => dist2(p.x, p.z, d.x, d.z) < 4.5 * 4.5).length;
     S.doorWait = [inN, al.length];
@@ -1500,7 +1561,7 @@ function houseTick(dt) {
   }
   if (C.go >= 0) {
     C.go += dt; S.fade = Math.min(1, C.go / 0.45);
-    if (C.go >= 0.5 && !C.moved) { C.moved = true; S.doorWait = null; if (C.last) startCut(); else nextRoom(); }
+    if (C.go >= 0.5 && !C.moved) { C.moved = true; S.doorWait = null; startCut(); }
   }
 }
 function doorTick(dt) {
@@ -1522,6 +1583,24 @@ function placeTeam(x, z) {
 function roomTimers() {
   S.roomT0 = S.t; S.nextQueen = S.t + QUEEN_EVERY; S.nextNest = S.t + QUEEN_EVERY / 2; S.ringAt = S.t + 30; S.openWave2 = false; S.warned = false;
   S.nextGold = S.t + rand(55, 85); S.spawnT = 1.5;
+}
+function walkedThrough() {
+  const T = S.trans; S.trans = null; S.doorWait = null;
+  clearRoomStuff();
+  S.room = T.room;
+  roomTimers();
+  for (const p of S.players) {
+    if (p.down) { p.down = false; p.hp = 50; p.x = T.off - T.A + 3; p.z = 0; }   // carried along by the team
+    p.x -= T.off; if (p.net) p.net.x -= T.off; p.rb = null;
+  }
+  promoteNeighbor();
+  camX -= T.off;
+  S.door = { x: -ARENA + 0.5, z: 0, exit: 0, open: 1, t: 0 };
+  S.clear = null; S.fade = 0;
+  for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(mainType(), p.x + 10 + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
+  S.shiftAt = performance.now();
+  ev(['rs', T.off]);
+  ev(['rn', S.room, S.house, 0]);
 }
 function nextRoom() {
   clearRoomStuff();
@@ -1548,6 +1627,7 @@ function cutTick(dt) {
   if (c.t >= CUT_LEN) { S.cut = null; startDay(c.day); S.fade = 1; }
 }
 function startDay(d) {
+  dropNeighbor(); S.trans = null;
   const keep = { players: S.players, kills: S.kills, bossKills: S.bossKills, roomsCleared: S.roomsCleared };
   newWorld();
   Object.assign(S, { houseMode: true, house: d, room: 0, kills: keep.kills, bossKills: keep.bossKills, roomsCleared: keep.roomsCleared });
@@ -1729,8 +1809,11 @@ function applySnapshot(s) {
   CL.hostSeen = now; CL.snapAt = now;
   CL.nestHp = s.N || null;
   CL.house = s.HM || null;
+  S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
+  setRoomVisual(s.HM ? s.HM[1] : 0, s.HM ? s.HM[0] : 1); if (s.A) applyArena(s.A); S.fade = s.HM ? s.HM[2] / 100 : 0;
   S.door = s.DR ? { x: s.DR[0] / 10, z: s.DR[1] / 10, open: s.DR[2] / 100, exit: s.DR[3], last: s.DR[4] } : null; S.doorWait = s.DW || null;
-  if (s.CUT) { if (!S.cut) S.cut = { t: s.CUT[0] / 100, day: s.CUT[1] }; S.cut.tt = s.CUT[0] / 100; S.cut.day = s.CUT[1]; } else S.cut = null; setRoomVisual(s.HM ? s.HM[1] : 0, s.HM ? s.HM[0] : 1); if (s.A) applyArena(s.A); S.fade = s.HM ? s.HM[2] / 100 : 0; S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
+  S.trans = s.TR ? { room: s.TR[0], off: s.TR[1], A: s.TR[2] } : null; if (S.trans) buildNeighbor(S.trans.room, S.house || 1, S.trans.A, S.trans.off);
+  if (s.CUT) { if (!S.cut) S.cut = { t: s.CUT[0] / 100, day: s.CUT[1] }; S.cut.tt = s.CUT[0] / 100; S.cut.day = s.CUT[1]; } else S.cut = null;
   S.t = s.t; S.lvl = s.lv; S.xp = s.xp; S.need = s.nd; S.kills = s.k; S.queens = s.qn;
   // bugs
   const seen = new Set();
@@ -2089,15 +2172,15 @@ function drawBoss(q, t, dt) {
 }
 // ---------------------------------------------------------------- House Mode door + office cutscene
 function drawDoor(t, dt) {
-  const d = S && S.door;
-  if (!d || idle()) { doorMesh.visible = false; return; }
-  const side = d.x > 0 ? 1 : -1;
-  doorMesh.visible = true;
-  doorMesh.position.set(side * (ARENA + 1.2 - 0.3), 0, d.z); doorMesh.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
-  doorMesh.userData.hinge.rotation.y = -d.open * 1.65;
-  if (d.exit && d.open > 0.5) {   // glowing arrows on the floor leading to the way out
+  doorMesh.visible = false;
+  if (behind && !(S && S.door && !S.door.exit && S.door.open > 0)) dropBehind();
+  const d = S && S.door, ds = kitchen.userData.doors || {};
+  const exitOpen = d && d.exit ? d.open : 0, entryOpen = d && !d.exit ? d.open : 0;
+  if (ds.R) ds.R.userData.hinge.rotation.y = -exitOpen * 1.65;
+  if (ds.L) ds.L.userData.hinge.rotation.y = -entryOpen * 1.65;
+  if (neighbor && neighbor.grp.userData.doors && neighbor.grp.userData.doors.L) neighbor.grp.userData.doors.L.userData.hinge.rotation.y = -exitOpen * 1.65;
+  if (d && d.exit && d.open > 0.5 && !idle()) {   // glowing arrows on the floor leading to the doorway
     for (let k = 0; k < 3; k++) { const ph = (t * 1.2 + k / 3) % 1; B.ring.add(d.x - 3 - (1 - ph) * 6, 0.06, d.z, 1.6 + ph, 0, 0.5, 1, 0.4, 0.55 * Math.sin(ph * Math.PI)); }
-    B.glow.add(d.x - 0.5, 3, d.z, 6 + Math.sin(t * 4), 0, 1, 0.85, 0.4, 0.25);
   }
 }
 function setCutUi(on) {
@@ -2378,6 +2461,7 @@ function enterGameUi() {
 }
 function beginRound() {   // solo and host
   newWorld();
+  dropNeighbor();
   S.houseMode = gameMode === 'house';
   if (S.houseMode) { S.house = Math.min(startDayPick, maxDay); updateMinute(); }
   setRoomVisual(0, S.house);
@@ -2440,6 +2524,7 @@ function toTitle() {
 }
 function showBest() { $('best').textContent = best.t > 0 ? `Best: ${fmt(best.t)}  ·  ${best.k.toLocaleString()} bugs` : ''; }
 function demo() {
+  dropNeighbor();
   newWorld();
   setRoomVisual(0);
   applyArena(ARENA_BASE);
@@ -2798,6 +2883,7 @@ function sendSnapshot() {
     HM: S.houseMode ? [S.house, S.room, Math.round(S.fade * 100)] : 0,
     DR: S.door ? [Math.round(S.door.x * 10), Math.round(S.door.z * 10), Math.round(S.door.open * 100), S.door.exit, S.door.last ? 1 : 0] : 0,
     DW: S.doorWait || 0,
+    TR: S.trans ? [S.trans.room, S.trans.off, S.trans.A] : 0,
     CUT: S.cut ? [Math.round(S.cut.t * 100), S.cut.day] : 0,
   };
   net.send('snap', snap);
