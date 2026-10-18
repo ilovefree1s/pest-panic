@@ -828,6 +828,7 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   const skin = std({ color: '#eab48a', roughness: 0.6 });
   const red = std({ color: capHex, roughness: 0.45 });
   const black = std({ color: '#1c1d22', roughness: 0.4 });
+  const handM = std({ color: '#eab48a', roughness: 0.6 }), bootM = std({ color: '#1c1d22', roughness: 0.4 });
   const steel = std({ color: '#c6ccd4', metalness: 0.9, roughness: 0.25 });
   const yellow = std({ color: '#f2c53d', roughness: 0.4 });
   const body = new THREE.Group(); root.add(body);
@@ -835,7 +836,7 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   for (const s of [-1, 1]) {
     const leg = new THREE.Group(); leg.position.set(0.16 * s, 0.72, 0);
     const l = mesh(new THREE.CapsuleGeometry(0.13, 0.42, 4, 10), suitD); l.position.y = -0.33; leg.add(l);
-    const boot = mesh(new THREE.BoxGeometry(0.22, 0.16, 0.36), black); boot.position.set(0, -0.68, 0.06); leg.add(boot);
+    const boot = mesh(new THREE.BoxGeometry(0.22, 0.16, 0.36), bootM); boot.position.set(0, -0.68, 0.06); leg.add(boot);
     body.add(leg); legs.push(leg);
   }
   const torso = mesh(new THREE.CapsuleGeometry(0.31, 0.38, 6, 14), suit); torso.position.y = 1.08; body.add(torso);
@@ -852,7 +853,7 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   for (const s of [-1, 1]) {
     const arm = new THREE.Group(); arm.position.set(0.38 * s, 1.3, 0);
     const a = mesh(new THREE.CapsuleGeometry(0.1, 0.38, 4, 10), suit); a.position.y = -0.27; arm.add(a);
-    const hand = mesh(sph(0.1, 10, 8), skin); hand.position.y = -0.55; arm.add(hand);
+    const hand = mesh(sph(0.1, 10, 8), handM); hand.position.y = -0.55; arm.add(hand);
     body.add(arm); arms.push(arm);
   }
   // spray wand in the right hand
@@ -891,11 +892,19 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   // beekeeper hat with a mesh veil, worn while the Bee Suit nest reward is on
   const veil = new THREE.Group(); veil.visible = false; head.add(veil);
   const white = std({ color: '#cfc9b4', roughness: 0.95, envMapIntensity: 0.2 });
-  const vb = mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.04, 24), white); vb.position.y = 0.2; veil.add(vb);
+  const vb = mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.04, 24), white); vb.position.y = 0.2; veil.add(vb);
   const vc = mesh(new THREE.SphereGeometry(0.32, 18, 10, 0, TAU, 0, Math.PI / 2), white); vc.position.y = 0.2; veil.add(vc);
-  const net = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.42, 0.62, 20, 1, true), new THREE.MeshStandardMaterial({ color: '#1a1a1a', transparent: true, opacity: 0.55, side: THREE.DoubleSide, roughness: 0.9, depthWrite: false }));
-  net.position.y = -0.11; veil.add(net);
-  root.userData = { body, legs, arms, head, tank, candle, tip: tipMark, veil };
+  const net = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.36, 0.5, 20, 1, true), new THREE.MeshStandardMaterial({ color: '#1a1a1a', transparent: true, opacity: 0.55, side: THREE.DoubleSide, roughness: 0.9, depthWrite: false }));
+  net.position.y = -0.05; veil.add(net);
+  // Bee Suit look: white coveralls, yellow gloves and boots, hat and veil
+  const keep = [suit.color.clone(), suitD.color.clone(), handM.color.clone(), bootM.color.clone()];
+  let beeOn = false;
+  const setBee = on => {
+    if (on === beeOn) return; beeOn = on; veil.visible = on;
+    if (on) { suit.color.set('#eeeae0'); suitD.color.set('#d6d1c4'); handM.color.set('#f2c53d'); bootM.color.copy(keep[0]); }
+    else { suit.color.copy(keep[0]); suitD.color.copy(keep[1]); handM.color.copy(keep[2]); bootM.color.copy(keep[3]); }
+  };
+  root.userData = { body, legs, arms, head, tank, candle, tip: tipMark, veil, setBee };
   root.traverse(o => { if (o.isMesh) o.castShadow = true; });
   root.scale.setScalar(1.6);
   return root;

@@ -1844,7 +1844,7 @@ function drawPlayer(p, dt, t) {
   L.body.rotation.z = p.down ? Math.PI / 2 : 0;
   L.body.position.y = p.down ? 0.4 : 0;
   L.body.visible = !idle() && !(p.inv > 0 && !p.down && !(p.suit > 0) && Math.floor(t * 20) % 2);
-  if (u.veil) u.veil.visible = p.suit > 0;
+  if (u.setBee) u.setBee(p.suit > 0);
   if (p.suit > 0) B.ring.add(p.x, 0.07, p.z, 4.2 + Math.sin(t * 6) * 0.3, 0, 1, 0.82, 0.2, p.suit < 3 && Math.floor(t * 6) % 2 ? 0.25 : 0.7);
   if (p.swarm > 0) for (let k = 0; k < 10; k++) {   // little bees buzzing round you
     const a = t * (2.4 + (k % 3) * 0.5) + k * 0.63, rr = 1.6 + Math.sin(t * 3 + k * 1.7) * 0.6 + (k % 2) * 0.5;
