@@ -57,7 +57,12 @@ const ROOM_BOSS = [[[2, 0]], [[0, 0]], [[1, 0]], [[3, 0], [1, 0]]];
 const ROOM_BUGS = ['Ants', 'Roaches', 'Spiders', 'Everything'];
 const STREETS = ['Maple Street', 'Oak Lane', 'Elm Street', 'Cedar Court', 'Birch Road', 'Willow Way', 'Pine Avenue', 'Aspen Drive'];
 const houseName = h => (h * 12 + 3) + ' ' + STREETS[(h - 1) % STREETS.length];
-const houseK = () => S && S.houseMode ? 1 + 0.6 * ((S.house || 1) - 1) : 1;   // each new house is tougher
+const houseK = () => S && S.houseMode ? 1.15 * dayK() : 1;   // House Mode bugs: 15% more health, +25% each new day
+const dayK = () => S && S.houseMode ? 1 + 0.25 * ((S.house || 1) - 1) : 1;
+let startDayPick = 0, maxDay = 1;
+try { maxDay = Math.max(1, +localStorage.getItem('pestpanic-day') || 1); } catch (e) {}
+function unlockDay(d) { if (d > maxDay) { maxDay = d; try { localStorage.setItem('pestpanic-day', String(d)); } catch (e) {} } }
+const CUT_LEN = 12;
 function curPlan(n) {
   if (S && S.houseMode) { const list = ROOM_BOSS[S.room || 0]; return { tier: S.house || 1, list, hpK: list.length > 1 ? 0.7 : 1 }; }
   return bossPlan(n);
@@ -215,6 +220,9 @@ const arenaFor = n => +(ARENA_BASE * roomSize() * (1 + 0.1 * (Math.max(1, Math.m
 function growArena(quiet) { const a = arenaFor(S.players.length); if (a > ARENA + 0.01) { applyArena(a); if (!quiet) ev(['ar', S.players.length]); } }
 const nestMesh = buildNest();
 const holeMesh = buildMouseHole();
+const doorMesh = buildDoor();
+const office = buildOffice();
+let cutGuy = null, cutGuyColor = -1;
 const queenMesh = buildQueen(); queenMesh.visible = false; scene.add(queenMesh);
 const bossMeshes = [queenMesh, buildBugBoss('spider'), buildBugBoss('ant'), buildBugBoss('fly')];
 
@@ -710,6 +718,9 @@ function eventSound(e) {
     case 'gs': SND.play('gold'); break;
     case 'rc': SND.play('bossdie'); break;
     case 'rn': SND.play('join'); break;
+    case 'do': SND.play('pick'); break;
+    case 'ds': SND.play('bomb', e[1], e[2]); break;
+    case 'dy': SND.play('levelup'); break;
     case 'gh': SND.play('escape'); break;
     case 'gk': SND.play('jackpot'); break;
     case 'ge': SND.play('pop'); break;
@@ -771,7 +782,11 @@ function playEvent(e) {
     case 'j': banner(e[1] + ' joined'); break;
     case 'nw': banner('A wasp nest appeared! Follow the arrow'); break;
     case 'rc': banner(e[2] ? 'HOUSE CLEARED!' : e[1] + ' cleared!', true); S.shake = Math.max(S.shake, 0.6); break;
-    case 'rn': setTimeout(() => banner(e[3] ? 'On to ' + houseName(e[2]) + '!' : ROOMS[e[1]].name + ': ' + ROOM_BUGS[e[1]] + '!', true), 300); break;
+    case 'rn': if (role === 'client' && CL.me) { CL.me.x = -ARENA + 3; CL.me.z = rand(-2, 2); CL.me.face = Math.PI / 2; } setTimeout(() => banner(ROOMS[e[1]].name + ': ' + ROOM_BUGS[e[1]] + '!', true), 300); break;
+    case 'do': banner(e[1] ? 'House cleared! Head out the door' : 'This way to the ' + e[2] + ' →', true); break;
+    case 'ds': S.shake = Math.max(S.shake, 0.5); for (let k = 0; k < 14; k++) FX.smoke.spawn({ x: e[1] + rand(-0.4, 0.4), y: rand(0.3, 4), z: e[2] + rand(-1.8, 1.8), vx: rand(0.5, 2.5), vy: rand(0, 1), vz: rand(-1, 1), life: 0.6, s0: 0.5, s1: 1.4, c: [0.75, 0.72, 0.65], a0: 0.4, a1: 0 }); break;
+    case 'ct': unlockDay(e[1]); break;
+    case 'dy': if (role === 'client' && CL.me) { CL.me.x = rand(-1.5, 1.5); CL.me.z = rand(-1.5, 1.5); } unlockDay(e[1]); setTimeout(() => banner('Day ' + e[1] + ': ' + houseName(e[1]) + '. Kitchen, ants!', true), 300); break;
     case 'gs': banner('Golden Bug! Catch it!'); for (let k = 0; k < 20; k++) { const a = k / 20 * TAU; FX.glow.spawn({ x: e[1], y: 0.8, z: e[2], vx: Math.cos(a) * 5, vy: rand(1, 4), vz: Math.sin(a) * 5, life: 0.7, s0: 0.45, s1: 0.1, c: [1.3, 1.05, 0.35], drag: 2 }); } break;
     case 'gh': banner("It's running for its hole!"); break;
     case 'ge': banner('The Golden Bug got away...'); for (let k = 0; k < 10; k++) FX.smoke.spawn({ x: e[1] + rand(-0.6, 0.6), y: 0.5, z: e[2] + rand(-0.6, 0.6), vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(-1, 1), life: 0.6, s0: 0.4, s1: 1.1, c: [0.85, 0.75, 0.4], a0: 0.5, a1: 0 }); break;
@@ -832,7 +847,7 @@ function director(dt) {
   S.spawnT -= dt;
   if (S.spawnT <= 0) {
     const ph = Math.min(14, Math.floor(S.t / 20));
-    S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF / (S.houseMode ? 1 + 0.2 * (S.house - 1) : 1);
+    S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF / (S.houseMode ? 1.1 * (1 + 0.15 * (S.house - 1)) : 1);
     const n = 1 + (ph >= 4 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
     for (let i = 0; i < n; i++) spawnAround(pickType(), spawnRadius() + rand(0, 4));
   }
@@ -974,7 +989,7 @@ function spawnQueen() {
   const a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
   plan.list.forEach(([kind, duo], i) => {
     const ang = a + i * Math.PI;   // a pair comes in from opposite sides
-    const hp = Math.round(1.1 * DIFF * QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (plan.hpK || 1) * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
+    const hp = Math.round(1.1 * DIFF * QUEEN_HP * n * BOSSES[kind].hp * (duo ? 0.6 : 1) * (plan.hpK || 1) * dayK() * (1 + 0.6 * Math.max(0, alivePlayers().length - 1)));
     S.bosses.push({ n, kind, duo, tier, hp, max: hp, x: t.x + Math.cos(ang) * (spawnRadius() + 4), z: t.z + Math.sin(ang) * (spawnRadius() + 4),
       vx: 0, vz: 0, ang: 0, t: i * 0.7, ring: 2 + i, fan: 3 + i, a1: 2 + i * 1.1, a2: 1.5 + i, a3: 6 + i * 3, flash: 0, fcd: 0, icd: 0, walk: 0,
       rate: Math.max(0.4, (48 - 6 * (tier - 1)) / 60), spin: 0, acc: 0, numT: 0, state: 0, st: 0, ddx: 0, ddz: 0, orbitA: ang, spiral: 4 });
@@ -1052,7 +1067,7 @@ function hitBug(b, dmg, kx = 0, kz = 0) {
   if (b.hp <= 0) return;
   b.hp -= dmg; b.flash = 0.09; if (b.t < 4) { b.x += kx; b.z += kz; }
   if (dmg >= 8 || Math.random() < 0.12) ev(['n', b.x, b.z, Math.round(dmg), 0]);
-  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } if (b.t === 5) { goldDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); dropCoin(b.x, b.z, BUG[b.t].xp * (S.kills <= 10 ? 1.3 : 1), b.t === 2); }   // first 10 kills give 30% more XP
+  if (b.hp <= 0) { if (b.t === 4) { nestDown(b); return; } if (b.t === 5) { goldDown(b); return; } S.kills++; ev(['k', b.x, b.z, b.t]); S.dayK = (S.dayK || 0) + 1; dropCoin(b.x, b.z, BUG[b.t].xp * (S.dayK <= 10 ? 1.3 : 1), b.t === 2); }   // first 10 kills (each day) give 30% more XP
 }
 function dropCoin(x, z, v, big) {
   v += S.bank; S.bank = 0;
@@ -1427,6 +1442,7 @@ function movePlayer(p, mv, dt) {
   if (Math.hypot(p.vx, p.vz) > 1) p.face = Math.atan2(p.vx, p.vz);
 }
 function step(dt) {
+  if (S.cut) { cutTick(dt); return; }
   S.t += dt;
   updateMinute();
   for (const p of S.players) {
@@ -1456,35 +1472,95 @@ function step(dt) {
   updateCoins(dt);
   if (S.pendingLevels > 0 && mode === 'play') startLevelRound();
 }
-// room boss down -> "Room cleared!", the leftover bugs scatter, crumbs fly to you, fade out, next room, fade in
+// room boss down -> "Room cleared!", the leftover bugs pop, crumbs fly to you, then a door opens in the right wall.
+// Walk through it (the whole team) and you come out of the left-wall door of the next room, which slams shut behind you.
+// After the basement the door is the way out of the house: the office phone-call cutscene, then the next day.
+const doorPos = () => ({ x: ARENA - 0.5, z: 0 });
 function houseTick(dt) {
   if (S.roomBoss && !S.bosses.length && !S.clear) {
     S.roomBoss = false; S.roomsCleared++;
     const last = S.room === ROOMS.length - 1;
-    S.clear = { t: 0, last };
+    S.clear = { t: 0, last, go: -1 };
     for (const b of S.bugs) if (b.t !== 5) { b.hp = 0; ev(['k', b.x, b.z, b.t]); }
     S.bugs = S.bugs.filter(b => b.hp > 0); S.ebul = []; buildGrid();
     for (const c of S.coins) c.pull = true;
     ev(['rc', ROOMS[S.room].name, last ? 1 : 0]);
   }
-  const C = S.clear; if (!C) return;
+  doorTick(dt);
+  const C = S.clear;
+  if (!C) { if (S.fade > 0) S.fade = Math.max(0, S.fade - dt * 2); return; }
   C.t += dt;
   for (const p of S.players) p.inv = Math.max(p.inv, 0.3);   // nothing can hurt you between rooms
-  S.fade = C.t < 4 ? 0 : C.t < 5 ? C.t - 4 : C.t < 6 ? 1 - (C.t - 5) : 0;
-  if (C.t >= 5 && !C.moved) { C.moved = true; nextRoom(C.last); }
-  if (C.t >= 6) { S.clear = null; S.fade = 0; }
+  if (C.t >= 2.5 && !S.door) { const d = doorPos(); S.door = { x: d.x, z: d.z, exit: 1, open: 0, t: 0, last: C.last ? 1 : 0 }; ev(['do', C.last ? 1 : 0, C.last ? '' : ROOMS[S.room + 1].name]); }
+  if (C.go < 0 && S.door && S.door.exit && S.door.open > 0.6) {
+    const al = alivePlayers(), d = S.door;
+    const inN = al.filter(p => dist2(p.x, p.z, d.x, d.z) < 4.5 * 4.5).length;
+    S.doorWait = [inN, al.length];
+    if (al.length && inN === al.length) { C.go = 0; ev(['dg']); }
+  }
+  if (C.go >= 0) {
+    C.go += dt; S.fade = Math.min(1, C.go / 0.45);
+    if (C.go >= 0.5 && !C.moved) { C.moved = true; S.doorWait = null; if (C.last) startCut(); else nextRoom(); }
+  }
 }
-function nextRoom(newHouse) {
+function doorTick(dt) {
+  const d = S.door; if (!d) return;
+  d.t += dt;
+  if (d.exit) d.open = Math.min(1, d.open + dt * 1.4);
+  else {   // the door you came in through: open for a moment, then SLAM
+    if (d.t > 0.7) { const was = d.open; d.open = Math.max(0, d.open - dt * 6); if (was > 0 && d.open === 0) { ev(['ds', d.x, d.z]); } }
+    if (d.t > 2.5) S.door = null;
+  }
+}
+function clearRoomStuff() {
   for (const c of S.coins) S.xp += c.v;   // anything left on the floor comes with you
   S.coins = []; S.bugs = []; S.shots = []; S.traps = []; S.clouds = []; S.ebul = []; S.decals = []; S.nest = null; S.gold = null; S.goldHole = null;
-  if (newHouse) { S.house++; S.room = 0; S.minute = -1; updateMinute(); } else S.room++;
+}
+function placeTeam(x, z) {
+  S.players.forEach((p, i) => { p.x = x; p.z = z + (i - (S.players.length - 1) / 2) * 1.8; p.vx = p.vz = 0; p.face = Math.PI / 2; if (p.net) { p.net.x = p.x; p.net.z = p.z; } });
+}
+function roomTimers() {
   S.roomT0 = S.t; S.nextQueen = S.t + QUEEN_EVERY; S.nextNest = S.t + QUEEN_EVERY / 2; S.ringAt = S.t + 30; S.openWave2 = false; S.warned = false;
   S.nextGold = S.t + rand(55, 85); S.spawnT = 1.5;
-  for (const p of S.players) { p.x = rand(-2, 2); p.z = rand(-2, 2); p.vx = p.vz = 0; if (p.down) { p.down = false; p.hp = 50; } p.rb = null; }
-  setRoomVisual(S.room, S.house); applyArena(arenaFor(S.players.length));
-  for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(mainType(), p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
-  ev(['rn', S.room, S.house, newHouse ? 1 : 0]);
 }
+function nextRoom() {
+  clearRoomStuff();
+  S.room++;
+  roomTimers();
+  for (const p of S.players) { if (p.down) { p.down = false; p.hp = 50; } p.rb = null; }
+  setRoomVisual(S.room, S.house); applyArena(arenaFor(S.players.length));
+  placeTeam(-ARENA + 3, 0);
+  S.door = { x: -ARENA + 0.5, z: 0, exit: 0, open: 1, t: 0 };
+  S.clear = null;
+  for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(mainType(), p.x + 8 + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
+  ev(['rn', S.room, S.house, 0]);
+}
+// the phone call: everyone is frozen while it plays, then a brand new day starts from level 1
+function startCut() {
+  clearRoomStuff(); S.door = null; S.clear = null;
+  S.cut = { t: 0, day: S.house + 1 };
+  unlockDay(S.house + 1);
+  ev(['ct', S.house + 1]);
+}
+function cutTick(dt) {
+  const c = S.cut; c.t += dt;
+  S.fade = c.t < 0.6 ? 1 - c.t / 0.6 : c.t > CUT_LEN - 0.6 ? Math.min(1, (c.t - (CUT_LEN - 0.6)) / 0.6) : 0;
+  if (c.t >= CUT_LEN) { S.cut = null; startDay(c.day); S.fade = 1; }
+}
+function startDay(d) {
+  const keep = { players: S.players, kills: S.kills, bossKills: S.bossKills, roomsCleared: S.roomsCleared };
+  newWorld();
+  Object.assign(S, { houseMode: true, house: d, room: 0, kills: keep.kills, bossKills: keep.bossKills, roomsCleared: keep.roomsCleared });
+  updateMinute();
+  S.players = keep.players.map(o => { const n = newPlayer(o.id, o.name, o.color); n.net = o.net; n.seen = o.seen; n.joinT = o.joinT; return n; });   // back to exterminator level 1
+  dropLooksGear();
+  setRoomVisual(0, d); applyArena(arenaFor(S.players.length));
+  placeTeam(0, 0); S.players.forEach(p => { p.face = 0; });
+  roomTimers();
+  for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), r = rand(17, 20); spawnBug(0, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r, true); }
+  ev(['dy', d]);
+}
+function dropLooksGear() { for (const L of looks.values()) { if (L.bee) L.bee.visible = false; if (L.roomba) L.roomba.visible = false; } }
 
 // ---------------------------------------------------------------- level-up rounds (team vote, one upgrade for everyone)
 const VOTE_MS = 10000;
@@ -1652,7 +1728,9 @@ function applySnapshot(s) {
   const now = performance.now();
   CL.hostSeen = now; CL.snapAt = now;
   CL.nestHp = s.N || null;
-  CL.house = s.HM || null; setRoomVisual(s.HM ? s.HM[1] : 0, s.HM ? s.HM[0] : 1); if (s.A) applyArena(s.A); S.fade = s.HM ? s.HM[2] / 100 : 0; S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
+  CL.house = s.HM || null;
+  S.door = s.DR ? { x: s.DR[0] / 10, z: s.DR[1] / 10, open: s.DR[2] / 100, exit: s.DR[3], last: s.DR[4] } : null; S.doorWait = s.DW || null;
+  if (s.CUT) { if (!S.cut) S.cut = { t: s.CUT[0] / 100, day: s.CUT[1] }; S.cut.tt = s.CUT[0] / 100; S.cut.day = s.CUT[1]; } else S.cut = null; setRoomVisual(s.HM ? s.HM[1] : 0, s.HM ? s.HM[0] : 1); if (s.A) applyArena(s.A); S.fade = s.HM ? s.HM[2] / 100 : 0; S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
   S.t = s.t; S.lvl = s.lv; S.xp = s.xp; S.need = s.nd; S.kills = s.k; S.queens = s.qn;
   // bugs
   const seen = new Set();
@@ -1740,7 +1818,7 @@ function clientTick(dt) {
   if (CL.me) CL.ebul = CL.ebul.filter(e => dist2(e.x, e.z, CL.me.x, CL.me.z) >= 1.3);
   // our own exterminator moves right away; the host trusts our position
   const p = CL.me;
-  if (p && mode === 'play') {
+  if (p && mode === 'play' && !S.cut) {
     movePlayer(p, input.move, dt);
     p.walk = (p.walk || 0) + dt * Math.hypot(p.vx, p.vz) * 0.9;
   }
@@ -2009,6 +2087,71 @@ function drawBoss(q, t, dt) {
   if (q.state === 2) for (let i = 0; i < 2; i++) FX.smoke.spawn({ x: q.x + rand(-1.5, 1.5), y: 0.4, z: q.z + rand(-1.5, 1.5), life: 0.5, s0: 1.2, s1: 2.4, c: [0.5, 0.45, 0.4], a0: 0.4, a1: 0, drag: 2 });
   B.shadow.add(q.x, 0.02, q.z, D.shadow, q.ang, 0, 0, 0, q.kind === 3 ? 0.3 : 0.5);
 }
+// ---------------------------------------------------------------- House Mode door + office cutscene
+function drawDoor(t, dt) {
+  const d = S && S.door;
+  if (!d || idle()) { doorMesh.visible = false; return; }
+  const side = d.x > 0 ? 1 : -1;
+  doorMesh.visible = true;
+  doorMesh.position.set(side * (ARENA + 1.2 - 0.3), 0, d.z); doorMesh.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+  doorMesh.userData.hinge.rotation.y = -d.open * 1.65;
+  if (d.exit && d.open > 0.5) {   // glowing arrows on the floor leading to the way out
+    for (let k = 0; k < 3; k++) { const ph = (t * 1.2 + k / 3) % 1; B.ring.add(d.x - 3 - (1 - ph) * 6, 0.06, d.z, 1.6 + ph, 0, 0.5, 1, 0.4, 0.55 * Math.sin(ph * Math.PI)); }
+    B.glow.add(d.x - 0.5, 3, d.z, 6 + Math.sin(t * 4), 0, 1, 0.85, 0.4, 0.25);
+  }
+}
+function setCutUi(on) {
+  if (document.body.classList.contains('cut') !== on) document.body.classList.toggle('cut', on);
+  $('cut').hidden = !on;
+}
+const cutA = new THREE.Vector3(), cutB = new THREE.Vector3();
+function cutView(t, dt) {
+  const c = S && S.cut;
+  office.visible = !!c;
+  if (!c) { setCutUi(false); if (cutGuy) cutGuy.visible = false; return; }
+  setCutUi(true);
+  if (role === 'client') { c.t = (c.t || 0) + dt; if (c.tt !== undefined && Math.abs(c.tt - c.t) > 0.35) c.t = c.tt; }
+  const k = c.t, me0 = (role === 'client' ? CL.me : meP()) || { color: 0 };
+  if (!cutGuy || cutGuyColor !== me0.color) { if (cutGuy) office.remove(cutGuy); const col = COLORS[(me0.color || 0) % 4]; cutGuy = buildPlayer(col[0], col[1]); cutGuyColor = me0.color; office.add(cutGuy); }
+  cutGuy.visible = true;
+  const u = cutGuy.userData; cutGuy.position.set(0, 0, 0.1); cutGuy.rotation.y = 0;
+  const pickUp = Math.max(0, Math.min(1, (k - 2.4) / 0.5)), hangUp = Math.max(0, Math.min(1, (k - 9.2) / 0.5)), held = pickUp * (1 - hangUp);
+  u.arms[0].rotation.x = -2.75 * held; u.arms[0].rotation.z = 0.55 * held; u.arms[1].rotation.x = -0.55;
+  u.head.rotation.y = 0.15 * Math.sin(k * 1.3); u.head.rotation.z = -0.15 * held;
+  if (u.candle) u.candle.visible = false;
+  const O = office.userData, ringing = k > 0.6 && k < 2.4;
+  O.phone.rotation.z = ringing ? Math.sin(t * 70) * 0.06 : 0;
+  // handset travels from the phone up to his ear and back
+  cutGuy.updateMatrixWorld(true);
+  const ear = u.arms[0].localToWorld(cutA.set(0, -0.6, 0.05)); O.phone.worldToLocal(ear);   // the handset sits in his raised hand
+  const rest = cutB.set(0, 0.45 + (ringing ? Math.abs(Math.sin(t * 35)) * 0.08 : 0), -0.1);
+  O.handset.position.set(rest.x + (ear.x - rest.x) * held, rest.y + (ear.y - rest.y) * held, rest.z + (ear.z - rest.z) * held);
+  O.handset.rotation.set(0, 0, held * 1.35);
+  // camera: slow push in on the desk
+  const push = Math.min(1, k / CUT_LEN);
+  camera.position.set(OFFICE_X + 1.2 - push * 0.8, 3.6 - push * 0.4, 9 - push * 2.2);
+  camera.lookAt(OFFICE_X + 0.2, 2.1, 0.8);
+  // speech bubbles, the RING and the day card
+  const day = c.day, lines = [
+    [2.9, 4.9, 'me', 'Pest Panic Exterminators, what\'s bugging you?'],
+    [4.9, 7.4, 'call', 'Bugs EVERYWHERE! Ants in the kitchen, roaches in the living room… ' + houseName(day) + '. Please hurry!'],
+    [7.4, 9.2, 'me', 'Say no more. I\'ll be there first thing tomorrow.'],
+  ];
+  const cur = lines.find(l => k >= l[0] && k < l[1]);
+  const meB = $('cutme'), callB = $('cutcall');
+  const want = cur ? cur[2] : '';
+  for (const [el, who] of [[meB, 'me'], [callB, 'call']]) {
+    const on = want === who;
+    if (on && el.textContent !== cur[3]) el.textContent = cur[3];   // keep the old words while it fades out
+    if (el.classList.contains('on') !== on) el.classList.toggle('on', on);
+  }
+  $('cutring').classList.toggle('on', ringing && Math.floor(t * 4) % 2 === 0);
+  const showCard = k > 9.6;
+  $('daycard').classList.toggle('on', showCard);
+  if (showCard && $('dayn').textContent !== 'DAY ' + day) { $('dayn').textContent = 'DAY ' + day; $('daya').textContent = houseName(day); }
+  $('cutskip').hidden = role === 'client';
+}
+function skipCut() { if (S && S.cut && role !== 'client') S.cut.t = Math.max(S.cut.t, CUT_LEN - 0.6); }
 function drawWorld(t, dt) {
   for (const k in B) B[k].begin();
   const players = role === 'client' ? [...CL.players.values()] : (S.players || []);
@@ -2122,6 +2265,26 @@ function drawOverlay(dt) {
       }
     }
   }
+  { // the way to the next room
+    const d = S.door;
+    if (d && d.exit && d.open > 0.5 && !idle() && !S.cut) {
+      const [sx, sy] = project(d.x, 7.6, d.z), W = view.w, H = view.h, mg = 40;
+      const label = d.last ? 'EXIT HOUSE' : 'NEXT ROOM', w = S.doorWait;
+      if (sx > mg && sx < W - mg && sy > mg && sy < H - mg) {
+        fctx.font = '900 15px Nunito, system-ui, sans-serif'; fctx.lineWidth = 4; fctx.strokeStyle = 'rgba(0,0,0,.85)'; fctx.strokeText(label, sx, sy); fctx.fillStyle = '#9dff6a'; fctx.fillText(label, sx, sy);
+        if (w && w[1] > 1) { const tx = `${w[0]}/${w[1]} here`; fctx.font = '800 12px Nunito, system-ui, sans-serif'; fctx.strokeText(tx, sx, sy + 16); fctx.fillStyle = '#fff'; fctx.fillText(tx, sx, sy + 16); }
+      } else {
+        const cx = W / 2, cy = H / 2, dx = sx - cx, dy = sy - cy, sc = Math.min((W / 2 - mg) / Math.abs(dx || 1e-3), (H / 2 - mg) / Math.abs(dy || 1e-3));
+        const ax = cx + dx * sc, ay = cy + dy * sc, an = Math.atan2(dy, dx), pulse = 1 + Math.sin(performance.now() / 140) * 0.15;
+        fctx.save(); fctx.translate(ax, ay); fctx.rotate(an); fctx.scale(pulse * 1.2, pulse * 1.2);
+        fctx.beginPath(); fctx.moveTo(16, 0); fctx.lineTo(-10, -12); fctx.lineTo(-5, 0); fctx.lineTo(-10, 12); fctx.closePath();
+        fctx.fillStyle = '#9dff6a'; fctx.lineWidth = 3; fctx.strokeStyle = '#000'; fctx.stroke(); fctx.fill(); fctx.restore();
+        fctx.font = '800 11px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.85)'; const tx = ax - Math.cos(an) * 30, ty = ay - Math.sin(an) * 30 + 4;
+        const lab2 = w && w[1] > 1 ? label + ' ' + w[0] + '/' + w[1] : label;
+        fctx.strokeText(lab2, tx, ty); fctx.fillStyle = '#9dff6a'; fctx.fillText(lab2, tx, ty);
+      }
+    }
+  }
   { // golden bug: name tag + time-left bar on screen, a gold arrow when it is off screen
     const gb = (role === 'client' ? [...CL.bugs.values()] : S.bugs).find(b => b.t === 5);
     if (gb && !idle()) {
@@ -2189,7 +2352,7 @@ function updateHud(dt) {
   $('queen').querySelectorAll('.bar i').forEach((el, i) => { const q = qs[i]; if (q) el.style.width = Math.max(0, q.hp / q.max * 100).toFixed(1) + '%'; });
   { const f = $('fade'), o = (S.fade || 0).toFixed(2); if (f.style.opacity !== o) f.style.opacity = o; }
   hudT -= dt; if (hudT > 0) return; hudT = 0.1;
-  { const w = $('where'), txt = S.houseMode ? ROOMS[S.room || 0].name.toUpperCase() + ' · HOUSE ' + (S.house || 1) : ''; if (w.textContent !== txt) { w.textContent = txt; w.hidden = !txt; } }
+  { const w = $('where'), txt = S.houseMode ? ROOMS[S.room || 0].name.toUpperCase() + ' · DAY ' + (S.house || 1) : ''; if (w.textContent !== txt) { w.textContent = txt; w.hidden = !txt; } }
   $('lvl').textContent = S.lvl; $('hpt').textContent = Math.max(0, Math.ceil(p.hp));
   $('clock').firstChild.textContent = fmt(S.t); $('kills').textContent = S.kills.toLocaleString();
   const g = UP.filter(u => u.id !== 'aid' && p.up[u.id] > 0).map(u => `<div class="g">${ICON[u.id]}<em>${p.up[u.id]}</em></div>`).join('');
@@ -2216,7 +2379,8 @@ function enterGameUi() {
 function beginRound() {   // solo and host
   newWorld();
   S.houseMode = gameMode === 'house';
-  setRoomVisual(0);
+  if (S.houseMode) { S.house = Math.min(startDayPick, maxDay); updateMinute(); }
+  setRoomVisual(0, S.house);
   applyArena(ARENA_BASE);
   const id = me.id;
   S.players.push(newPlayer(id, me.name || 'You', 0));
@@ -2225,7 +2389,7 @@ function beginRound() {   // solo and host
   // open with a handful of ants already in view at the screen edges, so there's something to squash right away
   for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
   mode = 'play'; lastHp = 100;
-  enterGameUi(); banner(S.houseMode ? houseName(1) + ': Kitchen. Ants!' : "Squash 'em!");
+  enterGameUi(); banner(S.houseMode ? 'Day ' + S.house + ': ' + houseName(S.house) + '. Kitchen, ants!' : "Squash 'em!");
 }
 function addRemote(id, name) {
   if (S.players.some(p => p.id === id) || S.players.length >= 4) return;
@@ -2258,7 +2422,7 @@ function showOver(st) {
   if (newBest) best = { t: st.t, k: st.k };
   try { localStorage.setItem('pestpanic-best', JSON.stringify(best)); } catch (e) {}
   $('overt').textContent = newBest ? 'New best time!' : 'Bugged out!';
-  $('ostats').innerHTML = (st.hm ? `<dt>Made it to</dt><dd>${ROOMS[st.rm || 0].name}, house ${st.hs || 1}</dd><dt>Rooms cleared</dt><dd>${st.rc || 0}</dd>` : '') + `<dt>Survived</dt><dd>${fmt(st.t)}</dd><dt>Bugs squashed</dt><dd>${st.k.toLocaleString()}</dd><dt>Level</dt><dd>${st.lvl}</dd><dt>Bosses</dt><dd>${st.q}</dd><dt>Best time</dt><dd>${fmt(best.t)}</dd>`;
+  $('ostats').innerHTML = (st.hm ? `<dt>Made it to</dt><dd>Day ${st.hs || 1}, ${ROOMS[st.rm || 0].name}</dd><dt>Rooms cleared</dt><dd>${st.rc || 0}</dd>` : '') + `<dt>Survived</dt><dd>${fmt(st.t)}</dd><dt>Bugs squashed</dt><dd>${st.k.toLocaleString()}</dd><dt>Level</dt><dd>${st.lvl}</dd><dt>Bosses</dt><dd>${st.q}</dd><dt>Best time</dt><dd>${fmt(best.t)}</dd>`;
   $('again').hidden = role === 'client'; $('waithost').hidden = role !== 'client';
   setTimeout(() => { if (mode === 'over') screen('over'); }, 900);
 }
@@ -2268,6 +2432,8 @@ function pause(on) {
 }
 function toTitle() {
   if (net) { net.close(); net = null; }
+  $('banner').classList.remove('on'); bannerT = 0; if (S) S.cut = null;
+  startDayPick = maxDay; syncModeUi();
   role = 'solo'; mode = 'title'; roster.clear(); CL.players.clear(); CL.bugs.clear(); CL.queen = null; CL.bosses = [];
   screen('title'); $('hud').hidden = true;
   showBest(); demo();
@@ -2286,8 +2452,16 @@ function status(msg, err) { const s = $('netstatus'); s.textContent = msg; s.cla
 $('startbtn').addEventListener('click', startGame);
 $('lobbyleave').addEventListener('click', toTitle);
 $('play').addEventListener('click', () => { saveName(); role = 'solo'; beginRound(); });
+$('cutskip').addEventListener('click', skipCut);
 function syncModeUi() {
   document.querySelectorAll('.modes .mode').forEach(b => { const on = b.dataset.m === gameMode; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+  startDayPick = Math.min(Math.max(1, startDayPick || maxDay), maxDay);
+  const dz = $('days'); dz.hidden = !(gameMode === 'house' && maxDay > 1);
+  if (!dz.hidden) {
+    const from = Math.max(1, maxDay - 5);
+    dz.innerHTML = 'Start on: ' + Array.from({ length: maxDay - from + 1 }, (_, i) => from + i).map(d => `<button type="button" class="day${d === startDayPick ? ' on' : ''}" data-d="${d}">Day ${d}</button>`).join('');
+    dz.querySelectorAll('.day').forEach(b => b.addEventListener('click', () => { startDayPick = +b.dataset.d; syncModeUi(); }));
+  }
   $('title').querySelector('.sub').textContent = gameMode === 'house'
     ? 'The whole house is infested. Clear the kitchen, living room, garage and basement, one boss at a time.'
     : 'The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 3 minutes.';
@@ -2622,6 +2796,9 @@ function sendSnapshot() {
     N: S.nest ? [Math.round(S.nest.hp), S.nest.max] : 0,
     st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, rk: S.boardRank || 0, bm: S.boardMode || '', hm: S.houseMode ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room } : null,
     HM: S.houseMode ? [S.house, S.room, Math.round(S.fade * 100)] : 0,
+    DR: S.door ? [Math.round(S.door.x * 10), Math.round(S.door.z * 10), Math.round(S.door.open * 100), S.door.exit, S.door.last ? 1 : 0] : 0,
+    DW: S.doorWait || 0,
+    CUT: S.cut ? [Math.round(S.cut.t * 100), S.cut.day] : 0,
   };
   net.send('snap', snap);
 }
@@ -2774,6 +2951,8 @@ function frame(now) {
   camX += (fx0 - camX) * Math.min(1, dt * 8); camZ += (fz0 - camZ) * Math.min(1, dt * 8);
   if (idle()) { const a = now / 9000; camX = Math.sin(a) * 4; camZ = Math.cos(a) * 3; }
   placeCamera(camX, camZ, rand(-1, 1) * sh, rand(-1, 1) * sh, true);
+  drawDoor(now / 1000, dt);
+  cutView(now / 1000, dt);
   drawWorld(now / 1000, fdt);
   render();
   drawOverlay(fdt);
@@ -2799,7 +2978,7 @@ window.PP = {
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
   tipOffset() { const p = meP(), L = looks.get(me.id); if (!L) return null; L.body.updateMatrixWorld(true); const v = L.body.userData.tip.getWorldPosition(new THREE.Vector3()), f = L.body.rotation.y; const dx = v.x - p.x, dz = v.z - p.z; return { forward: +(dx * Math.sin(f) + dz * Math.cos(f)).toFixed(2), right: +(dx * Math.cos(f) - dz * Math.sin(f)).toFixed(2), y: +v.y.toFixed(2) }; },
-  looks: () => looks, arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(false); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  looks: () => looks, arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
 

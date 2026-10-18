@@ -1049,6 +1049,71 @@ export function buildRoomba() {
   return g;
 }
 // magnifying glass: brass rim, clear lens, wooden handle. The lens faces local -y (down at the floor).
+// a doorway in a side wall: frame, dark opening and a door that swings (House Mode room-to-room)
+export function buildDoor() {
+  const g = new THREE.Group();
+  const trim = std({ color: '#e8e2d4', roughness: 0.6 }), W = 3.8, H = 6.6;
+  const dark = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ color: '#07080a' })); dark.position.set(0, H / 2, -0.05); g.add(dark);
+  for (const s of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.35, H + 0.2, 0.5), trim); post.position.set(s * (W / 2 + 0.17), H / 2, 0); post.castShadow = true; g.add(post); }
+  const head = new THREE.Mesh(new THREE.BoxGeometry(W + 0.7, 0.4, 0.5), trim); head.position.set(0, H + 0.2, 0); g.add(head);
+  const hinge = new THREE.Group(); hinge.position.set(-W / 2, 0, 0.05); g.add(hinge);
+  const panelMat = std({ color: '#8a5a32', roughness: 0.65 });
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.22), panelMat); panel.position.set(W / 2, H / 2, 0); panel.castShadow = true; hinge.add(panel);
+  for (const [y, h] of [[1.7, 2.2], [4.7, 2.6]]) { const inset = new THREE.Mesh(new THREE.BoxGeometry(W - 0.9, h, 0.06), std({ color: '#74482a', roughness: 0.7 })); inset.position.set(W / 2, y, 0.13); hinge.add(inset); }
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), std({ color: '#d8b04a', metalness: 0.9, roughness: 0.3 })); knob.position.set(W - 0.45, 3.1, 0.25); hinge.add(knob);
+  g.userData.hinge = hinge; g.visible = false; scene.add(g);
+  return g;
+}
+// the exterminator's office, used for the phone-call cutscene between House Mode days (built far away from the arena)
+export const OFFICE_X = 600;
+export function buildOffice() {
+  const g = new THREE.Group(); g.position.set(OFFICE_X, 0, 0);
+  const C = (h, o = {}) => std({ color: h, roughness: 0.75, envMapIntensity: 0.3, ...o });
+  const box = (w, h, d, m, x, y, z, ry = 0, p = g) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.rotation.y = ry; b.castShadow = b.receiveShadow = true; p.add(b); return b; };
+  const T = roomTex();
+  const ft = T.plank.clone(); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(3, 3); ft.needsUpdate = true;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), std({ map: ft, color: '#b8a088', roughness: 0.6 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; g.add(floor);
+  const wt = (paperCache['#5a6e86'] || (paperCache['#5a6e86'] = wallpaperTex('#5a6e86'))).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(6, 2); wt.needsUpdate = true;
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(40, 14), std({ map: wt, roughness: 0.9 })); wall.position.set(0, 7, -4); wall.receiveShadow = true; g.add(wall);
+  const side = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), std({ map: wt, roughness: 0.9 })); side.rotation.y = Math.PI / 2; side.position.set(-7, 7, 4); g.add(side);
+  // window with the evening sky
+  const [wc, wx] = cnv(256, 160); const sky = wx.createLinearGradient(0, 0, 0, 160); sky.addColorStop(0, '#1b2350'); sky.addColorStop(0.7, '#d86a4a'); sky.addColorStop(1, '#f2b45a'); wx.fillStyle = sky; wx.fillRect(0, 0, 256, 160);
+  wx.fillStyle = '#141826'; for (let i = 0; i < 9; i++) { const h = 20 + ((i * 37) % 50); wx.fillRect(i * 30, 160 - h, 26, h); }
+  wx.fillStyle = '#ffe9a0'; for (let i = 0; i < 26; i++) wx.fillRect((i * 53) % 250, 120 + ((i * 17) % 34), 3, 4);
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 3.5), std({ map: tex(wc), emissive: '#ffffff', emissiveMap: tex(wc), emissiveIntensity: 0.55 })); win.position.set(3.4, 5.4, -3.95); g.add(win);
+  box(5.9, 0.25, 0.3, C('#e8e2d4'), 3.4, 3.55, -3.85); box(5.9, 0.25, 0.3, C('#e8e2d4'), 3.4, 7.25, -3.85); box(0.2, 3.7, 0.2, C('#e8e2d4'), 3.4, 5.4, -3.85);
+  // a company poster and a framed licence
+  const [pc, px] = cnv(256, 340); px.fillStyle = '#1f6a3a'; px.fillRect(0, 0, 256, 340); px.fillStyle = '#ffd23f'; px.font = '900 46px Arial Black,Arial'; px.textAlign = 'center';
+  px.fillText('PEST', 128, 70); px.fillText('PANIC', 128, 122); px.font = '800 22px Arial'; px.fillStyle = '#fff'; px.fillText('EXTERMINATORS', 128, 160);
+  px.fillStyle = '#7a1a10'; px.beginPath(); px.ellipse(128, 245, 46, 62, 0, 0, TAU); px.fill(); px.strokeStyle = '#fff'; px.lineWidth = 12; px.beginPath(); px.arc(128, 245, 86, 0, TAU); px.stroke(); px.beginPath(); px.moveTo(62, 310); px.lineTo(194, 180); px.stroke();
+  const poster = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.2), std({ map: tex(pc), roughness: 0.8 })); poster.position.set(-3.2, 5.6, -3.95); g.add(poster);
+  const [lc, lx] = cnv(256, 190); lx.fillStyle = '#f4ecd8'; lx.fillRect(0, 0, 256, 190); lx.strokeStyle = '#b08a3a'; lx.lineWidth = 8; lx.strokeRect(10, 10, 236, 170); lx.fillStyle = '#3a2a1a'; lx.font = '700 20px Georgia'; lx.textAlign = 'center'; lx.fillText('Licensed', 128, 60); lx.fillText('Exterminator', 128, 88); lx.fillStyle = '#c0392b'; lx.beginPath(); lx.arc(128, 135, 22, 0, TAU); lx.fill();
+  const lic = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), std({ map: tex(lc), roughness: 0.6 })); lic.position.set(-0.6, 6.2, -3.95); g.add(lic); box(1.75, 1.35, 0.06, C('#4a3020'), -0.6, 6.2, -3.99);
+  // desk with lamp, mug, papers and the phone
+  const wood = C('#6a4428'), woodD = C('#4a2e1a');
+  box(6.4, 0.25, 2.6, wood, 0, 1.55, 1.6); box(0.3, 1.45, 2.4, woodD, -3, 0.72, 1.6); box(0.3, 1.45, 2.4, woodD, 3, 0.72, 1.6); box(6, 1.2, 0.15, woodD, 0, 0.9, 2.85);
+  box(1.4, 0.04, 1, C('#f2efe6'), -1.6, 1.7, 1.8, 0.2); box(1.3, 0.04, 0.9, C('#e6e0cc'), -1.4, 1.73, 1.7, -0.15);
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.18, 0.4, 14), C('#c0392b')); mug.position.set(-2.5, 1.88, 2.2); g.add(mug);
+  const lampB = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.1, 14), C('#2a5a3a')); lampB.position.set(2.5, 1.72, 1.2); g.add(lampB);
+  const lampA = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1, 6), C('#2a5a3a')); lampA.position.set(2.5, 2.25, 1.2); lampA.rotation.z = 0.3; g.add(lampA);
+  const lampH = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.45, 14, 1, true), std({ color: '#2a5a3a', emissive: '#ffcf7a', emissiveIntensity: 0.25, side: THREE.DoubleSide })); lampH.position.set(2.3, 2.8, 1.3); lampH.rotation.z = 0.6; g.add(lampH);
+  const phone = new THREE.Group(); phone.position.set(1.2, 1.68, 2.15); g.add(phone);
+  const red = C('#c4302a', { roughness: 0.35 });
+  const pb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.7), red); pb.position.y = 0.17; pb.castShadow = true; phone.add(pb);
+  const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.05, 16), C('#f2efe6')); dial.position.set(0, 0.36, 0.12); phone.add(dial);
+  const handset = new THREE.Group(); handset.position.set(0, 0.45, -0.1); phone.add(handset);
+  const hb = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.8, 4, 10), red); hb.rotation.z = Math.PI / 2; handset.add(hb);
+  for (const s of [-1, 1]) { const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.16, 12), red); cup.position.set(0.45 * s, -0.08, 0); handset.add(cup); }
+  // filing cabinet and a plant
+  box(1.6, 3.2, 1.4, C('#7a8088', { metalness: 0.4, roughness: 0.5 }), -5.6, 1.6, -2.9);
+  for (let i = 0; i < 3; i++) box(0.5, 0.1, 0.05, C('#c8ccd2', { metalness: 0.8 }), -5.6, 0.7 + i * 1, -2.18);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.45, 0.9, 14), C('#b0603a')); pot.position.set(5.6, 0.45, -2.6); g.add(pot);
+  for (let k = 0; k < 7; k++) { const lf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), C('#3f8a3a')); lf.scale.set(1, 1.8, 0.45); lf.position.set(5.6 + Math.cos(k) * 0.5, 1.6 + (k % 3) * 0.35, -2.6 + Math.sin(k) * 0.5); lf.rotation.y = k; g.add(lf); }
+  const bulb = new THREE.PointLight('#ffd9a0', 30, 14, 1.5); bulb.position.set(1, 6, 4); g.add(bulb);
+  g.userData = { phone, handset };
+  g.visible = false; scene.add(g);
+  return g;
+}
 // helper bee (Buddy Bee nest reward): chunky striped bee with flapping wings, faces +z
 export function buildBee() {
   const g = new THREE.Group();
