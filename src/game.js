@@ -2698,7 +2698,8 @@ function boardRows(rows, mine) {
 async function submitRun(st) {
   S.boardRank = 0; S.boardMode = '';
   if (role !== 'solo') return;   // the leaderboard is solo only for now
-  if (st.hm) {   // House Mode: how far you got, then how fast
+  if (st.hm) return;   // House Mode is the campaign: no leaderboard (the endless kitchen keeps it)
+  if (false) {
     const row = { name: (me.name || 'Player').slice(0, 60), mode: 'house', players: 1, seconds: Math.max(30, Math.floor(st.rt)), kills: st.k | 0, level: Math.max(1, st.lvl | 0), bosses: st.q | 0, day: st.hs || 1, room: st.rm || 0, rooms: st.rc || 0 };
     S.boardMode = 'house';
     if ((st.sd || 1) > 1) { overBoard('house', null, null, 'House leaderboard runs start on Day 1.'); return; }
@@ -2735,7 +2736,7 @@ async function overBoard(bmode, rank, mine, note) {
 // title screen: full board with Solo / Team tabs
 let boardTab = 'solo';
 async function openBoard(tab) {
-  boardTab = tab || (gameMode === 'house' ? 'house' : 'solo');
+  boardTab = 'solo';
   const my = boardTab;
   screen('board');
   document.querySelectorAll('#boardtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === my));

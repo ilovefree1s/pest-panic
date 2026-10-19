@@ -282,7 +282,7 @@ body.menu #ver{display:block}
     </div>
     <div id="banner"></div>
     <div id="cut" hidden><div class="bub me" id="cutme"></div><div class="bub call" id="cutcall"></div><div id="cutring">RING! RING!</div><div id="daycard"><b id="dayn">DAY 2</b><span id="daya"></span></div><button class="btn dark" id="cutskip" type="button">Skip ▸</button></div>
-    <div id="ver">v1.44</div>
+    <div id="ver">v1.45</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -321,7 +321,7 @@ body.menu #ver{display:block}
         <p class="qa">Leave this run? <span id="quitwhy">Your progress will be lost.</span></p>
         <div class="qbtns"><button class="btn dark" id="quitno" type="button">Stay</button><button class="btn qyes" id="quityes" type="button">Yes, leave</button></div>
       </div>
-      <p class="hint pver">Pest Panic v1.44</p>
+      <p class="hint pver">Pest Panic v1.45</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -333,7 +333,7 @@ body.menu #ver{display:block}
     </div>
     <div class="screen" id="board" hidden>
       <h2 class="t">Leaderboard</h2>
-      <div class="modes" id="boardtabs"><button type="button" class="mode" data-t="solo">Survival</button><button type="button" class="mode" data-t="house">House</button></div>
+      <div class="modes" id="boardtabs" hidden></div>
       <p class="sub" id="boardsub">Longest solo survival times</p>
       <div class="boardlist" id="boardlist"></div>
       <button class="btn dark" id="boardback" type="button">Back</button>
@@ -4433,7 +4433,8 @@ function boardRows(rows, mine) {
 async function submitRun(st) {
   S.boardRank = 0; S.boardMode = '';
   if (role !== 'solo') return;   // the leaderboard is solo only for now
-  if (st.hm) {   // House Mode: how far you got, then how fast
+  if (st.hm) return;   // House Mode is the campaign: no leaderboard (the endless kitchen keeps it)
+  if (false) {
     const row = { name: (me.name || 'Player').slice(0, 60), mode: 'house', players: 1, seconds: Math.max(30, Math.floor(st.rt)), kills: st.k | 0, level: Math.max(1, st.lvl | 0), bosses: st.q | 0, day: st.hs || 1, room: st.rm || 0, rooms: st.rc || 0 };
     S.boardMode = 'house';
     if ((st.sd || 1) > 1) { overBoard('house', null, null, 'House leaderboard runs start on Day 1.'); return; }
@@ -4470,7 +4471,7 @@ async function overBoard(bmode, rank, mine, note) {
 // title screen: full board with Solo / Team tabs
 let boardTab = 'solo';
 async function openBoard(tab) {
-  boardTab = tab || (gameMode === 'house' ? 'house' : 'solo');
+  boardTab = 'solo';
   const my = boardTab;
   screen('board');
   document.querySelectorAll('#boardtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === my));
