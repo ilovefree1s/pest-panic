@@ -184,6 +184,10 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 .lb .nm{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lb .tm{font-family:var(--display);letter-spacing:.04em;color:#fff}
 .lb .ks,.lb .lv{color:var(--dim);font-size:12px}
+#boardtabs .mode{font-size:16px;padding:6px 10px}
+#boardtabs .mode.on{border-color:#ffd23f;background:rgba(80,62,10,.8);color:#ffe27a}
+.lb li.h{grid-template-columns:30px minmax(0,1fr) auto}
+.lb li.h .ks{grid-column:2 / 4;text-align:left;margin-top:-4px}
 .oboard{display:grid;justify-items:center;gap:8px;width:min(520px,100%)}
 .oboard .rank{margin:0;font-family:var(--display);font-size:22px;color:var(--gold);letter-spacing:.04em}
 .oboard .sub{margin:0}
@@ -192,7 +196,7 @@ h2.t{font-family:var(--display);font-size:clamp(34px,8vw,56px);margin:0;color:va
 .tabs button{border:0;border-radius:999px;padding:8px 22px;font:800 15px var(--body,inherit);color:var(--dim);background:transparent;cursor:pointer;pointer-events:auto}
 .tabs button.on{background:var(--gold);color:#2a1a00}
 #boardbtn{margin-top:4px}
-@media (max-width:480px){.lb li{grid-template-columns:24px minmax(0,1fr) auto auto;gap:8px}.lb .ks{display:none}}
+@media (max-width:480px){.lb li{grid-template-columns:24px minmax(0,1fr) auto auto;gap:8px}.lb li:not(.h) .ks{display:none}.lb li.h{grid-template-columns:24px minmax(0,1fr) auto}}
 @media (max-height:600px){#over{justify-content:flex-start;overflow-y:auto;padding-top:14px;gap:8px}}
 .split2{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .volrow span{min-width:72px;text-align:left}
@@ -321,7 +325,8 @@ body.menu #ver{display:block}
     </div>
     <div class="screen" id="board" hidden>
       <h2 class="t">Leaderboard</h2>
-      <p class="sub">Longest solo survival times</p>
+      <div class="modes" id="boardtabs"><button type="button" class="mode" data-t="solo">Survival</button><button type="button" class="mode" data-t="house">House</button></div>
+      <p class="sub" id="boardsub">Longest solo survival times</p>
       <div class="boardlist" id="boardlist"></div>
       <button class="btn dark" id="boardback" type="button">Back</button>
     </div>

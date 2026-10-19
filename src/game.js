@@ -1492,7 +1492,7 @@ function canStand(x, z, T) {
 }
 function step(dt) {
   if (S.cut) { cutTick(dt); return; }
-  S.t += dt;
+  S.t += dt; S.runT = (S.runT || 0) + dt;   // runT: whole run, across House Mode days
   updateMinute();
   for (const p of S.players) {
     if (p.id === me.id) movePlayer(p, input.move, dt);
@@ -1628,9 +1628,9 @@ function cutTick(dt) {
 }
 function startDay(d) {
   dropNeighbor(); S.trans = null;
-  const keep = { players: S.players, kills: S.kills, bossKills: S.bossKills, roomsCleared: S.roomsCleared };
+  const keep = { players: S.players, kills: S.kills, bossKills: S.bossKills, roomsCleared: S.roomsCleared, runT: S.runT };
   newWorld();
-  Object.assign(S, { houseMode: true, house: d, room: 0, kills: keep.kills, bossKills: keep.bossKills, roomsCleared: keep.roomsCleared });
+  Object.assign(S, { houseMode: true, house: d, room: 0, kills: keep.kills, bossKills: keep.bossKills, roomsCleared: keep.roomsCleared, runT: keep.runT, startDayN: S.startDayN });
   updateMinute();
   S.players = keep.players.map(o => { const n = newPlayer(o.id, o.name, o.color); n.net = o.net; n.seen = o.seen; n.joinT = o.joinT; return n; });   // back to exterminator level 1
   dropLooksGear();
@@ -2467,7 +2467,7 @@ function beginRound() {   // solo and host
   newWorld();
   dropNeighbor();
   S.houseMode = gameMode === 'house';
-  if (S.houseMode) { S.house = Math.min(startDayPick, maxDay); updateMinute(); }
+  if (S.houseMode) { S.house = Math.min(startDayPick || maxDay, maxDay); S.startDayN = S.house; updateMinute(); }
   setRoomVisual(0, S.house);
   applyArena(ARENA_BASE);
   const id = me.id;
@@ -2498,7 +2498,7 @@ function removeRemote(id) {
 }
 function endRound() {
   mode = 'over';
-  const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, hm: S.houseMode ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room };
+  const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, hm: S.houseMode ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room, rt: S.runT || S.t, sd: S.startDayN || 1 };
   showOver(st);
   submitRun(st);
 }
@@ -2653,22 +2653,30 @@ const supaBoard = {
   async submit(row) {
     const sb = await withTimeout(supa());
     const { error } = await withTimeout(sb.from('leaderboard').insert(row)); if (error) throw error;
-    const { count, error: e2 } = await withTimeout(sb.from('leaderboard').select('id', { count: 'exact', head: true }).eq('mode', row.mode).gt('seconds', row.seconds));
+    const q = sb.from('leaderboard').select('id', { count: 'exact', head: true }).eq('mode', row.mode);
+    const { count, error: e2 } = await withTimeout(row.mode === 'house' ? q.or(`rooms.gt.${row.rooms},and(rooms.eq.${row.rooms},seconds.lt.${row.seconds})`) : q.gt('seconds', row.seconds));
     if (e2) throw e2;
     return (count || 0) + 1;
   },
   async top(mode, n) {
     const sb = await withTimeout(supa());
+    if (mode === 'house') {
+      const { data, error } = await withTimeout(sb.from('leaderboard').select('name,seconds,kills,level,bosses,players,created_at,day,room,rooms').eq('mode', 'house').order('rooms', { ascending: false }).order('seconds').order('created_at').limit(n));
+      if (error) throw error;
+      return data || [];
+    }
     const { data, error } = await withTimeout(sb.from('leaderboard').select('name,seconds,kills,level,bosses,players,created_at').eq('mode', mode).order('seconds', { ascending: false }).order('created_at').limit(n));
     if (error) throw error;
     return data || [];
   },
 };
+// House Mode ranks by how far you got (rooms cleared), then by who did it fastest
+const houseBetter = (a, b) => a.rooms > b.rooms || (a.rooms === b.rooms && a.seconds < b.seconds);
 // stand-in kept in this browser, used with #local for testing
 const localBoard = {
   rows() { try { return JSON.parse(localStorage.getItem('pestpanic-localboard') || '[]'); } catch (e) { return []; } },
-  async submit(row) { const r = this.rows(); r.push({ ...row, created_at: new Date().toISOString() }); try { localStorage.setItem('pestpanic-localboard', JSON.stringify(r)); } catch (e) {} return r.filter(o => o.mode === row.mode && o.seconds > row.seconds).length + 1; },
-  async top(mode, n) { return this.rows().filter(o => o.mode === mode).sort((a, b) => b.seconds - a.seconds).slice(0, n); },
+  async submit(row) { const r = this.rows(); r.push({ ...row, created_at: new Date().toISOString() }); try { localStorage.setItem('pestpanic-localboard', JSON.stringify(r)); } catch (e) {} return r.filter(o => o.mode === row.mode && (row.mode === 'house' ? houseBetter(o, row) : o.seconds > row.seconds)).length + 1; },
+  async top(mode, n) { return this.rows().filter(o => o.mode === mode).sort((a, b) => mode === 'house' ? (houseBetter(a, b) ? -1 : houseBetter(b, a) ? 1 : 0) : b.seconds - a.seconds).slice(0, n); },
 };
 const BOARD = () => location.hash === '#local' ? localBoard : supaBoard;
 const MIN_BOARD_SECS = 30;
@@ -2682,13 +2690,23 @@ function boardRows(rows, mine) {
   let marked = false;
   return '<ol class="lb">' + rows.map((r, i) => {
     const me_ = !marked && mine && r.name === mine.name && r.seconds === mine.seconds; if (me_) marked = true;
+    if (r.day) return `<li class="h${me_ ? ' me' : ''}"><span class="rk">${i + 1}</span><span class="nm">${esc(r.name)}</span><span class="tm">Day ${r.day} · ${esc((ROOMS[r.room || 0] || ROOMS[0]).name)}</span><span class="ks">${r.rooms} room${r.rooms === 1 ? '' : 's'} · ${fmt(r.seconds)} · ${(r.kills || 0).toLocaleString()} bugs</span></li>`;
     return `<li class="${me_ ? 'me' : ''}"><span class="rk">${i + 1}</span><span class="nm">${esc(r.name)}</span><span class="tm">${fmt(r.seconds)}</span><span class="ks">${(r.kills || 0).toLocaleString()} bugs</span><span class="lv">LV ${r.level}</span></li>`;
   }).join('') + '</ol>';
 }
 // game over: the host (or solo player) posts the run
 async function submitRun(st) {
   S.boardRank = 0; S.boardMode = '';
-  if (role !== 'solo' || st.hm) return;   // the leaderboard is solo survival only for now
+  if (role !== 'solo') return;   // the leaderboard is solo only for now
+  if (st.hm) {   // House Mode: how far you got, then how fast
+    const row = { name: (me.name || 'Player').slice(0, 60), mode: 'house', players: 1, seconds: Math.max(30, Math.floor(st.rt)), kills: st.k | 0, level: Math.max(1, st.lvl | 0), bosses: st.q | 0, day: st.hs || 1, room: st.rm || 0, rooms: st.rc || 0 };
+    S.boardMode = 'house';
+    if ((st.sd || 1) > 1) { overBoard('house', null, null, 'House leaderboard runs start on Day 1.'); return; }
+    if (!row.rooms) { overBoard('house', null, null, 'Clear at least one room to make the House leaderboard.'); return; }
+    overBoard('house', null, null, 'Saving your run…');
+    try { const rank = await BOARD().submit(row); S.boardRank = rank; overBoard('house', rank, row); } catch (e) { overBoard('house', null, null, boardError(e)); }
+    return;
+  }
   const ps = S.players.slice(0, 4), team = ps.length > 1;
   const row = { name: (team ? ps.map(p => p.name).join(' & ') : (me.name || 'Player')).slice(0, 60), mode: team ? 'team' : 'solo', players: ps.length,
     seconds: Math.floor(st.t), kills: st.k | 0, level: st.lvl | 0, bosses: st.q | 0 };
@@ -2705,9 +2723,9 @@ let overBoardKey = '';
 async function overBoard(bmode, rank, mine, note) {
   const key = [bmode, rank, note].join('|'); if (key === overBoardKey) return; overBoardKey = key;
   const el = $('oboard'); el.hidden = false;
-  const label = bmode === 'team' ? 'Team' : 'Solo';
+  const label = bmode === 'team' ? 'Team' : bmode === 'house' ? 'House' : 'Solo';
   if (note) { el.innerHTML = `<p class="sub">${esc(note)}</p>`; return; }
-  el.innerHTML = `<p class="rank">${rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] + ' ' : ''}#${rank} on the ${label} leaderboard!</p><p class="sub">Loading top times…</p>`;
+  el.innerHTML = `<p class="rank">${rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] + ' ' : ''}#${rank} on the ${label} leaderboard!</p><p class="sub">Loading the top runs…</p>`;
   try {
     const rows = await BOARD().top(bmode, 5);
     if (overBoardKey !== key) return;
@@ -2717,12 +2735,16 @@ async function overBoard(bmode, rank, mine, note) {
 // title screen: full board with Solo / Team tabs
 let boardTab = 'solo';
 async function openBoard(tab) {
-  boardTab = 'solo';
+  boardTab = tab || (gameMode === 'house' ? 'house' : 'solo');
+  const my = boardTab;
   screen('board');
+  document.querySelectorAll('#boardtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === my));
+  $('boardsub').textContent = my === 'house' ? 'Furthest House Mode runs (rooms cleared, then fastest)' : 'Longest solo survival times';
   $('boardlist').innerHTML = '<p class="sub">Loading…</p>';
-  try { const rows = await BOARD().top(boardTab, 25); if (boardTab === tab || !tab) $('boardlist').innerHTML = boardRows(rows, null); }
-  catch (e) { $('boardlist').innerHTML = `<p class="sub">${esc(boardError(e))}</p>`; }
+  try { const rows = await BOARD().top(my, 25); if (boardTab === my) $('boardlist').innerHTML = boardRows(rows, null); }
+  catch (e) { if (boardTab === my) $('boardlist').innerHTML = `<p class="sub">${esc(boardError(e))}</p>`; }
 }
+document.querySelectorAll('#boardtabs button').forEach(b => b.addEventListener('click', () => openBoard(b.dataset.t)));
 function closeBoard() { screen('title'); }
 
 async function supaNet(code, meta) {
