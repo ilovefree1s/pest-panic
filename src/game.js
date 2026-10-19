@@ -1807,7 +1807,7 @@ const CL = { bugs: new Map(), players: new Map(), queen: null, bosses: [], coins
 function applySnapshot(s) {
   const now = performance.now();
   CL.hostSeen = now; CL.snapAt = now;
-  CL.nestHp = s.N || null;
+  CL.nestHp = s.N || null; CL.goldHp = s.G || null;
   CL.house = s.HM || null;
   S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
   setRoomVisual(s.HM ? s.HM[1] : 0, s.HM ? s.HM[0] : 1); if (s.A) applyArena(s.A); S.fade = s.HM ? s.HM[2] / 100 : 0;
@@ -2375,6 +2375,8 @@ function drawOverlay(dt) {
     if (gb && !idle()) {
       const [sx, sy] = project(gb.x, 2.6, gb.z), W = view.w, H = view.h, mg = 34;
       if (sx > mg && sx < W - mg && sy > mg && sy < H - mg) {
+        const gh = role === 'client' ? CL.goldHp : [gb.hp, gb.max];
+        if (gh && gh[1]) { const w = 64, f = Math.max(0, Math.min(1, gh[0] / gh[1])); fctx.fillStyle = 'rgba(0,0,0,.75)'; fctx.fillRect(sx - w / 2 - 2, sy + 4, w + 4, 9); fctx.fillStyle = '#ffd84a'; fctx.fillRect(sx - w / 2, sy + 6, w * f, 5); }
         fctx.font = '800 12px Nunito, system-ui, sans-serif'; fctx.lineWidth = 3; fctx.strokeStyle = 'rgba(0,0,0,.8)'; fctx.strokeText('GOLDEN BUG', sx, sy); fctx.fillStyle = '#ffd84a'; fctx.fillText('GOLDEN BUG', sx, sy);
       } else {
         const cx = W / 2, cy = H / 2, dx = sx - cx, dy = sy - cy, sc = Math.min((W / 2 - mg) / Math.abs(dx || 1e-3), (H / 2 - mg) / Math.abs(dy || 1e-3));
@@ -2881,6 +2883,7 @@ function sendSnapshot() {
     ev: S.ev.splice(0, S.ev.length).slice(-120).map(e => e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)),
     R: S.round ? { n: S.round.n, free: S.round.free, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
     N: S.nest ? [Math.round(S.nest.hp), S.nest.max] : 0,
+    G: S.gold ? [Math.max(0, Math.round(S.gold.hp)), S.gold.max] : 0,
     st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, rk: S.boardRank || 0, bm: S.boardMode || '', hm: S.houseMode ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room } : null,
     HM: S.houseMode ? [S.house, S.room, Math.round(S.fade * 100)] : 0,
     DR: S.door ? [Math.round(S.door.x * 10), Math.round(S.door.z * 10), Math.round(S.door.open * 100), S.door.exit, S.door.last ? 1 : 0] : 0,
