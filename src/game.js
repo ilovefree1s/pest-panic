@@ -57,14 +57,15 @@ const ROOM_BOSS = [[[2, 0]], [[0, 0]], [[1, 0]], [[3, 0], [1, 0]]];
 const ROOM_BUGS = ['Ants', 'Roaches', 'Spiders', 'Everything'];
 const STREETS = ['Maple Street', 'Oak Lane', 'Elm Street', 'Cedar Court', 'Birch Road', 'Willow Way', 'Pine Avenue', 'Aspen Drive'];
 const houseName = h => (h * 12 + 3) + ' ' + STREETS[(h - 1) % STREETS.length];
-const houseK = () => S && S.houseMode ? 1.15 * dayK() : 1;   // House Mode bugs: 15% more health, +25% each new day
+const houseK = () => S && S.houseMode && !S.endless ? 1.15 * dayK() : 1;   // House Mode bugs: 15% more health, +25% each new day
 const dayK = () => S && S.houseMode ? 1 + 0.25 * ((S.house || 1) - 1) : 1;
 let startDayPick = 0, maxDay = 1;
 try { maxDay = Math.max(1, +localStorage.getItem('pestpanic-day') || 1); } catch (e) {}
 function unlockDay(d) { if (d > maxDay) { maxDay = d; try { localStorage.setItem('pestpanic-day', String(d)); } catch (e) {} } }
 const CUT_LEN = 12;
+const endlessBasement = () => S && S.endless && S.room === ROOMS.length - 1;
 function curPlan(n) {
-  if (S && S.houseMode) { const list = ROOM_BOSS[S.room || 0]; return { tier: S.house || 1, list, hpK: list.length > 1 ? 0.7 : 1 }; }
+  if (S && S.houseMode && !endlessBasement()) { const list = ROOM_BOSS[S.room || 0]; return { tier: S.house || 1, list, hpK: list.length > 1 ? 0.7 : 1 }; }
   return bossPlan(n);
 }
 const planText = n => { const pl = curPlan(n); return pl.list.map(([k, d]) => bossTitle(k, d, pl.tier)).join(' & '); };
@@ -887,7 +888,7 @@ function director(dt) {
   S.spawnT -= dt;
   if (S.spawnT <= 0) {
     const ph = Math.min(14, Math.floor(S.t / 20));
-    S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF / (S.houseMode ? 1.1 * (1 + 0.15 * (S.house - 1)) : 1);
+    S.spawnT = RATE[ph] * (S.queen ? 2 : 1) / DIFF / (S.houseMode && !S.endless ? 1.1 * (1 + 0.15 * (S.house - 1)) : 1);
     const n = 1 + (ph >= 4 ? 1 : 0) + (S.minute >= 10 ? 1 : 0) + (S.minute >= 15 ? 1 : 0) + Math.max(0, alivePlayers().length - 1);
     for (let i = 0; i < n; i++) spawnAround(pickType(), spawnRadius() + rand(0, 4));
   }
@@ -1023,9 +1024,10 @@ function nestDown(b) {
 function spawnQueen() {
   // the boss chases off any wasp nest still standing
   if (S.nest) { S.bugs = S.bugs.filter(b => b.t !== 4); S.nest = null; }
-  S.queens++; S.nextQueen = S.houseMode ? Infinity : S.nextQueen + QUEEN_EVERY; S.warned = false;
+  const roomFight = S.houseMode && !endlessBasement();
+  S.queens++; S.nextQueen = roomFight ? Infinity : S.t + QUEEN_EVERY; S.warned = false;
   const n = S.queens, plan = curPlan(n), tier = plan.tier;
-  if (S.houseMode) S.roomBoss = true;
+  if (roomFight) S.roomBoss = true;
   const a = Math.random() * TAU, t = alivePlayers()[0] || S.players[0];
   plan.list.forEach(([kind, duo], i) => {
     const ang = a + i * Math.PI;   // a pair comes in from opposite sides
@@ -1809,7 +1811,7 @@ function applySnapshot(s) {
   CL.hostSeen = now; CL.snapAt = now;
   CL.nestHp = s.N || null; CL.goldHp = s.G || null;
   CL.house = s.HM || null;
-  S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; }
+  S.houseMode = !!s.HM; if (s.HM) { S.house = s.HM[0]; S.room = s.HM[1]; S.endless = !!s.HM[3]; }
   setRoomVisual(s.HM ? s.HM[1] : 0, s.HM ? s.HM[0] : 1); if (s.A) applyArena(s.A); S.fade = s.HM ? s.HM[2] / 100 : 0;
   S.door = s.DR ? { x: s.DR[0] / 10, z: s.DR[1] / 10, open: s.DR[2] / 100, exit: s.DR[3], last: s.DR[4] } : null; S.doorWait = s.DW || null;
   S.trans = s.TR ? { room: s.TR[0], off: s.TR[1], A: s.TR[2] } : null; if (S.trans) buildNeighbor(S.trans.room, S.house || 1, S.trans.A, S.trans.off);
@@ -2439,7 +2441,7 @@ function updateHud(dt) {
   $('queen').querySelectorAll('.bar i').forEach((el, i) => { const q = qs[i]; if (q) el.style.width = Math.max(0, q.hp / q.max * 100).toFixed(1) + '%'; });
   { const f = $('fade'), o = (S.fade || 0).toFixed(2); if (f.style.opacity !== o) f.style.opacity = o; }
   hudT -= dt; if (hudT > 0) return; hudT = 0.1;
-  { const w = $('where'), txt = S.houseMode ? ROOMS[S.room || 0].name.toUpperCase() + ' · DAY ' + (S.house || 1) : ''; if (w.textContent !== txt) { w.textContent = txt; w.hidden = !txt; } }
+  { const w = $('where'), txt = S.houseMode ? ROOMS[S.room || 0].name.toUpperCase() + (S.endless ? (endlessBasement() ? ' · ENDLESS' : '') : ' · DAY ' + (S.house || 1)) : ''; if (w.textContent !== txt) { w.textContent = txt; w.hidden = !txt; } }
   $('lvl').textContent = S.lvl; $('hpt').textContent = Math.max(0, Math.ceil(p.hp));
   $('clock').firstChild.textContent = fmt(S.t); $('kills').textContent = S.kills.toLocaleString();
   const g = UP.filter(u => u.id !== 'aid' && p.up[u.id] > 0).map(u => `<div class="g">${ICON[u.id]}<em>${p.up[u.id]}</em></div>`).join('');
@@ -2466,8 +2468,8 @@ function enterGameUi() {
 function beginRound() {   // solo and host
   newWorld();
   dropNeighbor();
-  S.houseMode = gameMode === 'house';
-  if (S.houseMode) { S.house = Math.min(startDayPick || maxDay, maxDay); S.startDayN = S.house; updateMinute(); }
+  S.houseMode = true; S.endless = gameMode !== 'house';   // Survival is one house that never ends; Campaign is day after day
+  if (!S.endless) { S.house = Math.min(startDayPick || maxDay, maxDay); S.startDayN = S.house; updateMinute(); }
   setRoomVisual(0, S.house);
   applyArena(ARENA_BASE);
   const id = me.id;
@@ -2477,7 +2479,7 @@ function beginRound() {   // solo and host
   // open with a handful of ants already in view at the screen edges, so there's something to squash right away
   for (const p of S.players) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + rand(-0.4, 0.4), d = rand(17, 20); spawnBug(0, p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, true); }
   mode = 'play'; lastHp = 100;
-  enterGameUi(); banner(S.houseMode ? 'Day ' + S.house + ': ' + houseName(S.house) + '. Kitchen, ants!' : "Squash 'em!");
+  enterGameUi(); banner(S.endless ? 'Kitchen: ants! Fight your way to the basement' : 'Day ' + S.house + ': ' + houseName(S.house) + '. Kitchen, ants!');
 }
 function addRemote(id, name) {
   if (S.players.some(p => p.id === id) || S.players.length >= 4) return;
@@ -2498,7 +2500,7 @@ function removeRemote(id) {
 }
 function endRound() {
   mode = 'over';
-  const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, hm: S.houseMode ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room, rt: S.runT || S.t, sd: S.startDayN || 1 };
+  const st = { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, hm: S.houseMode && !S.endless ? 1 : 0, en: S.endless ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room, rt: S.runT || S.t, sd: S.startDayN || 1 };
   showOver(st);
   submitRun(st);
 }
@@ -2510,7 +2512,7 @@ function showOver(st) {
   if (newBest) best = { t: st.t, k: st.k };
   try { localStorage.setItem('pestpanic-best', JSON.stringify(best)); } catch (e) {}
   $('overt').textContent = newBest ? 'New best time!' : 'Bugged out!';
-  $('ostats').innerHTML = (st.hm ? `<dt>Made it to</dt><dd>Day ${st.hs || 1}, ${ROOMS[st.rm || 0].name}</dd><dt>Rooms cleared</dt><dd>${st.rc || 0}</dd>` : '') + `<dt>Survived</dt><dd>${fmt(st.t)}</dd><dt>Bugs squashed</dt><dd>${st.k.toLocaleString()}</dd><dt>Level</dt><dd>${st.lvl}</dd><dt>Bosses</dt><dd>${st.q}</dd><dt>Best time</dt><dd>${fmt(best.t)}</dd>`;
+  $('ostats').innerHTML = (st.hm ? `<dt>Made it to</dt><dd>Day ${st.hs || 1}, ${ROOMS[st.rm || 0].name}</dd><dt>Rooms cleared</dt><dd>${st.rc || 0}</dd>` : st.en ? `<dt>Made it to</dt><dd>${ROOMS[st.rm || 0].name}</dd>` : '') + `<dt>Survived</dt><dd>${fmt(st.t)}</dd><dt>Bugs squashed</dt><dd>${st.k.toLocaleString()}</dd><dt>Level</dt><dd>${st.lvl}</dd><dt>Bosses</dt><dd>${st.q}</dd><dt>Best time</dt><dd>${fmt(best.t)}</dd>`;
   $('again').hidden = role === 'client'; $('waithost').hidden = role !== 'client';
   setTimeout(() => { if (mode === 'over') screen('over'); }, 900);
 }
@@ -2552,8 +2554,8 @@ function syncModeUi() {
     dz.querySelectorAll('.day').forEach(b => b.addEventListener('click', () => { startDayPick = +b.dataset.d; syncModeUi(); }));
   }
   $('title').querySelector('.sub').textContent = gameMode === 'house'
-    ? 'The whole house is infested. Clear the kitchen, living room, garage and basement, one boss at a time.'
-    : 'The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 3 minutes.';
+    ? 'Campaign: a new house every day. Clear the kitchen, living room, garage and basement, one boss at a time.'
+    : 'Survival: fight room by room down to the basement, then hold out against endless waves and bosses.';
 }
 document.querySelectorAll('.modes .mode').forEach(b => b.addEventListener('click', () => { gameMode = b.dataset.m; try { localStorage.setItem('pestpanic-mode', gameMode); } catch (e) {} syncModeUi(); }));
 syncModeUi();
@@ -2873,7 +2875,7 @@ function enterLobby() {
 function renderLobby(L) {
   $('lobbylist').innerHTML = L.map(([id, name, c, h]) => `<li><i style="background:${CSS_COL[c % 4]}"></i>${esc(name)}${id === me.id ? ' <em>(you)</em>' : ''}${h ? ' <small>HOST</small>' : ''}</li>`).join('') +
     (L.length < 4 ? '<li class="empty">Waiting for players…</li>' : '');
-  $('lobbycount').textContent = L.length + ' / 4 players' + (role === 'host' ? (gameMode === 'house' ? ' · House mode' : ' · Survival mode') : '');
+  $('lobbycount').textContent = L.length + ' / 4 players' + (role === 'host' ? (gameMode === 'house' ? ' · Campaign' : ' · Survival') : '');
   if (role === 'host') $('startbtn').textContent = L.length > 1 ? 'Start game' : 'Start alone';
 }
 function startGame() {
@@ -2907,8 +2909,8 @@ function sendSnapshot() {
     R: S.round ? { n: S.round.n, free: S.round.free, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
     N: S.nest ? [Math.round(S.nest.hp), S.nest.max] : 0,
     G: S.gold ? [Math.max(0, Math.round(S.gold.hp)), S.gold.max] : 0,
-    st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, rk: S.boardRank || 0, bm: S.boardMode || '', hm: S.houseMode ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room } : null,
-    HM: S.houseMode ? [S.house, S.room, Math.round(S.fade * 100)] : 0,
+    st: mode === 'over' ? { t: S.t, k: S.kills, lvl: S.lvl, q: S.bossKills, rk: S.boardRank || 0, bm: S.boardMode || '', hm: S.houseMode && !S.endless ? 1 : 0, en: S.endless ? 1 : 0, rc: S.roomsCleared, hs: S.house, rm: S.room } : null,
+    HM: S.houseMode ? [S.house, S.room, Math.round(S.fade * 100), S.endless ? 1 : 0] : 0,
     DR: S.door ? [Math.round(S.door.x * 10), Math.round(S.door.z * 10), Math.round(S.door.open * 100), S.door.exit, S.door.last ? 1 : 0] : 0,
     DW: S.doorWait || 0,
     TR: S.trans ? [S.trans.room, S.trans.off, S.trans.A] : 0,

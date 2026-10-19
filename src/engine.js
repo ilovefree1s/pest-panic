@@ -418,6 +418,7 @@ export function buildKitchen(look = null, doors = null) {
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   g.add(floor);
+  if (doors) { const under = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), floor.material); under.rotation.x = -Math.PI / 2; under.position.y = -0.08; g.add(under); }   // floor beyond the walls (sits under the room next door)
   // rugs
   const rug = new THREE.Mesh(new THREE.CircleGeometry(7, 64), std({ map: TEX.rug, roughness: 0.95, envMapIntensity: 0.2 }));
   rug.rotation.x = -Math.PI / 2; rug.position.set(look ? look.rug[0] : -18, 0.03, look ? look.rug[1] : 12); rug.receiveShadow = true; g.add(rug);
@@ -606,6 +607,7 @@ export function buildRoom(kind = 0, look = null, doors = null) {
   const ft = (kind === 1 ? T.plank : kind === 2 ? T.conc : T.concD).clone(); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(240 / (kind === 1 ? 14 : 22), 240 / (kind === 1 ? 14 : 22)); ft.needsUpdate = true;
   const floor = new THREE.Mesh(doors ? floorGeo(2 * (E + D)) : new THREE.PlaneGeometry(240, 240), std({ map: ft, color: K ? (kind === 1 ? K.floor : K.conc) : kind === 1 ? '#d8c8b4' : '#ffffff', roughness: kind === 1 ? 0.5 : 0.85, envMapIntensity: kind === 1 ? 0.5 : 0.25 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; g.add(floor);
+  if (doors) { const under = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), floor.material); under.rotation.x = -Math.PI / 2; under.position.y = -0.08; g.add(under); }
   const flat = (w, h, mat, x, z, rot = 0, y = 0.03) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.rotation.x = -Math.PI / 2; m.rotation.z = rot; m.position.set(x, y, z); m.receiveShadow = true; g.add(m); return m; };
   const box = (parent, w, h, d, mat, x, y, z, ry = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
   const cyl = (parent, r0, r1, h, mat, x, y, z, seg = 18) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, seg), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
