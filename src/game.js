@@ -2455,7 +2455,7 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.toggle('long', text.length > 20); b.classList.add('on'); bannerT = 2.2; }
 
 // ---------------------------------------------------------------- modes and screens
-const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board'];
+const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board', 'setup'];
 const idle = () => mode === 'title' || mode === 'lobby';
 function screen(id) { SCREENS.forEach(s => $(s).hidden = s !== id); }
 function enterGameUi() {
@@ -2518,7 +2518,7 @@ function showOver(st) {
 }
 function pause(on) {
   if (on && (mode === 'play' || mode === 'level')) { askQuit(false); screen('paused'); if (role === 'solo' && mode === 'play') mode = 'pause'; }
-  else if (!on) { $('paused').hidden = true; if (mode === 'pause') mode = 'play'; }
+  else if (!on) { $('paused').hidden = true; $('setup').hidden = true; rebinding = null; if (mode === 'pause') mode = 'play'; }
 }
 function toTitle() {
   if (net) { net.close(); net = null; }
@@ -2607,14 +2607,43 @@ $('dpause').addEventListener('click', () => { if ($('paused').hidden) pause(true
 $('dbtn').addEventListener('click', () => confirmAction());
 $('abil').addEventListener('click', e => { e.preventDefault(); useMyBackpack(); });
 $('abil').addEventListener('pointerdown', e => e.stopPropagation());
+// ---------------------------------------------------------------- controls & layout (saved per device)
+const LAY_DEF = { stick: 'L', spray: 'mid', map: 'deck', kAbil: 'e', kPause: 'p' };
+let LAY = { ...LAY_DEF };
+try { Object.assign(LAY, JSON.parse(localStorage.getItem('pestpanic-layout') || '{}')); } catch (e) {}
+const saveLay = () => { try { localStorage.setItem('pestpanic-layout', JSON.stringify(LAY)); } catch (e) {} };
+const keyName = k => k === ' ' ? 'SPACE' : k.length === 1 ? k.toUpperCase() : k.replace(/^arrow/, '').toUpperCase();
+let placeDeck = () => {};
+function applyLayout() {
+  document.body.classList.toggle('touch', IS_TOUCH);
+  $('deck').classList.toggle('rev', LAY.stick === 'R');
+  $('deck').classList.toggle('edge', LAY.spray === 'edge');
+  mm.classList.toggle('off', LAY.map === 'off');
+  placeDeck();
+  document.querySelectorAll('#setup .seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', LAY[g.dataset.k] === b.dataset.v || (g.dataset.k === 'map' && !IS_TOUCH && b.dataset.v === 'screen' && LAY.map === 'deck'))));
+  document.querySelectorAll('#setup .keybtn').forEach(b => { if (!b.classList.contains('wait')) b.textContent = keyName(LAY[b.dataset.k]); });
+}
+let setupFrom = 'title', rebinding = null;
+function openSetup(from) { setupFrom = from; rebinding = null; screen('setup'); applyLayout(); }
+function closeSetup() { rebinding = null; screen(setupFrom); if (setupFrom === 'paused') askQuit(false); }
+document.querySelectorAll('#setup .seg button').forEach(b => b.addEventListener('click', () => { LAY[b.parentNode.dataset.k] = b.dataset.v; saveLay(); applyLayout(); SND.play('tick'); }));
+document.querySelectorAll('#setup .keybtn').forEach(b => b.addEventListener('click', () => { rebinding = b.dataset.k; b.classList.add('wait'); b.textContent = 'Press a key…'; }));
+$('setbtn').addEventListener('click', () => openSetup('title'));
+$('setbtn2').addEventListener('click', () => openSetup('paused'));
+$('setdone').addEventListener('click', closeSetup);
+$('setreset').addEventListener('click', () => { LAY = { ...LAY_DEF }; saveLay(); applyLayout(); });
 // phones held upright: the map sits in the control deck (where GO was) instead of covering the play area
 {
   const q = matchMedia('(pointer:coarse) and (orientation:portrait)'), home = mm.parentNode, homeNext = mm.nextSibling;
   const place = () => {
-    if (q.matches) { $('dbtn').before(mm); $('dbtn').hidden = true; mm.classList.add('indeck'); $('stick').after($('abil')); $('abil').classList.add('indeck'); }
+    if (q.matches) {
+      if (LAY.map === 'deck') { $('dbtn').before(mm); mm.classList.add('indeck'); } else { home.insertBefore(mm, homeNext); mm.classList.remove('indeck'); }
+      $('dbtn').hidden = true; $('stick').after($('abil')); $('abil').classList.add('indeck');
+    }
     else { home.insertBefore(mm, homeNext); $('dbtn').hidden = false; mm.classList.remove('indeck'); $('hud').append($('abil')); $('abil').classList.remove('indeck'); }
   };
-  (q.addEventListener ? q.addEventListener('change', place) : q.addListener(place)); place();
+  placeDeck = place;
+  (q.addEventListener ? q.addEventListener('change', place) : q.addListener(place)); applyLayout();
 }
 // switching to another app or tab: silence everything, and pause a solo run
 document.addEventListener('visibilitychange', () => {
@@ -2930,12 +2959,19 @@ const input = { move: { x: 0, z: 0 }, keys: new Set(), stick: { x: 0, z: 0 }, pa
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
+  if (rebinding) {   // Controls screen: waiting for the new key
+    e.preventDefault();
+    if (k !== 'escape' && !['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'enter', 'm'].includes(k)) { LAY[rebinding] = k; saveLay(); }
+    const b = document.querySelector(`#setup .keybtn[data-k="${rebinding}"]`); if (b) b.classList.remove('wait');
+    rebinding = null; applyLayout(); return;
+  }
   input.keys.add(k);
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   if (mode === 'level') { if (['arrowleft', 'arrowup', 'a', 'w'].includes(k)) moveSel(-1); if (['arrowright', 'arrowdown', 'd', 's'].includes(k)) moveSel(1); }
   if (k === 'enter' || k === ' ') confirmAction();
-  if (k === 'escape' || k === 'p') pause($('paused').hidden);
-  if (k === 'e' && mode === 'play') useMyBackpack();
+  if (!$('setup').hidden) { if (k === 'escape') closeSetup(); return; }
+  if (k === 'escape' || k === LAY.kPause) pause($('paused').hidden);
+  if (k === LAY.kAbil && k !== ' ' && mode === 'play') useMyBackpack();
   if (k === 'm') { SND.unlock(); SND.toggle(); syncSoundUi(); }
 });
 addEventListener('keyup', e => input.keys.delete(e.key.toLowerCase()));
@@ -3041,10 +3077,10 @@ function frame(now) {
   { const menu = idle() || mode === 'over' || mode === 'join'; if (document.body.classList.contains('menu') !== menu) document.body.classList.toggle('menu', menu); }
   { // backpack button: cooldown ring and label
     const mp2 = role === 'client' ? CL.me : meP(), cd = mp2 ? Math.max(0, mp2.bpCd || 0) : 0, ab = $('abil'), ready = cd <= 0 && mp2 && !mp2.down;
-    const key = (ready ? 'r' : Math.ceil(cd)) + (padState.seen ? 'p' : '');
-    if (ab.dataset.k !== key) { ab.dataset.k = key; ab.classList.toggle('ready', !!ready); $('abilt').textContent = ready ? (IS_TOUCH ? 'TAP' : padState.seen ? 'X / R1' : 'SPACE') : Math.ceil(cd) + 's'; }
+    const key = (ready ? 'r' : Math.ceil(cd)) + (padState.seen ? 'p' : '') + LAY.kAbil;
+    if (ab.dataset.k !== key) { ab.dataset.k = key; ab.classList.toggle('ready', !!ready); $('abilt').textContent = ready ? (IS_TOUCH ? 'TAP' : padState.seen ? 'X / R1' : keyName(LAY.kAbil)) : Math.ceil(cd) + 's'; }
     ab.style.setProperty('--p', (1 - cd / BP_CD).toFixed(3));
-    const hideAb = !$('paused').hidden || mode === 'level'; if ((ab.style.visibility === 'hidden') !== hideAb) ab.style.visibility = hideAb ? 'hidden' : '';
+    const hideAb = !$('paused').hidden || !$('setup').hidden || mode === 'level'; if ((ab.style.visibility === 'hidden') !== hideAb) ab.style.visibility = hideAb ? 'hidden' : '';
   }
   if (mm.classList.contains('indeck')) mm.style.visibility = $('hud').hidden ? 'hidden' : '';
   {

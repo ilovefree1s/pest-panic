@@ -43,6 +43,23 @@ body.cut #hud,body.cut #deck,body.cut #abil,body.cut #minimap,body.cut #banner{v
 #daycard b{font-family:var(--display);font-size:clamp(54px,14vw,110px);color:#ffd23f;text-shadow:0 6px 0 #6a4a00;letter-spacing:.04em}
 #daycard span{font-weight:800;font-size:clamp(16px,3.4vw,24px);color:#fff}
 #cutskip{position:absolute;right:16px;bottom:16px;pointer-events:auto;font-size:15px;padding:8px 18px}
+.setlist{display:grid;gap:12px;width:min(460px,100%)}
+.setgrp{display:grid;gap:8px;padding:12px 14px;border-radius:14px;background:rgba(16,21,26,.85);box-shadow:inset 0 0 0 1px var(--line)}
+.setgrp > b{font-family:var(--display);letter-spacing:.04em;color:var(--gold);font-weight:400}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:14px}
+.setrow em{font-style:normal;color:var(--dim);font-size:13px}
+.seg{display:flex;gap:4px;pointer-events:auto}
+.seg button,.keybtn{pointer-events:auto;cursor:pointer;font:800 13px var(--body);color:var(--text);background:#232c34;border:2px solid #36414b;border-radius:10px;padding:6px 10px}
+.seg button.on{border-color:#ffd23f;background:rgba(80,62,10,.85);color:#ffe27a}
+.keybtn{min-width:72px;font-family:var(--display);font-size:15px;letter-spacing:.04em}
+.keybtn.wait{border-color:#7fd8ff;color:#7fd8ff}
+.setgrp .hint{margin:0}
+#setup .qbtns{display:flex;gap:12px;justify-content:center}
+body:not(.touch) .touchonly,body.touch .keysonly{display:none}
+#deck.rev{flex-direction:row-reverse}
+#deck #abil.indeck{order:1}#deck #stick{order:0}#deck .deckside{order:2}
+#deck.edge #abil.indeck{order:3}
+#minimap.off{display:none!important}
 #fade{position:absolute;inset:0;pointer-events:none;opacity:0;background:#000;z-index:5}
 .modes{display:flex;gap:8px;justify-content:center;width:100%}
 .modes .mode{flex:1;max-width:190px;pointer-events:auto;cursor:pointer;font-family:var(--display);font-size:18px;letter-spacing:.04em;color:var(--text);background:rgba(20,26,30,.75);border:2px solid #3a444c;border-radius:14px;padding:8px 10px 7px;line-height:1.1}
@@ -282,7 +299,7 @@ body.menu #ver{display:block}
     </div>
     <div id="banner"></div>
     <div id="cut" hidden><div class="bub me" id="cutme"></div><div class="bub call" id="cutcall"></div><div id="cutring">RING! RING!</div><div id="daycard"><b id="dayn">DAY 2</b><span id="daya"></span></div><button class="btn dark" id="cutskip" type="button">Skip ▸</button></div>
-    <div id="ver">v1.46</div>
+    <div id="ver">v1.47</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -298,7 +315,7 @@ body.menu #ver{display:block}
           <div class="joinrow"><input id="code" maxlength="5" placeholder="CODE" autocomplete="off" aria-label="Room code"><button class="btn alt" id="joinbtn" type="button">Join</button></div>
         </div>
         <p class="status" id="netstatus"></p>
-        <div class="split2"><button class="btn dark" id="boardbtn" type="button">🏆 Leaderboard</button><button class="btn dark" id="sndbtn" type="button">🔊 Sound FX on</button><button class="btn dark" id="musbtn" type="button">🎵 Music on</button></div>
+        <div class="split2"><button class="btn dark" id="boardbtn" type="button">🏆 Leaderboard</button><button class="btn dark" id="sndbtn" type="button">🔊 Sound FX on</button><button class="btn dark" id="musbtn" type="button">🎵 Music on</button><button class="btn dark" id="setbtn" type="button">🎮 Controls</button></div>
       </div>
       <p class="tapsnd" id="tapsnd" hidden>🔇 Click anywhere for music</p>
       <p class="best" id="best"></p>
@@ -315,13 +332,14 @@ body.menu #ver{display:block}
       <p class="hint" id="pausenote" hidden>The game keeps running for your team while this menu is open.</p>
       <div class="volrow"><span>Sound FX</span><input type="range" id="vol" min="0" max="100" step="5" aria-label="Sound FX volume"><b id="volv"></b><button class="btn dark" id="mutebtn" type="button">Mute</button></div>
       <div class="volrow"><span>Music</span><input type="range" id="mvol" min="0" max="100" step="5" aria-label="Music volume"><b id="mvolv"></b><button class="btn dark" id="mmutebtn" type="button">Turn off</button></div>
+      <button class="btn dark" id="setbtn2" type="button">🎮 Controls &amp; layout</button>
       <button class="btn" id="resume" type="button">Resume</button>
       <button class="btn dark" id="quit" type="button">Leave game</button>
       <div id="quitask" hidden>
         <p class="qa">Leave this run? <span id="quitwhy">Your progress will be lost.</span></p>
         <div class="qbtns"><button class="btn dark" id="quitno" type="button">Stay</button><button class="btn qyes" id="quityes" type="button">Yes, leave</button></div>
       </div>
-      <p class="hint pver">Pest Panic v1.46</p>
+      <p class="hint pver">Pest Panic v1.47</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -330,6 +348,24 @@ body.menu #ver{display:block}
       <button class="btn" id="again" type="button">Play again</button>
       <p class="hint" id="waithost" hidden>Waiting for the host to start the next round…</p>
       <button class="btn dark" id="leave2" type="button">Leave</button>
+    </div>
+    <div class="screen" id="setup" hidden>
+      <h2 class="t">Controls &amp; layout</h2>
+      <div class="setlist">
+        <div class="setgrp touchonly"><b>Phone screen</b>
+          <div class="setrow"><span>Joystick</span><div class="seg" data-k="stick"><button type="button" data-v="L">Left</button><button type="button" data-v="R">Right</button></div></div>
+          <div class="setrow"><span>Sprayer button</span><div class="seg" data-k="spray"><button type="button" data-v="mid">Middle</button><button type="button" data-v="edge">Far side</button></div></div>
+          <div class="setrow"><span>Map</span><div class="seg" data-k="map"><button type="button" data-v="deck">Bottom bar</button><button type="button" data-v="screen">On screen</button><button type="button" data-v="off">Off</button></div></div>
+        </div>
+        <div class="setgrp keysonly"><b>Keyboard</b>
+          <div class="setrow"><span>Move</span><em>WASD or arrow keys</em></div>
+          <div class="setrow"><span>Backpack sprayer</span><button type="button" class="keybtn" data-k="kAbil"></button></div>
+          <div class="setrow"><span>Pause</span><button type="button" class="keybtn" data-k="kPause"></button></div>
+          <div class="setrow"><span>Map</span><div class="seg" data-k="map"><button type="button" data-v="screen">On</button><button type="button" data-v="off">Off</button></div></div>
+          <p class="hint">Space also fires the sprayer and Esc always pauses.</p>
+        </div>
+      </div>
+      <div class="qbtns"><button class="btn dark" id="setreset" type="button">Reset</button><button class="btn" id="setdone" type="button">Done</button></div>
     </div>
     <div class="screen" id="board" hidden>
       <h2 class="t">Leaderboard</h2>
@@ -4192,7 +4228,7 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.toggle('long', text.length > 20); b.classList.add('on'); bannerT = 2.2; }
 
 // ---------------------------------------------------------------- modes and screens
-const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board'];
+const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board', 'setup'];
 const idle = () => mode === 'title' || mode === 'lobby';
 function screen(id) { SCREENS.forEach(s => $(s).hidden = s !== id); }
 function enterGameUi() {
@@ -4255,7 +4291,7 @@ function showOver(st) {
 }
 function pause(on) {
   if (on && (mode === 'play' || mode === 'level')) { askQuit(false); screen('paused'); if (role === 'solo' && mode === 'play') mode = 'pause'; }
-  else if (!on) { $('paused').hidden = true; if (mode === 'pause') mode = 'play'; }
+  else if (!on) { $('paused').hidden = true; $('setup').hidden = true; rebinding = null; if (mode === 'pause') mode = 'play'; }
 }
 function toTitle() {
   if (net) { net.close(); net = null; }
@@ -4344,14 +4380,43 @@ $('dpause').addEventListener('click', () => { if ($('paused').hidden) pause(true
 $('dbtn').addEventListener('click', () => confirmAction());
 $('abil').addEventListener('click', e => { e.preventDefault(); useMyBackpack(); });
 $('abil').addEventListener('pointerdown', e => e.stopPropagation());
+// ---------------------------------------------------------------- controls & layout (saved per device)
+const LAY_DEF = { stick: 'L', spray: 'mid', map: 'deck', kAbil: 'e', kPause: 'p' };
+let LAY = { ...LAY_DEF };
+try { Object.assign(LAY, JSON.parse(localStorage.getItem('pestpanic-layout') || '{}')); } catch (e) {}
+const saveLay = () => { try { localStorage.setItem('pestpanic-layout', JSON.stringify(LAY)); } catch (e) {} };
+const keyName = k => k === ' ' ? 'SPACE' : k.length === 1 ? k.toUpperCase() : k.replace(/^arrow/, '').toUpperCase();
+let placeDeck = () => {};
+function applyLayout() {
+  document.body.classList.toggle('touch', IS_TOUCH);
+  $('deck').classList.toggle('rev', LAY.stick === 'R');
+  $('deck').classList.toggle('edge', LAY.spray === 'edge');
+  mm.classList.toggle('off', LAY.map === 'off');
+  placeDeck();
+  document.querySelectorAll('#setup .seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', LAY[g.dataset.k] === b.dataset.v || (g.dataset.k === 'map' && !IS_TOUCH && b.dataset.v === 'screen' && LAY.map === 'deck'))));
+  document.querySelectorAll('#setup .keybtn').forEach(b => { if (!b.classList.contains('wait')) b.textContent = keyName(LAY[b.dataset.k]); });
+}
+let setupFrom = 'title', rebinding = null;
+function openSetup(from) { setupFrom = from; rebinding = null; screen('setup'); applyLayout(); }
+function closeSetup() { rebinding = null; screen(setupFrom); if (setupFrom === 'paused') askQuit(false); }
+document.querySelectorAll('#setup .seg button').forEach(b => b.addEventListener('click', () => { LAY[b.parentNode.dataset.k] = b.dataset.v; saveLay(); applyLayout(); SND.play('tick'); }));
+document.querySelectorAll('#setup .keybtn').forEach(b => b.addEventListener('click', () => { rebinding = b.dataset.k; b.classList.add('wait'); b.textContent = 'Press a key…'; }));
+$('setbtn').addEventListener('click', () => openSetup('title'));
+$('setbtn2').addEventListener('click', () => openSetup('paused'));
+$('setdone').addEventListener('click', closeSetup);
+$('setreset').addEventListener('click', () => { LAY = { ...LAY_DEF }; saveLay(); applyLayout(); });
 // phones held upright: the map sits in the control deck (where GO was) instead of covering the play area
 {
   const q = matchMedia('(pointer:coarse) and (orientation:portrait)'), home = mm.parentNode, homeNext = mm.nextSibling;
   const place = () => {
-    if (q.matches) { $('dbtn').before(mm); $('dbtn').hidden = true; mm.classList.add('indeck'); $('stick').after($('abil')); $('abil').classList.add('indeck'); }
+    if (q.matches) {
+      if (LAY.map === 'deck') { $('dbtn').before(mm); mm.classList.add('indeck'); } else { home.insertBefore(mm, homeNext); mm.classList.remove('indeck'); }
+      $('dbtn').hidden = true; $('stick').after($('abil')); $('abil').classList.add('indeck');
+    }
     else { home.insertBefore(mm, homeNext); $('dbtn').hidden = false; mm.classList.remove('indeck'); $('hud').append($('abil')); $('abil').classList.remove('indeck'); }
   };
-  (q.addEventListener ? q.addEventListener('change', place) : q.addListener(place)); place();
+  placeDeck = place;
+  (q.addEventListener ? q.addEventListener('change', place) : q.addListener(place)); applyLayout();
 }
 // switching to another app or tab: silence everything, and pause a solo run
 document.addEventListener('visibilitychange', () => {
@@ -4667,12 +4732,19 @@ const input = { move: { x: 0, z: 0 }, keys: new Set(), stick: { x: 0, z: 0 }, pa
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
+  if (rebinding) {   // Controls screen: waiting for the new key
+    e.preventDefault();
+    if (k !== 'escape' && !['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'enter', 'm'].includes(k)) { LAY[rebinding] = k; saveLay(); }
+    const b = document.querySelector(`#setup .keybtn[data-k="${rebinding}"]`); if (b) b.classList.remove('wait');
+    rebinding = null; applyLayout(); return;
+  }
   input.keys.add(k);
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   if (mode === 'level') { if (['arrowleft', 'arrowup', 'a', 'w'].includes(k)) moveSel(-1); if (['arrowright', 'arrowdown', 'd', 's'].includes(k)) moveSel(1); }
   if (k === 'enter' || k === ' ') confirmAction();
-  if (k === 'escape' || k === 'p') pause($('paused').hidden);
-  if (k === 'e' && mode === 'play') useMyBackpack();
+  if (!$('setup').hidden) { if (k === 'escape') closeSetup(); return; }
+  if (k === 'escape' || k === LAY.kPause) pause($('paused').hidden);
+  if (k === LAY.kAbil && k !== ' ' && mode === 'play') useMyBackpack();
   if (k === 'm') { SND.unlock(); SND.toggle(); syncSoundUi(); }
 });
 addEventListener('keyup', e => input.keys.delete(e.key.toLowerCase()));
@@ -4778,10 +4850,10 @@ function frame(now) {
   { const menu = idle() || mode === 'over' || mode === 'join'; if (document.body.classList.contains('menu') !== menu) document.body.classList.toggle('menu', menu); }
   { // backpack button: cooldown ring and label
     const mp2 = role === 'client' ? CL.me : meP(), cd = mp2 ? Math.max(0, mp2.bpCd || 0) : 0, ab = $('abil'), ready = cd <= 0 && mp2 && !mp2.down;
-    const key = (ready ? 'r' : Math.ceil(cd)) + (padState.seen ? 'p' : '');
-    if (ab.dataset.k !== key) { ab.dataset.k = key; ab.classList.toggle('ready', !!ready); $('abilt').textContent = ready ? (IS_TOUCH ? 'TAP' : padState.seen ? 'X / R1' : 'SPACE') : Math.ceil(cd) + 's'; }
+    const key = (ready ? 'r' : Math.ceil(cd)) + (padState.seen ? 'p' : '') + LAY.kAbil;
+    if (ab.dataset.k !== key) { ab.dataset.k = key; ab.classList.toggle('ready', !!ready); $('abilt').textContent = ready ? (IS_TOUCH ? 'TAP' : padState.seen ? 'X / R1' : keyName(LAY.kAbil)) : Math.ceil(cd) + 's'; }
     ab.style.setProperty('--p', (1 - cd / BP_CD).toFixed(3));
-    const hideAb = !$('paused').hidden || mode === 'level'; if ((ab.style.visibility === 'hidden') !== hideAb) ab.style.visibility = hideAb ? 'hidden' : '';
+    const hideAb = !$('paused').hidden || !$('setup').hidden || mode === 'level'; if ((ab.style.visibility === 'hidden') !== hideAb) ab.style.visibility = hideAb ? 'hidden' : '';
   }
   if (mm.classList.contains('indeck')) mm.style.visibility = $('hud').hidden ? 'hidden' : '';
   {
