@@ -52,6 +52,23 @@ body:not(.touch) .touchonly,body.touch .keysonly{display:none}
 #deck #abil.indeck{order:1}#deck #stick{order:0}#deck .deckside{order:2}
 #deck.edge #abil.indeck{order:3}
 #minimap.off{display:none!important}
+.setlist #editlay{font-size:14px;padding:8px 14px;justify-self:center}
+#setup.custom .presetonly{display:none}
+#setup:not(.custom) #editlay{display:none}
+#deck.custom{display:block}
+#deck.custom .deckside{display:contents}
+#deck.custom > *:not(#deckgrip),#deck.custom .deckside > *{position:absolute!important;transform:translate(-50%,-50%)!important;margin:0!important}
+#deckgrip{display:none;position:absolute;left:0;right:0;top:-14px;height:28px;z-index:3;cursor:ns-resize;touch-action:none}
+#deckgrip i{position:absolute;left:50%;top:9px;width:64px;height:8px;margin-left:-32px;border-radius:4px;background:#ffd23f;box-shadow:0 0 0 3px rgba(0,0,0,.5)}
+html body.editlay #deck{display:flex!important;outline:2px dashed rgba(255,210,63,.6);outline-offset:-2px}
+html body.editlay #deck.custom{display:block!important}
+body.editlay #deckgrip{display:block}
+body.editlay #deck #stick,body.editlay #deck #abil,body.editlay #deck #minimap,body.editlay #deck #dpause{outline:2px dashed #7fd8ff;outline-offset:4px;visibility:visible!important}
+body.editlay #deck .drag{outline-color:#ffd23f}
+#layedit{position:absolute;left:12px;right:12px;top:14px;z-index:20;display:grid;gap:6px;justify-items:center;text-align:center;padding:14px;border-radius:16px;background:rgba(12,16,20,.92);box-shadow:0 0 0 1px var(--line),0 10px 30px rgba(0,0,0,.5);font-weight:800}
+#layedit b{font-family:var(--display);font-weight:400;font-size:20px;color:var(--gold);letter-spacing:.03em}
+#layedit span{font-size:13px;color:var(--dim)}
+#layedit .qbtns{display:flex;gap:12px;margin-top:6px}
 #fade{position:absolute;inset:0;pointer-events:none;opacity:0;background:#000;z-index:5}
 .modes{display:flex;gap:8px;justify-content:center;width:100%}
 .modes .mode{flex:1;max-width:190px;pointer-events:auto;cursor:pointer;font-family:var(--display);font-size:18px;letter-spacing:.04em;color:var(--text);background:rgba(20,26,30,.75);border:2px solid #3a444c;border-radius:14px;padding:8px 10px 7px;line-height:1.1}
@@ -345,8 +362,10 @@ body.menu #ver{display:block}
       <h2 class="t">Controls &amp; layout</h2>
       <div class="setlist">
         <div class="setgrp touchonly"><b>Phone screen</b>
-          <div class="setrow"><span>Joystick</span><div class="seg" data-k="stick"><button type="button" data-v="L">Left</button><button type="button" data-v="R">Right</button></div></div>
-          <div class="setrow"><span>Sprayer button</span><div class="seg" data-k="spray"><button type="button" data-v="mid">Middle</button><button type="button" data-v="edge">Far side</button></div></div>
+          <div class="setrow"><span>Layout</span><div class="seg" data-k="lay"><button type="button" data-v="preset">Preset</button><button type="button" data-v="custom">Custom</button></div></div>
+          <button type="button" class="btn dark" id="editlay">✋ Drag buttons around…</button>
+          <div class="setrow presetonly"><span>Joystick</span><div class="seg" data-k="stick"><button type="button" data-v="L">Left</button><button type="button" data-v="R">Right</button></div></div>
+          <div class="setrow presetonly"><span>Sprayer button</span><div class="seg" data-k="spray"><button type="button" data-v="mid">Middle</button><button type="button" data-v="edge">Far side</button></div></div>
           <div class="setrow"><span>Map</span><div class="seg" data-k="map"><button type="button" data-v="deck">Bottom bar</button><button type="button" data-v="screen">On screen</button><button type="button" data-v="off">Off</button></div></div>
         </div>
         <div class="setgrp keysonly"><b>Keyboard</b>
@@ -382,7 +401,8 @@ body.menu #ver{display:block}
       <button class="btn" id="netok" type="button">Back to title</button>
     </div>
   </div>
-  <div id="deck">
+  <div id="layedit" hidden><b>Drag the buttons where you want them.</b><span>Drag the top edge of the bar up or down to resize it.</span><div class="qbtns"><button class="btn dark" id="layreset" type="button">Reset</button><button class="btn" id="laydone" type="button">Done</button></div></div>
+  <div id="deck"><div id="deckgrip"><i></i></div>
     <div id="stick"><div id="knob"></div></div>
     <div class="deckside">
       <button class="deckbtn" id="dbtn" type="button">GO</button>

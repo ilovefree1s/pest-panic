@@ -2608,7 +2608,7 @@ $('dbtn').addEventListener('click', () => confirmAction());
 $('abil').addEventListener('click', e => { e.preventDefault(); useMyBackpack(); });
 $('abil').addEventListener('pointerdown', e => e.stopPropagation());
 // ---------------------------------------------------------------- controls & layout (saved per device)
-const LAY_DEF = { stick: 'L', spray: 'mid', map: 'deck', kAbil: 'e', kPause: 'p' };
+const LAY_DEF = { stick: 'L', spray: 'mid', map: 'deck', kAbil: 'e', kPause: 'p', lay: 'preset', pos: null, h: 0 };
 let LAY = { ...LAY_DEF };
 try { Object.assign(LAY, JSON.parse(localStorage.getItem('pestpanic-layout') || '{}')); } catch (e) {}
 const saveLay = () => { try { localStorage.setItem('pestpanic-layout', JSON.stringify(LAY)); } catch (e) {} };
@@ -2620,18 +2620,74 @@ function applyLayout() {
   $('deck').classList.toggle('edge', LAY.spray === 'edge');
   mm.classList.toggle('off', LAY.map === 'off');
   placeDeck();
+  applyCustom();
+  $('setup').classList.toggle('custom', LAY.lay === 'custom');
   document.querySelectorAll('#setup .seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', LAY[g.dataset.k] === b.dataset.v || (g.dataset.k === 'map' && !IS_TOUCH && b.dataset.v === 'screen' && LAY.map === 'deck'))));
   document.querySelectorAll('#setup .keybtn').forEach(b => { if (!b.classList.contains('wait')) b.textContent = keyName(LAY[b.dataset.k]); });
 }
 let setupFrom = 'title', rebinding = null;
 function openSetup(from) { setupFrom = from; rebinding = null; screen('setup'); applyLayout(); }
 function closeSetup() { rebinding = null; screen(setupFrom); if (setupFrom === 'paused') askQuit(false); }
-document.querySelectorAll('#setup .seg button').forEach(b => b.addEventListener('click', () => { LAY[b.parentNode.dataset.k] = b.dataset.v; saveLay(); applyLayout(); SND.play('tick'); }));
+document.querySelectorAll('#setup .seg button').forEach(b => b.addEventListener('click', () => { LAY[b.parentNode.dataset.k] = b.dataset.v; if (b.parentNode.dataset.k === 'lay' && b.dataset.v === 'custom' && !LAY.pos) { startLayEdit(); return; } saveLay(); applyLayout(); SND.play('tick'); }));
 document.querySelectorAll('#setup .keybtn').forEach(b => b.addEventListener('click', () => { rebinding = b.dataset.k; b.classList.add('wait'); b.textContent = 'Press a key…'; }));
 $('setbtn').addEventListener('click', () => openSetup('title'));
 $('setbtn2').addEventListener('click', () => openSetup('paused'));
 $('setdone').addEventListener('click', closeSetup);
 $('setreset').addEventListener('click', () => { LAY = { ...LAY_DEF }; saveLay(); applyLayout(); });
+// ---- custom layout: drag the stick, sprayer, map and pause anywhere on the bar, and drag the bar's top edge to resize it
+const DRAG_IDS = ['stick', 'abil', 'minimap', 'dpause'];
+const deckEl = () => $('deck');
+function measurePos() {   // where everything sits right now, as fractions of the bar
+  const d = deckEl().getBoundingClientRect(), pos = {};
+  for (const id of DRAG_IDS) { const r = $(id).getBoundingClientRect(); if (!r.width) continue; pos[id] = [+((r.left + r.width / 2 - d.left) / d.width).toFixed(3), +((r.top + r.height / 2 - d.top) / d.height).toFixed(3)]; }
+  return pos;
+}
+function applyCustom() {
+  const on = LAY.lay === 'custom' && LAY.pos, dk = deckEl();
+  dk.classList.toggle('custom', !!on);
+  dk.style.height = LAY.lay === 'custom' && LAY.h ? LAY.h + 'px' : '';
+  for (const id of DRAG_IDS) {
+    const el = $(id), inDeck = dk.contains(el), p = on && inDeck && LAY.pos[id];
+    el.style.left = p ? (p[0] * 100) + '%' : ''; el.style.top = p ? (p[1] * 100) + '%' : '';
+  }
+}
+let layEditing = false, layBack = 'title', drag = null;
+function startLayEdit() {
+  layBack = setupFrom; layEditing = true;
+  if (LAY.lay !== 'custom' || !LAY.pos) { LAY.lay = 'custom'; LAY.pos = null; applyLayout(); document.body.classList.add('editlay'); deckEl().classList.remove('custom'); requestAnimationFrame(() => { LAY.pos = measurePos(); applyCustom(); }); }
+  document.body.classList.add('editlay');
+  screen(null); $('layedit').hidden = false; applyCustom();
+}
+function endLayEdit() {
+  layEditing = false; drag = null; document.body.classList.remove('editlay'); $('layedit').hidden = true;
+  saveLay(); applyLayout(); screen('setup');
+}
+$('editlay').addEventListener('click', startLayEdit);
+$('laydone').addEventListener('click', endLayEdit);
+$('layreset').addEventListener('click', () => { LAY.pos = null; LAY.h = 0; deckEl().classList.remove('custom'); deckEl().style.height = ''; requestAnimationFrame(() => { LAY.pos = measurePos(); applyCustom(); }); });
+// while editing, the bar's own controls don't fire: every touch on the bar drags instead
+for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'click', 'touchstart', 'touchmove']) deckEl().addEventListener(ev, e => {
+  if (!layEditing) return;
+  e.stopPropagation(); if (ev !== 'touchstart' && ev !== 'touchmove') e.preventDefault();
+  if (ev === 'pointerdown') {
+    const t = e.target.closest('#deckgrip') ? 'grip' : DRAG_IDS.find(id => e.target.closest('#' + id));
+    if (!t) return;
+    drag = { t, id: e.pointerId }; try { deckEl().setPointerCapture(e.pointerId); } catch (er) {}
+    if (t !== 'grip') $(t).classList.add('drag');
+  } else if (ev === 'pointermove' && drag && e.pointerId === drag.id) {
+    if (drag.t === 'grip') {
+      const H = innerHeight, sr = $('app').getBoundingClientRect();
+      LAY.h = Math.round(clamp(sr.bottom - e.clientY, 110, H * 0.6));
+    } else {
+      const d = deckEl().getBoundingClientRect();
+      LAY.pos = LAY.pos || {}; LAY.pos[drag.t] = [+clamp((e.clientX - d.left) / d.width, 0.06, 0.94).toFixed(3), +clamp((e.clientY - d.top) / d.height, 0.1, 0.9).toFixed(3)];
+    }
+    applyCustom();
+  } else if ((ev === 'pointerup' || ev === 'pointercancel') && drag) {
+    if (drag.t !== 'grip') $(drag.t).classList.remove('drag');
+    drag = null; saveLay();
+  }
+}, { capture: true, passive: false });
 // phones held upright: the map sits in the control deck (where GO was) instead of covering the play area
 {
   const q = matchMedia('(pointer:coarse) and (orientation:portrait)'), home = mm.parentNode, homeNext = mm.nextSibling;
