@@ -2605,8 +2605,9 @@ $('netok').addEventListener('click', toTitle);
 $('pausebtn').addEventListener('click', () => pause(true));
 $('dpause').addEventListener('click', () => { if ($('paused').hidden) pause(true); else pause(false); });
 $('dbtn').addEventListener('click', () => confirmAction());
-$('abil').addEventListener('click', e => { e.preventDefault(); useMyBackpack(); });
-$('abil').addEventListener('pointerdown', e => e.stopPropagation());
+// fire on finger DOWN: phones don't send a 'click' for a second finger while the other one is on the joystick
+$('abil').addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); if (!layEditing) useMyBackpack(); });
+$('abil').addEventListener('click', e => { e.preventDefault(); if (e.detail === 0 && !layEditing) useMyBackpack(); });   // keyboard / screen readers
 // ---------------------------------------------------------------- controls & layout (saved per device)
 const LAY_DEF = { stick: 'L', spray: 'mid', map: 'deck', kAbil: 'e', kPause: 'p', lay: 'preset', pos: null, h: 0 };
 let LAY = { ...LAY_DEF };

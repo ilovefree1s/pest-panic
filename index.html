@@ -316,7 +316,7 @@ body.menu #ver{display:block}
     </div>
     <div id="banner"></div>
     <div id="cut" hidden><div class="bub me" id="cutme"></div><div class="bub call" id="cutcall"></div><div id="cutring">RING! RING!</div><div id="daycard"><b id="dayn">DAY 2</b><span id="daya"></span></div><button class="btn dark" id="cutskip" type="button">Skip ▸</button></div>
-    <div id="ver">v1.48</div>
+    <div id="ver">v1.49</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
@@ -356,7 +356,7 @@ body.menu #ver{display:block}
         <p class="qa">Leave this run? <span id="quitwhy">Your progress will be lost.</span></p>
         <div class="qbtns"><button class="btn dark" id="quitno" type="button">Stay</button><button class="btn qyes" id="quityes" type="button">Yes, leave</button></div>
       </div>
-      <p class="hint pver">Pest Panic v1.48</p>
+      <p class="hint pver">Pest Panic v1.49</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -4398,8 +4398,9 @@ $('netok').addEventListener('click', toTitle);
 $('pausebtn').addEventListener('click', () => pause(true));
 $('dpause').addEventListener('click', () => { if ($('paused').hidden) pause(true); else pause(false); });
 $('dbtn').addEventListener('click', () => confirmAction());
-$('abil').addEventListener('click', e => { e.preventDefault(); useMyBackpack(); });
-$('abil').addEventListener('pointerdown', e => e.stopPropagation());
+// fire on finger DOWN: phones don't send a 'click' for a second finger while the other one is on the joystick
+$('abil').addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); if (!layEditing) useMyBackpack(); });
+$('abil').addEventListener('click', e => { e.preventDefault(); if (e.detail === 0 && !layEditing) useMyBackpack(); });   // keyboard / screen readers
 // ---------------------------------------------------------------- controls & layout (saved per device)
 const LAY_DEF = { stick: 'L', spray: 'mid', map: 'deck', kAbil: 'e', kPause: 'p', lay: 'preset', pos: null, h: 0 };
 let LAY = { ...LAY_DEF };
