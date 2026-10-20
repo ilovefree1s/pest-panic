@@ -835,6 +835,9 @@ function playEvent(e) {
       banner('Golden Bug caught!');
       for (let k = 0; k < 60; k++) { const a = Math.random() * TAU, sp = rand(3, 12); FX.glow.spawn({ x: e[1], y: rand(0.5, 2), z: e[2], vx: Math.cos(a) * sp, vy: rand(3, 10), vz: Math.sin(a) * sp, life: rand(0.7, 1.2), s0: rand(0.3, 0.6), s1: 0.1, c: [1.4, 1.1, 0.35], a0: 1, a1: 0, grav: 12, drag: 1 }); }
       S.rings.push({ x: e[1], z: e[2], r0: 1, r1: 10, life: 0.5, max: 0.5, c: [1, 0.85, 0.25] }); S.shake = Math.max(S.shake, 0.5);
+      setTimeout(() => S && S.rings.push({ x: e[1], z: e[2], r0: 0.5, r1: 7, life: 0.6, max: 0.6, c: [1, 0.95, 0.5] }), 250);
+      for (let k = 0; k < 30; k++) { const a = Math.random() * TAU, sp = rand(2, 8); FX.goo.spawn({ x: e[1], y: 0.6, z: e[2], vx: Math.cos(a) * sp, vy: rand(3, 8), vz: Math.sin(a) * sp, life: 1, s0: rand(0.25, 0.45), s1: 0.2, c: [1, 0.82, 0.2], a0: 1, a1: 0.8, grav: 18 }); }
+      addDecal(e[1], e[2], 4, [1, 0.8, 0.2], 10);
       break;
     }
     case 'nb': { for (let k = 0; k < 6; k++) FX.smoke.spawn({ x: e[1] + rand(-0.5, 0.5), y: 1.3, z: e[2] + 1.6, vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(0.5, 2), life: 0.5, s0: 0.3, s1: 0.9, c: [0.6, 0.55, 0.45], a0: 0.4, a1: 0 }); break; }
@@ -1012,7 +1015,7 @@ function goldHoleAt(x, z) {
 function goldHoleTick(dt) { const H = S.goldHole; if (H && H.t >= 0) { H.t -= dt; if (H.t <= 0) S.goldHole = null; } }
 function goldDown(b) {
   if (S.goldHole) S.goldHole.t = 1.5;
-  S.gold = null; S.freePicks++; S.freeKinds.push('gold'); S.pendingLevels++;
+  S.gold = null; S.goldPrizeAt = S.t + 1.6;   // let everyone watch it pop first, then the free upgrade
   for (let i = 0; i < 10; i++) dropCoin(b.x + rand(-2.5, 2.5), b.z + rand(-2.5, 2.5), 3, true);
   ev(['gk', b.x, b.z]);
 }
@@ -1521,6 +1524,7 @@ function step(dt) {
   updateQueen(dt);
   if (S.houseMode) houseTick(dt);
   updateCoins(dt);
+  if (S.goldPrizeAt && S.t >= S.goldPrizeAt) { S.goldPrizeAt = 0; S.freePicks++; S.freeKinds.push('gold'); S.pendingLevels++; }
   if (S.pendingLevels > 0 && mode === 'play') startLevelRound();
 }
 // room boss down -> "Room cleared!", the leftover bugs pop, crumbs fly to you, then a door opens in the right wall.
