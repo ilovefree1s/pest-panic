@@ -1501,6 +1501,7 @@ function canStand(x, z, T) {
 }
 function step(dt) {
   if (S.cut) { cutTick(dt); return; }
+  if (S.mapPick) return;
   S.t += dt; S.runT = (S.runT || 0) + dt;   // runT: whole run, across House Mode days
   updateMinute();
   for (const p of S.players) {
@@ -1634,8 +1635,37 @@ function startCut() {
 function cutTick(dt) {
   const c = S.cut; c.t += dt;
   S.fade = c.t < 0.6 ? 1 - c.t / 0.6 : c.t > CUT_LEN - 0.6 ? Math.min(1, (c.t - (CUT_LEN - 0.6)) / 0.6) : 0;
-  if (c.t >= CUT_LEN) { S.cut = null; startDay(c.day); S.fade = 1; }
+  if (c.t >= CUT_LEN) { S.cut = null; S.fade = 0; S.mapPick = { day: c.day }; }   // the neighbourhood map: pick the next job, or save & quit
 }
+// ---------------------------------------------------------------- neighbourhood map between campaign days
+const HOUSE_COL = ['#c94f3d', '#3f6fae', '#d8a23a', '#4f9a6a', '#7a7a84', '#b0607a'];
+function houseSvg(d, st) {
+  const L = houseLook(d), wall = L ? L.pal.cabFace : '#e8dcc4', roof = HOUSE_COL[(d - 1) % HOUSE_COL.length];
+  return `<svg viewBox="0 0 80 72"><path d="M6 34 40 8l34 26z" fill="${roof}" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/><rect x="14" y="32" width="52" height="34" fill="${wall}" stroke="#1a1a1a" stroke-width="3"/><rect x="34" y="44" width="13" height="22" fill="#6a4428" stroke="#1a1a1a" stroke-width="2"/><rect x="20" y="40" width="10" height="9" fill="${st === 'next' ? '#ffe27a' : '#9fc4e8'}" stroke="#1a1a1a" stroke-width="2"/><rect x="51" y="40" width="10" height="9" fill="${st === 'next' ? '#ffe27a' : '#9fc4e8'}" stroke="#1a1a1a" stroke-width="2"/>${st === 'done' ? '<circle cx="62" cy="16" r="11" fill="#4fbf3a" stroke="#1a1a1a" stroke-width="2.5"/><path d="M56 16l4 4 8-8" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>' : ''}${st === 'locked' ? '<circle cx="62" cy="16" r="10" fill="#2a2f35" stroke="#1a1a1a" stroke-width="2"/><text x="62" y="21" text-anchor="middle" font-size="13" font-weight="900" fill="#aab">?</text>' : ''}</svg>`;
+}
+function showDayMap() {
+  const M = S && S.mapPick; if (!M) return;
+  if (!$('daymap').hidden && $('daymap').dataset.d === String(M.day)) return;
+  $('daymap').dataset.d = M.day;
+  screen('daymap'); $('hud').hidden = true; $('banner').classList.remove('on'); bannerT = 0;
+  const last = Math.max(M.day + 2, 5), first = Math.max(1, last - 6), out = [];
+  for (let d = first; d <= last; d++) {
+    const st = d < M.day ? 'done' : d === M.day ? 'next' : 'locked';
+    out.push(`<li class="${st}">${st === 'next' ? '<em>NEXT JOB</em>' : ''}${houseSvg(d, st)}<b>Day ${d}</b><small>${esc(houseName(d))}</small></li>`);
+  }
+  $('street').innerHTML = out.join('');
+  $('mapnote').textContent = 'Day ' + (M.day - 1) + ' done! ' + houseName(M.day) + ' is waiting. Your progress is saved.';
+  $('mapgo').hidden = role === 'client'; $('mapquit').textContent = role === 'client' ? 'Leave game' : 'Save & quit';
+  $('mapwait').hidden = role !== 'client';
+  $('mapgo').textContent = 'Start Day ' + M.day;
+  requestAnimationFrame(() => { const n = $('street').querySelector('.next'); if (n) n.scrollIntoView({ inline: 'center', block: 'nearest' }); });
+}
+function mapStart() {
+  if (role === 'client' || !S || !S.mapPick) return;
+  const d = S.mapPick.day; S.mapPick = null; $('daymap').hidden = true; $('daymap').dataset.d = '';
+  enterGameUi(); startDay(d); S.fade = 1;
+}
+function mapQuit() { $('daymap').dataset.d = ''; toTitle(); }
 function startDay(d) {
   dropNeighbor(); S.trans = null;
   const keep = { players: S.players, kills: S.kills, bossKills: S.bossKills, roomsCleared: S.roomsCleared, runT: S.runT };
@@ -1823,6 +1853,7 @@ function applySnapshot(s) {
   setRoomVisual(s.HM ? s.HM[1] : 0, s.HM ? s.HM[0] : 1); if (s.A) applyArena(s.A); S.fade = s.HM ? s.HM[2] / 100 : 0;
   S.door = s.DR ? { x: s.DR[0] / 10, z: s.DR[1] / 10, open: s.DR[2] / 100, exit: s.DR[3], last: s.DR[4] } : null; S.doorWait = s.DW || null;
   S.trans = s.TR ? { room: s.TR[0], off: s.TR[1], A: s.TR[2] } : null; if (S.trans) buildNeighbor(S.trans.room, S.house || 1, S.trans.A, S.trans.off);
+  if (s.MP) S.mapPick = { day: s.MP }; else if (S.mapPick) { S.mapPick = null; $('daymap').hidden = true; $('daymap').dataset.d = ''; enterGameUi(); }
   if (s.CUT) { if (!S.cut) S.cut = { t: s.CUT[0] / 100, day: s.CUT[1] }; S.cut.tt = s.CUT[0] / 100; S.cut.day = s.CUT[1]; } else S.cut = null;
   S.t = s.t; S.lvl = s.lv; S.xp = s.xp; S.need = s.nd; S.kills = s.k; S.queens = s.qn;
   // bugs
@@ -2463,7 +2494,7 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.toggle('long', text.length > 20); b.classList.add('on'); bannerT = 2.2; }
 
 // ---------------------------------------------------------------- modes and screens
-const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board', 'setup', 'find'];
+const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board', 'setup', 'find', 'daymap'];
 const idle = () => mode === 'title' || mode === 'lobby';
 function screen(id) { SCREENS.forEach(s => $(s).hidden = s !== id); }
 function enterGameUi() {
@@ -2553,6 +2584,8 @@ $('startbtn').addEventListener('click', startGame);
 $('lobbyleave').addEventListener('click', toTitle);
 $('play').addEventListener('click', () => { saveName(); role = 'solo'; beginRound(); });
 $('cutskip').addEventListener('click', skipCut);
+$('mapgo').addEventListener('click', mapStart);
+$('mapquit').addEventListener('click', mapQuit);
 function syncModeUi() {
   document.querySelectorAll('.modes .mode').forEach(b => { const on = b.dataset.m === gameMode; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
   startDayPick = Math.min(Math.max(1, startDayPick || maxDay), maxDay);
@@ -3059,6 +3092,7 @@ function sendSnapshot() {
     DW: S.doorWait || 0,
     TR: S.trans ? [S.trans.room, S.trans.off, S.trans.A] : 0,
     CUT: S.cut ? [Math.round(S.cut.t * 100), S.cut.day] : 0,
+    MP: S.mapPick ? S.mapPick.day : 0,
   };
   net.send('snap', snap);
 }
@@ -3189,7 +3223,7 @@ function frame(now) {
   }
   if (idle() || mode === 'pause' || mode === 'over') { SND.hum(false, 0); SND.laser(false); }
   // phone controls only show during a run; menus get the whole screen
-  { const menu = idle() || mode === 'over' || mode === 'join'; if (document.body.classList.contains('menu') !== menu) document.body.classList.toggle('menu', menu); }
+  { const menu = idle() || mode === 'over' || mode === 'join' || !!(S && S.mapPick); if (document.body.classList.contains('menu') !== menu) document.body.classList.toggle('menu', menu); }
   { // backpack button: cooldown ring and label
     const mp2 = role === 'client' ? CL.me : meP(), cd = mp2 ? Math.max(0, mp2.bpCd || 0) : 0, ab = $('abil'), ready = cd <= 0 && mp2 && !mp2.down;
     const key = (ready ? 'r' : Math.ceil(cd)) + (padState.seen ? 'p' : '') + LAY.kAbil;
@@ -3218,6 +3252,7 @@ function frame(now) {
   camX += (fx0 - camX) * Math.min(1, dt * 8); camZ += (fz0 - camZ) * Math.min(1, dt * 8);
   if (idle()) { const a = now / 9000; camX = Math.sin(a) * 4; camZ = Math.cos(a) * 3; }
   placeCamera(camX, camZ, rand(-1, 1) * sh, rand(-1, 1) * sh, true);
+  if (S.mapPick) showDayMap();
   drawDoor(now / 1000, dt);
   cutView(now / 1000, dt);
   drawWorld(now / 1000, fdt);
