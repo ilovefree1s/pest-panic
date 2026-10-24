@@ -409,7 +409,15 @@ function nearestPlayer(x, z) {
 const spawnRadius = () => Math.max(view.spawnR, role === 'solo' ? 0 : 30);
 
 // ---------------------------------------------------------------- events (played locally, and sent to clients by the host)
-function ev(e) { playEvent(e); if (role === 'host') S.ev.push(e); }
+// events that put a message on screen (or matter a lot) are re-sent in several snapshots, so a dropped packet or a busy moment can't lose them
+const IMPORTANT_EV = new Set(['gs', 'ge', 'gh', 'gk', 'nw', 'nk', 'qs', 'qk', 'w', 'rc', 'rn', 'rs', 'do', 'ds', 'dy', 'ct', 'j', 'x', 'tp', 'ar', 'dn', 'rv', 'hj', 'lv']);
+let impId = 0;
+function ev(e) {
+  playEvent(e);
+  if (role !== 'host') return;
+  if (IMPORTANT_EV.has(e[0])) (S.evImp || (S.evImp = [])).push({ id: ++impId, at: performance.now(), e });
+  else S.ev.push(e);
+}
 const GOOC = [[0.5, 0.88, 0.22], [0.55, 0.85, 0.2], [0.42, 0.85, 0.25], [0.95, 0.8, 0.2], [0.75, 0.7, 0.55], [1, 0.85, 0.3], [0.62, 0.48, 0.2]];
 // ---------------------------------------------------------------- sound effects (all synthesized with Web Audio, no files)
 // sliders follow how ears hear loudness (squared), with a little headroom off the top
@@ -1647,7 +1655,7 @@ function showDayMap() {
   const M = S && S.mapPick; if (!M) return;
   if (!$('daymap').hidden && $('daymap').dataset.d === String(M.day)) return;
   $('daymap').dataset.d = M.day;
-  screen('daymap'); $('hud').hidden = true; $('banner').classList.remove('on'); bannerT = 0;
+  screen('daymap'); $('hud').hidden = true; $('banner').classList.remove('on'); bannerT = 0; bannerQ.length = 0;
   const last = Math.max(M.day + 2, 5), first = Math.max(1, last - 6), out = [];
   for (let d = first; d <= last; d++) {
     const st = d < M.day ? 'done' : d === M.day ? 'next' : 'locked';
@@ -1843,7 +1851,7 @@ function zapBurst(x, z) {
 }
 
 // ---------------------------------------------------------------- client mirror
-const CL = { bugs: new Map(), players: new Map(), queen: null, bosses: [], coins: [], shots: [], traps: [], ebul: [], snapAt: 0, round: null, roundAt: 0, me: null, mode: 'play', stats: null, hostSeen: 0, t: 0 };
+const CL = { bugs: new Map(), players: new Map(), queen: null, bosses: [], coins: [], shots: [], traps: [], ebul: [], snapAt: 0, round: null, roundAt: 0, me: null, mode: 'play', stats: null, hostSeen: 0, t: 0, impSeen: new Set() };
 function applySnapshot(s) {
   const now = performance.now();
   CL.hostSeen = now; CL.snapAt = now;
@@ -1908,6 +1916,8 @@ function applySnapshot(s) {
   CL.traps = s.T.map(r => ({ x: r[0] / 10, z: r[1] / 10, rot: r[2] / 100, life: r[3] / 10, drop: 0 }));
   CL.ebul = s.E.map(r => ({ k: r[0], x: r[1] / 10, z: r[2] / 10, vx: r[3] / 10, vz: r[4] / 10 }));
   for (const e of s.ev) playEvent(e);
+  for (const [id, e] of s.I || []) { if (CL.impSeen.has(id)) continue; CL.impSeen.add(id); playEvent(e); }
+  if (CL.impSeen.size > 400) CL.impSeen = new Set([...CL.impSeen].slice(-200));
   // mode and level-up rounds
   CL.round = s.R || null; CL.roundAt = performance.now();
   if (s.m === 'level' && CL.round) { if (mode !== 'level') { mode = 'level'; } showCards(); }
@@ -2491,7 +2501,12 @@ function updateHud(dt) {
   drawMinimap();
 }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.toggle('long', text.length > 20); b.classList.add('on'); bannerT = 2.2; }
+// messages queue up instead of wiping each other out when two happen at once
+const bannerQ = [];
+function banner(text, red) {
+  if (bannerT > 0.9 && $('banner').textContent !== text) { if (!bannerQ.some(q => q[0] === text) && bannerQ.length < 4) bannerQ.push([text, red]); bannerT = Math.min(bannerT, 1.4); return; }
+  const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.toggle('long', text.length > 20); b.classList.add('on'); bannerT = 2.2;
+}
 
 // ---------------------------------------------------------------- modes and screens
 const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board', 'setup', 'find', 'daymap'];
@@ -2544,7 +2559,7 @@ function endRound() {
   submitRun(st);
 }
 function showOver(st) {
-  mode = 'over'; $('banner').classList.remove('on'); bannerT = 0;
+  mode = 'over'; $('banner').classList.remove('on'); bannerT = 0; bannerQ.length = 0;
   SND.play('over'); SND.hum(false, 0);
   overBoardKey = ''; $('oboard').hidden = true; $('oboard').innerHTML = '';
   const newBest = !st.hm && st.t > best.t;
@@ -2562,7 +2577,7 @@ function pause(on) {
 function toTitle() {
   stopAdvertising(); leaveFind();
   if (net) { net.close(); net = null; }
-  $('banner').classList.remove('on'); bannerT = 0; if (S) S.cut = null;
+  $('banner').classList.remove('on'); bannerT = 0; bannerQ.length = 0; if (S) S.cut = null;
   startDayPick = maxDay; syncModeUi();
   role = 'solo'; mode = 'title'; roster.clear(); CL.players.clear(); CL.bugs.clear(); CL.queen = null; CL.bosses = [];
   screen('title'); $('hud').hidden = true;
@@ -3017,7 +3032,7 @@ async function joinGame(raw) {
     $('hostbtn').disabled = $('joinbtn').disabled = $('findbtn').disabled = false; net = null; return;
   }
   $('hostbtn').disabled = $('joinbtn').disabled = $('findbtn').disabled = false;
-  role = 'client'; mode = 'join';
+  role = 'client'; mode = 'join'; CL.impSeen = new Set();
   newWorld(); CL.players.clear(); CL.bugs.clear(); CL.queen = null; CL.bosses = []; CL.hostSeen = performance.now();
   let gotSnap = false;
   net.on('snap', s => {
@@ -3083,6 +3098,7 @@ function sendSnapshot() {
     T: S.traps.map(t => [r(t.x * 10), r(t.z * 10), r(t.rot * 100), r(t.life * 10)]),
     E: S.ebul.slice(0, 120).map(e => [e.k, r(e.x * 10), r(e.z * 10), r(e.vx * 10), r(e.vz * 10)]),
     ev: S.ev.splice(0, S.ev.length).slice(-120).map(e => e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)),
+    I: (S.evImp = (S.evImp || []).filter(x => performance.now() - x.at < 2000)).map(x => [x.id, x.e.map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v)]),
     R: S.round ? { n: S.round.n, free: S.round.free, cards: S.round.cards, votes: S.round.votes, left: Math.max(0, (S.round.until - performance.now()) / 1000), tb: S.round.tb } : null,
     N: S.nest ? [Math.round(S.nest.hp), S.nest.max] : 0,
     G: S.gold ? [Math.max(0, Math.round(S.gold.hp)), S.gold.max] : 0,
@@ -3259,7 +3275,8 @@ function frame(now) {
   render();
   drawOverlay(fdt);
   if (!idle() && mode !== 'join') updateHud(dt);
-  if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').classList.remove('on'); }
+  if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) { $('banner').classList.remove('on'); if (bannerQ.length) { const [t, r] = bannerQ.shift(); banner(t, r); } } }
+  else if (bannerQ.length && mode === 'play' && $('levelup').hidden) { const [t, r] = bannerQ.shift(); banner(t, r); }
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 2) {
     const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0;
@@ -3280,7 +3297,7 @@ window.PP = {
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
   tipOffset() { const p = meP(), L = looks.get(me.id); if (!L) return null; L.body.updateMatrixWorld(true); const v = L.body.userData.tip.getWorldPosition(new THREE.Vector3()), f = L.body.rotation.y; const dx = v.x - p.x, dz = v.z - p.z; return { forward: +(dx * Math.sin(f) + dz * Math.cos(f)).toFixed(2), right: +(dx * Math.cos(f) - dz * Math.sin(f)).toFixed(2), y: +v.y.toFixed(2) }; },
-  looks: () => looks, arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  looks: () => looks, bq: () => [bannerT, bannerQ.map(q => q[0])], arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
 
