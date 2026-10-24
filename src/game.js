@@ -104,7 +104,7 @@ const SUIT_TIME = 15, SWARM_TIME = 20;
 const findCard = id => UP.find(u => u.id === id) || NEST_REWARDS.find(u => u.id === id);
 const HOW = {
   spray: 'Automatically sprays the closest bug. Each puff hits one bug.',
-  swat: 'Swatters circle close around you and smack every bug they touch, knocking it back.',
+  swat: 'Big swatters circle around you and smack every bug they touch, knocking it back. Each one has a 50% chance to swat away incoming spit and webs.',
   bomb: 'Every few seconds a burst of fog shoots out in a full circle around you.',
   zap: 'A lantern floats over your shoulder and zaps random bugs on screen with lightning. Hits bosses for double damage.',
   glue: 'Drops a trap where you stand. When a bug steps near, it snaps: hurts everything around it and glues bugs in place for 1.5 seconds.',
@@ -756,6 +756,7 @@ function eventSound(e) {
     case 'j': SND.play('join'); break;
     case 'nw': SND.play('buzz'); break;
     case 'gs': SND.play('gold'); break;
+    case 'sb': SND.play('hit', e[1], e[2]); break;
     case 'rc': SND.play('bossdie'); break;
     case 'rn': SND.play('join'); break;
     case 'do': SND.play('pick'); break;
@@ -828,6 +829,7 @@ function playEvent(e) {
     case 'ds': S.shake = Math.max(S.shake, 0.5); for (let k = 0; k < 14; k++) FX.smoke.spawn({ x: e[1] + rand(-0.4, 0.4), y: rand(0.3, 4), z: e[2] + rand(-1.8, 1.8), vx: rand(0.5, 2.5), vy: rand(0, 1), vz: rand(-1, 1), life: 0.6, s0: 0.5, s1: 1.4, c: [0.75, 0.72, 0.65], a0: 0.4, a1: 0 }); break;
     case 'ct': unlockDay(e[1]); break;
     case 'dy': if (role === 'client' && CL.me) { CL.me.x = rand(-1.5, 1.5); CL.me.z = rand(-1.5, 1.5); } unlockDay(e[1]); setTimeout(() => banner('Day ' + e[1] + ': ' + houseName(e[1]) + '. Kitchen, ants!', true), 300); break;
+    case 'sb': for (let k = 0; k < 8; k++) { const a = Math.random() * TAU; FX.glow.spawn({ x: e[1], y: 0.9, z: e[2], vx: Math.cos(a) * 6, vy: rand(1, 4), vz: Math.sin(a) * 6, life: 0.3, s0: 0.35, s1: 0.05, c: [1.3, 1.1, 0.6], drag: 3 }); } break;
     case 'gs': banner('Golden Bug! Catch it!'); for (let k = 0; k < 20; k++) { const a = k / 20 * TAU; FX.glow.spawn({ x: e[1], y: 0.8, z: e[2], vx: Math.cos(a) * 5, vy: rand(1, 4), vz: Math.sin(a) * 5, life: 0.7, s0: 0.45, s1: 0.1, c: [1.3, 1.05, 0.35], drag: 2 }); } break;
     case 'gh': banner("It's running for its hole!"); break;
     case 'ge': banner('The Golden Bug got away...'); for (let k = 0; k < 10; k++) FX.smoke.spawn({ x: e[1] + rand(-0.6, 0.6), y: 0.5, z: e[2] + rand(-0.6, 0.6), vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(-1, 1), life: 0.6, s0: 0.4, s1: 1.1, c: [0.85, 0.75, 0.4], a0: 0.5, a1: 0 }); break;
@@ -1171,6 +1173,7 @@ const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
 const aimTwist = (face, aim) => Math.max(-AIM_MAX, Math.min(AIM_MAX, wrapA(aim - face)));
 // where the sprayer wand's nozzle is: the right shoulder, plus the wand (2.3 long) swung toward the aim (measured from the model)
 function nozzle(p, f = p.face, tw = p.tw || 0) { const a = f + tw; return [p.x + Math.cos(f) * 0.61 + Math.sin(a) * 2.32, p.z - Math.sin(f) * 0.61 + Math.cos(a) * 2.32]; }
+const SWAT_R = 3.3;
 function weapons(p, dt) {
   const L = p.up, db = L.str;
   for (const k in p.cd) p.cd[k] -= dt;
@@ -1223,8 +1226,9 @@ function weapons(p, dt) {
     p.swatA += W.swat.spd[L.swat - 1] * dt;
     const dmg = W.swat.dmg[L.swat - 1] + db;
     for (let k = 0; k < ns; k++) {
-      const a = p.swatA + k / ns * TAU, x = p.x + Math.cos(a) * 3.1, z = p.z + Math.sin(a) * 3.1;
-      near(x, z, 1.4, b => { if (b.icd <= 0 && dist2(b.x, b.z, x, z) < 1.96) { b.icd = 0.33; hitBug(b, dmg, Math.cos(a) * 0.5, Math.sin(a) * 0.5); if (Math.random() < 0.5) ev(['h', b.x, b.z]); } });
+      const a = p.swatA + k / ns * TAU, x = p.x + Math.cos(a) * SWAT_R, z = p.z + Math.sin(a) * SWAT_R;   // 25% bigger swatters
+      for (const e of S.ebul) if (!e.sw && e.life > 0 && dist2(e.x, e.z, x, z) < 1.7 * 1.7) { e.sw = 1; if (Math.random() < 0.5) { e.life = 0; ev(['sb', e.x, e.z]); } }   // 50% chance to block each shot
+      near(x, z, 1.75, b => { if (b.icd <= 0 && dist2(b.x, b.z, x, z) < 1.75 * 1.75) { b.icd = 0.33; hitBug(b, dmg, Math.cos(a) * 0.5, Math.sin(a) * 0.5); if (Math.random() < 0.5) ev(['h', b.x, b.z]); } });
       for (const q of S.bosses) if (q.icd <= 0 && dist2(q.x, q.z, x, z) < (BR(q) + 0.8) ** 2) { q.icd = 0.15; hitQueen(dmg * 2, x, z, q); }
       if (S.nest && S.nest.icd <= 0 && dist2(S.nest.x, S.nest.z, x, z) < 3.4 * 3.4) { S.nest.icd = 0.2; hitBug(S.nest, dmg * 2); }
     }
@@ -2078,7 +2082,7 @@ function drawPlayer(p, dt, t) {
     s.visible = k < ns && !p.down;
     if (!s.visible) return;
     const a = p.swatA + k / ns * TAU;
-    s.position.set(p.x + Math.cos(a) * 2.2, 0.7, p.z + Math.sin(a) * 2.2); s.rotation.set(0, Math.PI / 2 - a, 0);   // head sits on the 3.1 hit circle
+    s.position.set(p.x + Math.cos(a) * 2.18, 0.7, p.z + Math.sin(a) * 2.18); s.rotation.set(0, Math.PI / 2 - a, 0); s.scale.setScalar(1.25);   // head sits on the hit circle
   });
   // backpack sprayer cloud
   if (p.bp > 0 && !p.down) {
