@@ -2459,7 +2459,7 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 function banner(text, red) { const b = $('banner'); b.textContent = text; b.classList.toggle('red', !!red); b.classList.toggle('long', text.length > 20); b.classList.add('on'); bannerT = 2.2; }
 
 // ---------------------------------------------------------------- modes and screens
-const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board', 'setup'];
+const SCREENS = ['title', 'over', 'paused', 'levelup', 'netmsg', 'lobby', 'board', 'setup', 'find'];
 const idle = () => mode === 'title' || mode === 'lobby';
 function screen(id) { SCREENS.forEach(s => $(s).hidden = s !== id); }
 function enterGameUi() {
@@ -2525,6 +2525,7 @@ function pause(on) {
   else if (!on) { $('paused').hidden = true; $('setup').hidden = true; rebinding = null; if (mode === 'pause') mode = 'play'; }
 }
 function toTitle() {
+  stopAdvertising(); leaveFind();
   if (net) { net.close(); net = null; }
   $('banner').classList.remove('on'); bannerT = 0; if (S) S.cut = null;
   startDayPick = maxDay; syncModeUi();
@@ -2542,7 +2543,7 @@ function demo() {
   S.bugs.forEach(b => b.spd *= 0.5);
 }
 function saveName() { me.name = ($('pname').value || '').trim().slice(0, 12); try { localStorage.setItem('pestpanic-name', me.name); } catch (e) {} }
-function status(msg, err) { const s = $('netstatus'); s.textContent = msg; s.classList.toggle('err', !!err); }
+function status(msg, err) { for (const id of ['netstatus', 'findstatus']) { const s = $(id); s.textContent = msg; s.classList.toggle('err', !!err); } }
 
 $('startbtn').addEventListener('click', startGame);
 $('lobbyleave').addEventListener('click', toTitle);
@@ -2713,8 +2714,10 @@ document.addEventListener('visibilitychange', () => {
   if (away && role === 'solo' && mode === 'play') pause(true);
 });
 $('hostbtn').addEventListener('click', () => { saveName(); hostGame(); });
-$('joinbtn').addEventListener('click', () => { saveName(); joinGame($('code').value); });
-$('code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.stopPropagation(); saveName(); joinGame($('code').value); } });
+$('joinbtn').addEventListener('click', () => { saveName(); leaveFind(); joinGame($('code').value); });
+$('findbtn').addEventListener('click', () => { saveName(); openFind(); });
+$('findback').addEventListener('click', () => { leaveFind(); screen('title'); });
+$('code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.stopPropagation(); saveName(); leaveFind(); joinGame($('code').value); } });
 $('pname').addEventListener('keydown', e => e.stopPropagation());
 function confirmAction() {
   if (mode === 'title' && !$('board').hidden) { closeBoard(); return; }
@@ -2894,17 +2897,63 @@ async function localNet(code, meta) {
 }
 const connect = (code, meta) => (location.hash === '#local' ? localNet : supaNet)(code, meta);
 
+// ---------------------------------------------------------------- open-game list: hosts in a lobby advertise themselves, "Find a game" lists them
+// Supabase: everyone shares one realtime channel; each waiting host keeps a presence entry {code, name, n, mode} there.
+async function supaDir() {
+  const sb = await supa();
+  const ch = sb.channel('pest-lobbies', { config: { presence: { key: 'k' + Math.random().toString(36).slice(2) } } });
+  let fn = () => {};
+  ch.on('presence', { event: 'sync' }, () => { const st = ch.presenceState(), out = []; for (const k in st) for (const m of st[k]) if (m && m.code) out.push(m); fn(out); });
+  await new Promise((res, rej) => { const to = setTimeout(() => rej(new Error('timeout')), 12000); ch.subscribe(s => { if (s === 'SUBSCRIBED') { clearTimeout(to); res(); } else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') { clearTimeout(to); rej(new Error(s)); } }); });
+  return { list(f) { fn = f; }, async ad(meta) { try { await ch.track(meta); } catch (e) {} }, close() { try { ch.untrack(); sb.removeChannel(ch); } catch (e) {} } };
+}
+// same-browser stand-in (#local): hosts shout their lobby once a second
+async function localDir() {
+  const bc = new BroadcastChannel('pest-lobbies'), seen = new Map();
+  let fn = () => {}, meta = null;
+  const emit = () => { const now = performance.now(); for (const [k, v] of seen) if (now - v.t > 3000) seen.delete(k); fn([...seen.values()].map(v => v.m)); };
+  bc.onmessage = m => { const d = m.data; if (d.gone) seen.delete(d.code); else seen.set(d.code, { m: d, t: performance.now() }); emit(); };
+  const hb = setInterval(() => { if (meta) bc.postMessage(meta); emit(); }, 1000);
+  return { list(f) { fn = f; emit(); }, async ad(m) { meta = m; bc.postMessage(m); }, close() { clearInterval(hb); if (meta) bc.postMessage({ code: meta.code, gone: 1 }); bc.close(); } };
+}
+const openDir = () => (location.hash === '#local' ? localDir : supaDir)();
+let lobbyAd = null, finder = null;
+async function advertise() {   // host in the lobby: put (or refresh) our game on the list
+  if (role !== 'host' || mode !== 'lobby' || !net) return stopAdvertising();
+  const meta = { code: net.code, name: me.name || 'Host', n: 1 + [...roster.values()].filter(r => r.id !== me.id).length, mode: gameMode };
+  if (meta.n >= 4) return stopAdvertising();
+  try { if (!lobbyAd) lobbyAd = openDir(); const d = await lobbyAd; if (role === 'host' && mode === 'lobby') d.ad(meta); } catch (e) { lobbyAd = null; }
+}
+function stopAdvertising() { if (lobbyAd) { const p = lobbyAd; lobbyAd = null; p.then(d => d.close()).catch(() => {}); } }
+async function openFind() {
+  screen('find'); $('findstatus').textContent = '';
+  $('gamelist').innerHTML = '<li class="empty">Looking for games…</li>';
+  if (finder) return;
+  try {
+    finder = openDir(); const d = await finder;
+    d.list(games => {
+      if ($('find').hidden) return;
+      games = games.filter(g => g.n < 4).sort((a, b) => b.n - a.n);
+      $('gamelist').innerHTML = games.length ? games.map(g => `<li><b>${esc(g.name)}'s game</b><small>${g.n}/4 players · ${g.mode === 'house' ? 'Campaign' : 'Survival'}</small><button class="btn alt" type="button" data-code="${esc(g.code)}">Join</button></li>`).join('')
+        : '<li class="empty">No open games right now. Host one, or ask a friend for their code.</li>';
+      $('gamelist').querySelectorAll('[data-code]').forEach(b => b.addEventListener('click', () => { leaveFind(); joinGame(b.dataset.code); }));
+    });
+    setTimeout(() => { if (!$('find').hidden && /Looking/.test($('gamelist').textContent)) $('gamelist').innerHTML = '<li class="empty">No open games right now. Host one, or ask a friend for their code.</li>'; }, 2500);
+  } catch (e) { finder = null; $('gamelist').innerHTML = ''; $('findstatus').textContent = 'Could not reach the game server. Online play works at ilovefree1s.github.io/pest-panic'; }
+}
+function leaveFind() { if (finder) { const p = finder; finder = null; p.then(d => d.close()).catch(() => {}); } }
+
 async function hostGame() {
   const code = makeCode();
   status('Opening room ' + code + '…');
-  $('hostbtn').disabled = $('joinbtn').disabled = true;
+  $('hostbtn').disabled = $('joinbtn').disabled = $('findbtn').disabled = true;
   try {
     net = await connect(code, { name: me.name || 'Host', host: true });
   } catch (e) {
     status('Could not reach the game server. Online play works at ilovefree1s.github.io/pest-panic', true);
-    $('hostbtn').disabled = $('joinbtn').disabled = false; net = null; return;
+    $('hostbtn').disabled = $('joinbtn').disabled = $('findbtn').disabled = false; net = null; return;
   }
-  $('hostbtn').disabled = $('joinbtn').disabled = false;
+  $('hostbtn').disabled = $('joinbtn').disabled = $('findbtn').disabled = false;
   role = 'host'; roster.clear();
   net.onPresence(list => {
     const ids = new Set(list.map(p => p.id));
@@ -2923,14 +2972,14 @@ async function joinGame(raw) {
   const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length < 4) { status('Type the room code from your friend first.', true); return; }
   status('Joining ' + code + '…');
-  $('hostbtn').disabled = $('joinbtn').disabled = true;
+  $('hostbtn').disabled = $('joinbtn').disabled = $('findbtn').disabled = true;
   try {
     net = await connect(code, { name: me.name || 'Player', host: false });
   } catch (e) {
     status('Could not reach the game server. Online play works at ilovefree1s.github.io/pest-panic', true);
-    $('hostbtn').disabled = $('joinbtn').disabled = false; net = null; return;
+    $('hostbtn').disabled = $('joinbtn').disabled = $('findbtn').disabled = false; net = null; return;
   }
-  $('hostbtn').disabled = $('joinbtn').disabled = false;
+  $('hostbtn').disabled = $('joinbtn').disabled = $('findbtn').disabled = false;
   role = 'client'; mode = 'join';
   newWorld(); CL.players.clear(); CL.bugs.clear(); CL.queen = null; CL.bosses = []; CL.hostSeen = performance.now();
   let gotSnap = false;
@@ -2966,10 +3015,11 @@ function renderLobby(L) {
   $('lobbylist').innerHTML = L.map(([id, name, c, h]) => `<li><i style="background:${CSS_COL[c % 4]}"></i>${esc(name)}${id === me.id ? ' <em>(you)</em>' : ''}${h ? ' <small>HOST</small>' : ''}</li>`).join('') +
     (L.length < 4 ? '<li class="empty">Waiting for players…</li>' : '');
   $('lobbycount').textContent = L.length + ' / 4 players' + (role === 'host' ? (gameMode === 'house' ? ' · Campaign' : ' · Survival') : '');
-  if (role === 'host') $('startbtn').textContent = L.length > 1 ? 'Start game' : 'Start alone';
+  if (role === 'host') { $('startbtn').textContent = L.length > 1 ? 'Start game' : 'Start alone'; advertise(); }
 }
 function startGame() {
   if (role !== 'host' || mode !== 'lobby') return;
+  stopAdvertising();
   beginRound();
 }
 function hostId() { for (const p of roster.values()) if (p.host) return p.id; return null; }
