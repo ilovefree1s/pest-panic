@@ -8,6 +8,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const V3 = THREE.Vector3;
 const TAU = Math.PI * 2;
@@ -948,8 +950,97 @@ export function buildPlayer(suitHex = '#3a86bd', capHex = '#d43a2b') {
   root.userData = { body, legs, arms, head, tank, candle, tip: tipMark, veil, setBee };
   root.traverse(o => { if (o.isMesh) o.castShadow = true; });
   root.scale.setScalar(1.6);
+  // swap in the modelled exterminator as soon as it has loaded (the built-from-shapes one stays if it can't load)
+  const apply = () => { try { fitExtModel(root, suitHex); } catch (err) { console.warn('exterminator model', err); } };
+  if (EXTG) apply(); else extWaiting.push(apply);
   return root;
 }
+
+// ---------------------------------------------------------------- the modelled exterminator (Meshy, rigged with a Mixamo skeleton; same as Pest Panic Defense)
+let EXTG = null;
+const extWaiting = [], extTex = {};
+export function loadExtModel(url) {
+  try { new GLTFLoader().load(url, g => { EXTG = g; extWaiting.splice(0).forEach(f => f()); }, undefined, () => {}); } catch (err) {}
+}
+// the model's suit is blue: repaint it in the player's colour (or beekeeper white)
+function extTexture(base, hex) {
+  if (extTex[hex]) return extTex[hex];
+  const im = base.image, cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; const x = cv.getContext('2d'); x.drawImage(im, 0, 0);
+  const d = x.getImageData(0, 0, cv.width, cv.height), a = d.data, c = new THREE.Color(hex), tr = c.r * 255, tg = c.g * 255, tb = c.b * 255;
+  for (let i = 0; i < a.length; i += 4) {
+    const r = a[i], g = a[i + 1], b = a[i + 2];
+    if (b > r + 35 && b > g) { const l = Math.min(1.2, (b + g * 0.5) / 190), y = (r + g + b) / 3; a[i] = Math.min(255, (tr * 0.72 + y * 0.28) * l); a[i + 1] = Math.min(255, (tg * 0.72 + y * 0.28) * l); a[i + 2] = Math.min(255, (tb * 0.72 + y * 0.28) * l); }
+  }
+  x.putImageData(d, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.flipY = base.flipY; t.colorSpace = base.colorSpace; t.wrapS = base.wrapS; t.wrapT = base.wrapT; t.anisotropy = 4;
+  return (extTex[hex] = t);
+}
+const EV1 = new V3(), EV2 = new V3(), EV3 = new V3(), EQ0 = new THREE.Quaternion(), EQ1 = new THREE.Quaternion(), EQ2 = new THREE.Quaternion(), EQ3 = new THREE.Quaternion(), EXT_UP = new V3(0, 1, 0);
+function fitExtModel(root, suitHex) {
+  const u = root.userData; if (u.mdl) return;
+  const m = SkeletonUtils.clone(EXTG.scene), cont = new THREE.Group();
+  let tex = null; m.traverse(o => { if (o.isMesh && o.material && o.material.map) tex = o.material.map; });
+  const mat = new THREE.MeshStandardMaterial({ map: tex ? extTexture(tex, suitHex) : null, color: new THREE.Color(0.9, 0.9, 0.9), roughness: 0.78, metalness: 0, envMapIntensity: 0.5 });
+  m.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = true; o.frustumCulled = false; } });
+  m.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  m.traverse(o => { if (o.isSkinnedMesh) { o.skeleton.update(); o.computeBoundingBox(); box.union(o.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });
+  const h = box.max.y - box.min.y || 1, k = 2.1 / h;
+  m.scale.multiplyScalar(k); m.position.y -= box.min.y * k;
+  cont.add(m); root.add(cont);
+  const B = n => m.getObjectByName('mixamorig' + n) || m.getObjectByName('mixamorig:' + n);
+  const bones = { LArm: B('LeftArm'), LFore: B('LeftForeArm'), LHand: B('LeftHand'), RArm: B('RightArm'), RFore: B('RightForeArm'), RHand: B('RightHand'), Spine: B('Spine2') || B('Spine1') || B('Spine'), Head: B('Head') || B('Neck') };
+  let skel = null; m.traverse(o => { if (o.isSkinnedMesh) skel = o.skeleton; });
+  const rest = skel ? skel.bones.map(b => [b, b.position.clone(), b.quaternion.clone(), b.scale.clone()]) : [];
+  const mixer = new THREE.AnimationMixer(m), clip = n => EXTG.animations.find(a => a.name === n);
+  const walk = clip('Walking') ? mixer.clipAction(clip('Walking')) : null, run = clip('Running') ? mixer.clipAction(clip('Running')) : null;
+  // keep the candle and the beekeeper hat: the candle goes in his left hand, the hat on his head
+  root.updateMatrixWorld(true);
+  const reparent = (obj, bone, pos) => { if (!obj || !bone) return; bone.add(obj); obj.position.copy(pos); obj.rotation.set(0, 0, 0); bone.updateMatrixWorld(true); const s = root.getWorldScale(EV1).x / bone.getWorldScale(EV2).x; obj.scale.setScalar(s); };
+  reparent(u.candle, bones.LHand, new V3(0, 0, 0));
+  u.candle.children.forEach(c => c.position.y += 0.05);
+  if (bones.Head) { reparent(u.veil, bones.Head, new V3(0, 0, 0)); const k = u.veil.scale.x; u.veil.scale.setScalar(k * 0.82); u.veil.position.set(0, 0.2 * k, 0.06 * k); }   // (offsets in head-bone units)
+  u.body.visible = false;
+  const baseMap = tex, myMap = mat.map;
+  u.setBee = on => { if (u.beeOn === on) return; u.beeOn = on; u.veil.visible = on; mat.map = on && baseMap ? extTexture(baseMap, '#f2efe4') : myMap; mat.needsUpdate = true; };
+  u.mdl = { cont, m, mixer, walk, run, bones, rest, cur: null };
+}
+// turn a bone so it points the given way (model space: +z forward, +y up)
+function aimBone(cont, bone, child, dx, dy, dz) {
+  bone.updateWorldMatrix(true, true);
+  const a = bone.getWorldPosition(EV1), cur = child.getWorldPosition(EV2).sub(a).normalize();
+  const want = EV3.set(dx, dy, dz).normalize().applyQuaternion(cont.getWorldQuaternion(EQ0));
+  const q = EQ1.setFromUnitVectors(cur, want), bw = bone.getWorldQuaternion(EQ2), pw = bone.parent.getWorldQuaternion(EQ3);
+  bone.quaternion.copy(pw.invert().multiply(q.multiply(bw)));
+}
+function twistBone(bone, ang) {   // turn a bone around the world's up axis
+  if (!bone || !ang) return;
+  const pw = bone.parent.getWorldQuaternion(EQ3), q = EQ1.setFromAxisAngle(EXT_UP, ang);
+  bone.quaternion.premultiply(EQ2.copy(pw).invert().multiply(q).multiply(pw));
+}
+// pose the modelled exterminator for this frame. st: { speed, tw, down, phone (0..1, left hand up to the ear) }
+export function poseExt(root, dt, st) {
+  const u = root.userData, M = u.mdl; if (!M) return false;
+  const moving = !st.down && st.speed > 1.2 && !st.phone;
+  const want = moving ? (st.speed > 15.5 && M.run ? M.run : M.walk) : null;
+  if (want !== M.cur) {
+    if (M.cur) M.cur.fadeOut(0.15);
+    if (want) want.reset().fadeIn(0.15).play();
+    M.cur = want;
+  }
+  if (want) { want.timeScale = want === M.run ? st.speed / 17 : st.speed / 9; M.mixer.update(dt); }
+  else { M.mixer.stopAllAction(); M.cur = null; for (const [b, p, q, s] of M.rest) { b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); } }
+  const Bn = M.bones, R = -1, L = 1, arm = (s, up, fore, ux, uy, uz, fx, fy, fz) => { aimBone(M.cont, up, fore, ux, uy, uz); aimBone(M.cont, fore, s < 0 ? Bn.RHand : Bn.LHand, fx, fy, fz); };
+  if (!want) {   // standing still: arms down, wand held low in front
+    if (st.phone) arm(L, Bn.LArm, Bn.LFore, L * 0.5, 0.15 + 0.6 * st.phone, 0.3, L * -0.4, 1, -0.1);
+    else arm(L, Bn.LArm, Bn.LFore, L * 0.3, -1, 0.05, L * 0.18, -1, 0.2);
+    arm(R, Bn.RArm, Bn.RFore, R * 0.3, -1, 0.15, R * 0.1, -0.6, 1);
+    M.cont.position.y = st.down ? 0 : Math.sin(performance.now() / 500) * 0.012;
+  } else M.cont.position.y = 0;
+  twistBone(Bn.Spine, (st.tw || 0) * 0.75);   // aim the upper body (and the wand) toward what he's spraying
+  return true;
+}
+export function extHand(root, left) { const M = root.userData.mdl; return M ? (left ? M.bones.LHand : M.bones.RHand) : null; }
 
 export function buildQueen() {
   const root = new THREE.Group();

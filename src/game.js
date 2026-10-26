@@ -259,6 +259,7 @@ const roomSize = (room = S && S.room || 0) => { const L = S && S.houseMode ? hou
 const arenaFor = (n, room) => +(ARENA_BASE * roomSize(room) * (1 + 0.1 * (Math.max(1, Math.min(4, n)) - 1))).toFixed(2);
 function growArena(quiet) { const a = arenaFor(S.players.length); if (a > ARENA + 0.01) { applyArena(a); if (!quiet) ev(['ar', S.players.length]); } }
 const nestMesh = buildNest();
+loadExtModel('exterminator.glb');
 const holeMesh = buildMouseHole();
 const doorMesh = buildDoor();
 const office = buildOffice();
@@ -2071,6 +2072,11 @@ function drawPlayer(p, dt, t) {
   u.arms[0].rotation.x = -sw * 0.6; u.arms[1].rotation.x = -0.55;
   L.tw = (L.tw || 0) + ((p.tw || 0) - (L.tw || 0)) * Math.min(1, dt * 12);
   u.arms[1].rotation.y = L.tw; u.head.rotation.y = L.tw * 0.7;
+  { // how fast he is really moving on screen (works the same for remote players, whose velocity we don't get)
+    const mv = L.lx === undefined || dt <= 0 ? 0 : Math.hypot(p.x - L.lx, p.z - L.lz) / dt; L.lx = p.x; L.lz = p.z;
+    L.ms = (L.ms || 0) + ((mv > 60 ? L.ms || 0 : mv) - (L.ms || 0)) * Math.min(1, dt * 10);
+    poseExt(L.body, dt, { speed: L.ms, tw: L.tw, down: p.down });
+  }
   u.body.position.y = Math.abs(sw) * 0.06;
   L.body.rotation.z = p.down ? Math.PI / 2 : 0;
   L.body.position.y = p.down ? 0.4 : 0;
@@ -2253,11 +2259,12 @@ function cutView(t, dt) {
   u.arms[0].rotation.x = -2.75 * held; u.arms[0].rotation.z = 0.55 * held; u.arms[1].rotation.x = -0.55;
   u.head.rotation.y = 0.15 * Math.sin(k * 1.3); u.head.rotation.z = -0.15 * held;
   if (u.candle) u.candle.visible = false;
+  poseExt(cutGuy, dt, { speed: 0, phone: held });
   const O = office.userData, ringing = k > 0.6 && k < 2.4;
   O.phone.rotation.z = ringing ? Math.sin(t * 70) * 0.06 : 0;
   // handset travels from the phone up to his ear and back
   cutGuy.updateMatrixWorld(true);
-  const ear = u.arms[0].localToWorld(cutA.set(0, -0.6, 0.05)); O.phone.worldToLocal(ear);   // the handset sits in his raised hand
+  const hand = extHand(cutGuy, true), ear = hand ? hand.getWorldPosition(cutA) : u.arms[0].localToWorld(cutA.set(0, -0.6, 0.05)); O.phone.worldToLocal(ear);   // the handset sits in his raised hand
   const rest = cutB.set(0, 0.45 + (ringing ? Math.abs(Math.sin(t * 35)) * 0.08 : 0), -0.1);
   O.handset.position.set(rest.x + (ear.x - rest.x) * held, rest.y + (ear.y - rest.y) * held, rest.z + (ear.z - rest.z) * held);
   O.handset.rotation.set(0, 0, held * 1.35);
@@ -3297,7 +3304,7 @@ window.PP = {
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
   tipOffset() { const p = meP(), L = looks.get(me.id); if (!L) return null; L.body.updateMatrixWorld(true); const v = L.body.userData.tip.getWorldPosition(new THREE.Vector3()), f = L.body.rotation.y; const dx = v.x - p.x, dz = v.z - p.z; return { forward: +(dx * Math.sin(f) + dz * Math.cos(f)).toFixed(2), right: +(dx * Math.cos(f) - dz * Math.sin(f)).toFixed(2), y: +v.y.toFixed(2) }; },
-  looks: () => looks, bq: () => [bannerT, bannerQ.map(q => q[0])], arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  looks: () => looks, THREE, bq: () => [bannerT, bannerQ.map(q => q[0])], arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
 
