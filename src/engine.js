@@ -994,6 +994,22 @@ function fitExtModel(root, suitHex) {
   const rest = skel ? skel.bones.map(b => [b, b.position.clone(), b.quaternion.clone(), b.scale.clone()]) : [];
   const mixer = new THREE.AnimationMixer(m), clip = n => EXTG.animations.find(a => a.name === n);
   const walk = clip('Walking') ? mixer.clipAction(clip('Walking')) : null, run = clip('Running') ? mixer.clipAction(clip('Running')) : null;
+  // the spray nozzle: the vertex furthest from the right hand that moves with the hand (the end of the wand)
+  const tip = new THREE.Object3D(); bones.RHand.add(tip);
+  m.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const P = o.geometry.attributes.position, J = o.geometry.attributes.skinIndex, Wt = o.geometry.attributes.skinWeight, hi = o.skeleton.bones.indexOf(bones.RHand);
+    o.updateMatrixWorld(true); o.skeleton.update();
+    const hp = bones.RHand.getWorldPosition(new V3()); let best = null, bd = -1;
+    for (let i = 0; i < P.count; i++) {
+      let w = 0; for (let c = 0; c < 4; c++) if (J.getComponent(i, c) === hi) w += Wt.getComponent(i, c);
+      if (w < 0.6) continue;
+      const v = o.getVertexPosition(i, EV1).applyMatrix4(o.matrixWorld), d = v.distanceTo(hp);
+      if (d > bd) { bd = d; best = v.clone(); }
+    }
+    if (best) tip.position.copy(bones.RHand.worldToLocal(best));
+  });
+  u.tip = tip;
   // keep the candle and the beekeeper hat: the candle goes in his left hand, the hat on his head
   root.updateMatrixWorld(true);
   const reparent = (obj, bone, pos) => { if (!obj || !bone) return; bone.add(obj); obj.position.copy(pos); obj.rotation.set(0, 0, 0); bone.updateMatrixWorld(true); const s = root.getWorldScale(EV1).x / bone.getWorldScale(EV2).x; obj.scale.setScalar(s); };
@@ -1003,7 +1019,7 @@ function fitExtModel(root, suitHex) {
   u.body.visible = false;
   const baseMap = tex, myMap = mat.map;
   u.setBee = on => { if (u.beeOn === on) return; u.beeOn = on; u.veil.visible = on; mat.map = on && baseMap ? extTexture(baseMap, '#f2efe4') : myMap; mat.needsUpdate = true; };
-  u.mdl = { cont, m, mixer, walk, run, bones, rest, cur: null };
+  u.mdl = { cont, m, mixer, walk, run, bones, rest, cur: null, tip };
 }
 // turn a bone so it points the given way (model space: +z forward, +y up)
 function aimBone(cont, bone, child, dx, dy, dz) {
@@ -1031,13 +1047,18 @@ export function poseExt(root, dt, st) {
   if (want) { want.timeScale = want === M.run ? st.speed / 17 : st.speed / 9; M.mixer.update(dt); }
   else { M.mixer.stopAllAction(); M.cur = null; for (const [b, p, q, s] of M.rest) { b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); } }
   const Bn = M.bones, R = -1, L = 1, arm = (s, up, fore, ux, uy, uz, fx, fy, fz) => { aimBone(M.cont, up, fore, ux, uy, uz); aimBone(M.cont, fore, s < 0 ? Bn.RHand : Bn.LHand, fx, fy, fz); };
-  if (!want) {   // standing still: arms down, wand held low in front
+  if (!want) {   // standing still: left arm down (or holding the phone)
     if (st.phone) arm(L, Bn.LArm, Bn.LFore, L * 0.5, 0.15 + 0.6 * st.phone, 0.3, L * -0.4, 1, -0.1);
     else arm(L, Bn.LArm, Bn.LFore, L * 0.3, -1, 0.05, L * 0.18, -1, 0.2);
-    arm(R, Bn.RArm, Bn.RFore, R * 0.3, -1, 0.15, R * 0.1, -0.6, 1);
     M.cont.position.y = st.down ? 0 : Math.sin(performance.now() / 500) * 0.012;
   } else M.cont.position.y = 0;
-  twistBone(Bn.Spine, (st.tw || 0) * 0.75);   // aim the upper body (and the wand) toward what he's spraying
+  if (!st.phone && !st.down) {
+    // the spray arm: always holding the wand out in front, swinging toward whatever he's spraying, with a little kick on every puff
+    twistBone(Bn.Spine, (st.tw || 0) * 0.35);
+    const a = (st.tw || 0) * 0.65, kick = st.puff > 0 ? st.puff * 1.4 : 0, sx = Math.sin(a), cz = Math.cos(a);
+    arm(R, Bn.RArm, Bn.RFore, R * 0.32 + sx * 0.7, -0.55 + kick * 0.15, cz * 0.75, sx + R * 0.05, -0.18 + kick * 0.25, cz);
+    if (M.tip) aimBone(M.cont, Bn.RHand, M.tip, sx, -0.12 + kick * 0.3, cz);   // turn the wrist so the wand itself points where he's spraying
+  }
   return true;
 }
 export function extHand(root, left) { const M = root.userData.mdl; return M ? (left ? M.bones.LHand : M.bones.RHand) : null; }

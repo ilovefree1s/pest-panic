@@ -1181,7 +1181,12 @@ const AIM_MAX = 1.05;
 const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
 const aimTwist = (face, aim) => Math.max(-AIM_MAX, Math.min(AIM_MAX, wrapA(aim - face)));
 // where the sprayer wand's nozzle is: the right shoulder, plus the wand (2.3 long) swung toward the aim (measured from the model)
-function nozzle(p, f = p.face, tw = p.tw || 0) { const a = f + tw; return [p.x + Math.cos(f) * 0.61 + Math.sin(a) * 2.32, p.z - Math.sin(f) * 0.61 + Math.cos(a) * 2.32]; }
+const nozV = new THREE.Vector3();
+// where the spray leaves the wand: the real tip of the modelled wand when it's loaded, otherwise measured from the old model
+function nozzle(p, f = p.face, tw = p.tw || 0) {
+  const L = looks.get(p.id), tp = L && L.body.visible !== undefined && L.body.userData.mdl && L.body.userData.tip;
+  if (tp && L.body.parent && !idle()) { tp.getWorldPosition(nozV); if (Math.abs(nozV.x - p.x) < 6 && Math.abs(nozV.z - p.z) < 6) return [nozV.x, nozV.z, nozV.y]; }
+  const a = f + tw; return [p.x + Math.cos(f) * 0.61 + Math.sin(a) * 2.32, p.z - Math.sin(f) * 0.61 + Math.cos(a) * 2.32]; }
 const SWAT_R = 3.3;
 function weapons(p, dt) {
   const L = p.up, db = L.str;
@@ -1190,8 +1195,8 @@ function weapons(p, dt) {
     const i = L.spray - 1; p.cd.spray = W.spray.cd[i];
     const tgt = nearestBug(p, 22), aim0 = tgt ? Math.atan2(tgt.x - p.x, tgt.z - p.z) : p.face;
     p.aim = aim0; p.aimT = 0.6; p.tw = aimTwist(p.face, aim0);
-    const [nx, nz] = nozzle(p), ang = tgt ? Math.atan2(tgt.x - nx, tgt.z - nz) : p.face + p.tw, n = W.spray.n[i];
-    for (let k = 0; k < n; k++) fire(p, 'spray', ang + (k - (n - 1) / 2) * 0.29, 30, 0.8, W.spray.dmg[i] + db, { x: nx, z: nz });   // shots leave from the wand
+    const [nx, nz, ny] = nozzle(p), ang = tgt ? Math.atan2(tgt.x - nx, tgt.z - nz) : p.face + p.tw, n = W.spray.n[i];
+    for (let k = 0; k < n; k++) fire(p, 'spray', ang + (k - (n - 1) / 2) * 0.29, 30, 0.8, W.spray.dmg[i] + db, { x: nx, z: nz, y0: ny || 0.75 });   // shots leave from the wand
     p.sprayPuff = 0.12;
   }
   if (L.bomb && p.cd.bomb <= 0) {
@@ -2075,7 +2080,7 @@ function drawPlayer(p, dt, t) {
   { // how fast he is really moving on screen (works the same for remote players, whose velocity we don't get)
     const mv = L.lx === undefined || dt <= 0 ? 0 : Math.hypot(p.x - L.lx, p.z - L.lz) / dt; L.lx = p.x; L.lz = p.z;
     L.ms = (L.ms || 0) + ((mv > 60 ? L.ms || 0 : mv) - (L.ms || 0)) * Math.min(1, dt * 10);
-    poseExt(L.body, dt, { speed: L.ms, tw: L.tw, down: p.down });
+    poseExt(L.body, dt, { speed: L.ms, tw: L.tw, down: p.down, puff: Math.max(0, p.sprayPuff || 0) / 0.12 });
   }
   u.body.position.y = Math.abs(sw) * 0.06;
   L.body.rotation.z = p.down ? Math.PI / 2 : 0;
@@ -2119,8 +2124,9 @@ function drawPlayer(p, dt, t) {
   if ((p.slow || 0) > 0) B.ring.add(p.x, 0.07, p.z, 2.6, t * 2, 1, 1, 1, 0.6);
   if ((p.sprayPuff || 0) > 0) {
     p.sprayPuff -= dt;
-    const [wx, wz] = nozzle(p, L.body.rotation.y, L.tw || 0);
-    FX.smoke.spawn({ x: wx, y: 0.5, z: wz, vx: Math.sin(p.face) * 4, vz: Math.cos(p.face) * 4, life: 0.25, s0: 0.12, s1: 0.36, c: [0.9, 1, 1], a0: 0.5, a1: 0 });
+    L.body.updateMatrixWorld(true);
+    const [wx, wz, wy] = nozzle(p, L.body.rotation.y, L.tw || 0);
+    FX.smoke.spawn({ x: wx, y: wy || 0.5, z: wz, vx: Math.sin(p.face) * 4, vz: Math.cos(p.face) * 4, life: 0.25, s0: 0.12, s1: 0.36, c: [0.9, 1, 1], a0: 0.5, a1: 0 });
   }
   // swatters
   const up = p.up || {}, ns = up.swat ? W.swat.n[up.swat - 1] : 0;
@@ -2134,10 +2140,10 @@ function drawPlayer(p, dt, t) {
   // backpack sprayer cloud
   if (p.bp > 0 && !p.down) {
     // a pressurised spray: fast streams of droplets fanning out of the wand, with a light mist behind them
-    const [nx, nz] = nozzle(p, L.body.rotation.y, L.tw || 0);
+    const [nx, nz, ny] = nozzle(p, L.body.rotation.y, L.tw || 0);
     for (let k = 0; k < 36; k++) {
       const a = p.face + (Math.random() - 0.5) * 1.2, sp = rand(26, 42), sx = Math.sin(a), sz = Math.cos(a);
-      FX.goo.spawn({ x: nx, y: 0.5, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
+      FX.goo.spawn({ x: nx, y: ny || 0.5, z: nz, vx: sx * sp, vy: rand(0.5, 2.5), vz: sz * sp, life: rand(0.28, 0.42), s0: rand(0.28, 0.42), s1: 0.14, c: [0.8, 1, 1], a0: 1, a1: 0.6, grav: 9 });
     }
     for (let k = 0; k < 4; k++) {   // bright streaks down the middle of the jet
       const a = p.face + rand(-0.25, 0.25), sp = rand(34, 47);
@@ -2318,8 +2324,9 @@ function drawWorld(t, dt) {
     if (s.kind === 'flip') { if (fi < 60) setI(IM.flip, fi++, s.x, 0.9, s.z, s.spin * 1.4, 1.8, 0.25); B.shadow.add(s.x, 0.02, s.z, 1.3, 0, 0, 0, 0, 0.3); }
     else if (s.kind === 'paper') { if (pi < 60) setI(IM.paper, pi++, s.x, 0.9, s.z, s.ang, 1, s.spin, Math.PI / 2); B.shadow.add(s.x, 0.02, s.z, 1.2, 0, 0, 0, 0, 0.3); }
     else if (s.kind === 'spray') {
-      B.glow.add(s.x, 0.75, s.z, 0.5, 0, 0.5, 0.75, 0.9, 0.5);
-      B.smoke.add(s.x, 0.75, s.z, 0.6 + k * 0.7, s.spin, 0.85, 0.95, 1, 0.65 - k * 0.4);
+      const sy = 0.75 + ((s.y0 || 0.75) - 0.75) * Math.max(0, 1 - k * 3);   // leaves the wand tip, then drops to bug height
+      B.glow.add(s.x, sy, s.z, 0.5, 0, 0.5, 0.75, 0.9, 0.5);
+      B.smoke.add(s.x, sy, s.z, 0.6 + k * 0.7, s.spin, 0.85, 0.95, 1, 0.65 - k * 0.4);
       if (Math.random() < dt * 30) FX.smoke.spawn({ x: s.x, y: 0.75, z: s.z, vx: s.vx * 0.1, vz: s.vz * 0.1, life: 0.25, s0: 0.3, s1: 0.7, c: [0.75, 0.9, 1], a0: 0.3, a1: 0 });
     } else {
       B.smoke.add(s.x, 0.7, s.z, 1.1 + k * 1.4, s.spin, 0.55, 0.78, 0.45, 0.38 - k * 0.25);
@@ -3304,7 +3311,7 @@ window.PP = {
   time(t) { S.t = t; S.ringAt = Math.ceil(t / 30) * 30 + 30; S.nextQueen = Math.ceil((t + 1) / QUEEN_EVERY) * QUEEN_EVERY; updateMinute(); },
   end: () => endRound(), leave: toTitle, room: () => net && net.code,
   tipOffset() { const p = meP(), L = looks.get(me.id); if (!L) return null; L.body.updateMatrixWorld(true); const v = L.body.userData.tip.getWorldPosition(new THREE.Vector3()), f = L.body.rotation.y; const dx = v.x - p.x, dz = v.z - p.z; return { forward: +(dx * Math.sin(f) + dz * Math.cos(f)).toFixed(2), right: +(dx * Math.cos(f) - dz * Math.sin(f)).toFixed(2), y: +v.y.toFixed(2) }; },
-  looks: () => looks, THREE, bq: () => [bannerT, bannerQ.map(q => q[0])], arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
+  looks: () => looks, THREE, nozzle: p => nozzle(p), zoom(d) { view.dist = d; }, bq: () => [bannerT, bannerQ.map(q => q[0])], arena: () => ARENA,   nest: () => spawnNest(), gold: () => spawnGold(), goRoom(k) { S.room = k - 1; nextRoom(); }, snd: SND, music: MUSIC, queen() { spawnQueen(); }, start: () => startGame(), hurt: (p, d) => hurt(p, d), god(on = true) { window.__god = on; }, choose, move(x, z) { window.__botMove = true; input.move.x = x; input.move.z = z; },
   sim(sec) { let t = 0; while (t < sec && mode === 'play') { step(1 / 60); t += 1 / 60; if (role === 'host' && net) { snapT -= 1 / 60; if (snapT <= 0) { snapT = 0.1; sendSnapshot(); } } } return { t: S.t, lvl: S.lvl, bugs: S.bugs.length, players: S.players.length, mode }; },
 };
 
