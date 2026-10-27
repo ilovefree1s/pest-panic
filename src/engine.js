@@ -972,16 +972,19 @@ function extTexture(base, hex) {
     if (b > r + 35 && b > g) { const l = Math.min(1.2, (b + g * 0.5) / 190), y = (r + g + b) / 3; a[i] = Math.min(255, (tr * 0.72 + y * 0.28) * l); a[i + 1] = Math.min(255, (tg * 0.72 + y * 0.28) * l); a[i + 2] = Math.min(255, (tb * 0.72 + y * 0.28) * l); }
   }
   x.putImageData(d, 0, 0);
-  const t = new THREE.CanvasTexture(cv); t.flipY = base.flipY; t.colorSpace = base.colorSpace; t.wrapS = base.wrapS; t.wrapT = base.wrapT; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(cv); t.flipY = base.flipY; t.colorSpace = base.colorSpace; t.wrapS = base.wrapS; t.wrapT = base.wrapT;
+  noMips(t);   // Meshy packs hundreds of tiny UV islands: mipmaps bleed them into each other (pale lines on every edge)
   return (extTex[hex] = t);
 }
+function noMips(t) { if (!t) return t; t.generateMipmaps = false; t.mipmaps = []; t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 1; t.needsUpdate = true; return t; }
 const EV1 = new V3(), EV2 = new V3(), EV3 = new V3(), EQ0 = new THREE.Quaternion(), EQ1 = new THREE.Quaternion(), EQ2 = new THREE.Quaternion(), EQ3 = new THREE.Quaternion(), EXT_UP = new V3(0, 1, 0);
 function fitExtModel(root, suitHex) {
   const u = root.userData; if (u.mdl) return;
   const m = SkeletonUtils.clone(EXTG.scene), cont = new THREE.Group();
   let tex = null; m.traverse(o => { if (o.isMesh && o.material && o.material.map) tex = o.material.map; });
+  noMips(tex);
   const mat = new THREE.MeshStandardMaterial({ map: tex ? extTexture(tex, suitHex) : null, color: new THREE.Color(0.9, 0.9, 0.9), roughness: 0.78, metalness: 0, envMapIntensity: 0.5 });
-  m.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = true; o.frustumCulled = false; } });
+  m.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = true; o.receiveShadow = false; o.frustumCulled = false; } });
   m.updateMatrixWorld(true);
   const box = new THREE.Box3();
   m.traverse(o => { if (o.isSkinnedMesh) { o.skeleton.update(); o.computeBoundingBox(); box.union(o.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });
