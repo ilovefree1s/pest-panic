@@ -519,11 +519,18 @@ const SND = (() => {
       if (!gate('fire', 85)) return; const [k, pan] = where(x, z); if (k < 0.05) return;
       noise(out(0.9 * k, pan), ctx.currentTime, 0.08, 'bandpass', R(1200, 2200), 800, 1.5);
     },
-    backpack(x, z) {   // pump-action pressure spray: a whoosh, then a long pulsing hiss
+    // backpack spray: one steady held "psssssht" (looping white noise, 3.8-9 kHz) for as long as the spray lasts
+    backpack(x, z, id, seconds) {
       const [k, pan] = where(x, z); if (k < 0.02) return;
-      const n = ctx.currentTime, o = out(0.55 * k, pan);
-      noise(o, n, 0.35, 'lowpass', 300, 1800, 0.8, 0.02, 0.8);
-      for (let i = 0; i < 6; i++) noise(o, n + 0.15 + i * 0.47, 0.5, 'highpass', 2600, 4200, 0.6, 0.04, 0.55);
+      const key = id || 'me'; if (sprays[key]) return;
+      const t = ctx.currentTime, o = out(0.55 * k, pan), src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), f2 = ctx.createBiquadFilter(), g = ctx.createGain();
+      src.buffer = noiseBuf; src.loop = true;
+      f.type = 'highpass'; f.frequency.value = 3800; f.Q.value = 0.5;
+      f2.type = 'lowpass'; f2.frequency.value = 9000;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.06);
+      src.connect(f); f.connect(f2); f2.connect(g); g.connect(o); src.start(t);
+      sprays[key] = { src, g };
+      setTimeout(() => { if (sprays[key] && sprays[key].src === src) sprayStop(key); }, (seconds || 3) * 1000);   // fades out by itself when he runs out
     },
     sizzle(x, z) {   // laser burn: a quick falling "pew" with a crackle
       S_.laserHitT = performance.now();
@@ -582,7 +589,14 @@ const SND = (() => {
     flick() { const n = ctx.currentTime, o = out(0.06); noise(o, n, 0.09, 'bandpass', 3200, 2400, 3, 0.002, 0.8); tone(o, 'square', 120, 118, n, 0.11, 0.003, 0.35); noise(o, n + 0.1, 0.03, 'highpass', 5000, 5000, 1, 0.001, 0.6); },
     join() { const n = ctx.currentTime, o = out(0.14); tone(o, 'sine', 660, 660, n, 0.08); tone(o, 'sine', 990, 990, n + 0.09, 0.12); },
   };
+  const sprays = {};
+  function sprayStop(key) {
+    const sp = sprays[key]; if (!sp) return; delete sprays[key];
+    try { const t = ctx.currentTime; sp.g.gain.cancelScheduledValues(t); sp.g.gain.setValueAtTime(Math.max(0.0001, sp.g.gain.value), t); sp.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25); sp.src.stop(t + 0.3); } catch (e) {}
+  }
   return {
+    get spraying() { return Object.keys(sprays).length; },
+    sprayStop(id) { if (id === undefined) Object.keys(sprays).forEach(sprayStop); else sprayStop(id); },
     unlock,
     away(on) { try { if (!ctx) return; if (on) ctx.suspend(); else if (!muted) ctx.resume(); } catch (e) {} },
     play(name, ...a) { try { if (ready() && S_[name]) S_[name](...a); } catch (e) {} },
@@ -752,14 +766,14 @@ function eventSound(e) {
     case 'g': SND.play('snap', e[1], e[2]); break;
     case 'f': SND.play('fire', e[1], e[2]); break;
     case 'ff': SND.play('thwip', e[1], e[2]); break;
-    case 'bp': SND.play('backpack', e[2], e[3]); break;
+    case 'bp': SND.play('backpack', e[2], e[3], e[1], BP_TIME); break;
+    case 'dn': SND.sprayStop(e[1]); SND.play('down'); break;
     case 'sz': SND.play('sizzle', e[1], e[2]); break;
     case 'pp': SND.play('whoosh', e[1], e[2]); break;
     case 'ph': SND.play('splash', e[1], e[2]); break;
     case 'w': SND.play('warn'); break;
     case 'qs': SND.play('roar'); break;
     case 'qk': SND.play('bossdie', e[1], e[2]); break;
-    case 'dn': SND.play('down'); break;
     case 'rv': SND.play('revive'); break;
     case 'tp': SND.play(e[1] === 'aid' || e[3] ? 'pick' : 'tick'); break;
     case 'j': SND.play('join'); break;
@@ -1641,7 +1655,7 @@ function nextRoom() {
 }
 // the phone call: everyone is frozen while it plays, then a brand new day starts from level 1
 function startCut() {
-  clearRoomStuff(); S.door = null; S.clear = null;
+  SND.sprayStop(); clearRoomStuff(); S.door = null; S.clear = null;
   S.cut = { t: 0, day: S.house + 1 };
   unlockDay(S.house + 1);
   ev(['ct', S.house + 1]);
@@ -2573,7 +2587,7 @@ function endRound() {
   submitRun(st);
 }
 function showOver(st) {
-  mode = 'over'; $('banner').classList.remove('on'); bannerT = 0; bannerQ.length = 0;
+  SND.sprayStop(); mode = 'over'; $('banner').classList.remove('on'); bannerT = 0; bannerQ.length = 0;
   SND.play('over'); SND.hum(false, 0);
   overBoardKey = ''; $('oboard').hidden = true; $('oboard').innerHTML = '';
   const newBest = !st.hm && st.t > best.t;
@@ -2585,10 +2599,11 @@ function showOver(st) {
   setTimeout(() => { if (mode === 'over') screen('over'); }, 900);
 }
 function pause(on) {
-  if (on && (mode === 'play' || mode === 'level')) { askQuit(false); screen('paused'); if (role === 'solo' && mode === 'play') mode = 'pause'; }
+  if (on && (mode === 'play' || mode === 'level')) { if (role === 'solo') SND.sprayStop(); askQuit(false); screen('paused'); if (role === 'solo' && mode === 'play') mode = 'pause'; }
   else if (!on) { $('paused').hidden = true; $('setup').hidden = true; rebinding = null; if (mode === 'pause') mode = 'play'; }
 }
 function toTitle() {
+  SND.sprayStop();
   stopAdvertising(); leaveFind();
   if (net) { net.close(); net = null; }
   $('banner').classList.remove('on'); bannerT = 0; bannerQ.length = 0; if (S) S.cut = null;
