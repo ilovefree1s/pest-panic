@@ -3,7 +3,7 @@ local = len(sys.argv) > 1 and sys.argv[1] in ('local', 'conceptlocal')
 concept = len(sys.argv) > 1 and sys.argv[1] in ('concept', 'conceptlocal')
 head = open('head.html').read()
 if concept:
-    head = head.replace('<title>Pest Panic Online</title>', '<title>Magnifying Glass Concept</title>')
+    head = head.replace('<title>Bug Blitz</title>', '<title>Magnifying Glass Concept</title>')
     head += open('concept_panel.html').read()
 eng = open('engine.js').read()
 eng = re.sub(r'^export \{[^}]*\};\s*$', '', eng, flags=re.M)
