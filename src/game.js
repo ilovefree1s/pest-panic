@@ -1,5 +1,5 @@
 // ============================================================================
-//  PEST PANIC ONLINE  -  game logic (host-authoritative co-op), weapons, HUD,
+//  BUG BLITZ  -  game logic (host-authoritative co-op), weapons, HUD,
 //  input and networking over Supabase Realtime
 // ============================================================================
 const CONCEPT = !!window.__CONCEPT;   // concept preview page: shows gear that isn't in the game yet
@@ -2294,7 +2294,7 @@ function cutView(t, dt) {
   camera.lookAt(OFFICE_X + 0.2, 2.1, 0.8);
   // speech bubbles, the RING and the day card
   const day = c.day, lines = [
-    [2.9, 4.9, 'me', 'Pest Panic Exterminators, what\'s bugging you?'],
+    [2.9, 4.9, 'me', 'Bug Blitz Exterminators, what\'s bugging you?'],
     [4.9, 7.4, 'call', 'Bugs EVERYWHERE! Ants in the kitchen, roaches in the living room… ' + houseName(day) + '. Please hurry!'],
     [7.4, 9.2, 'me', 'Say no more. I\'ll be there first thing tomorrow.'],
   ];

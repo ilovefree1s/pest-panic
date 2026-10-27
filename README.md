@@ -1,4 +1,4 @@
-# Pest Panic Online
+# Bug Blitz
 
 A 3D bug-swarm survival game for the browser. Squash ants, flies and spiders in a
 kitchen with bug-killer gear, survive a new bug boss every 3 minutes (Roach Queen, Spider King, Ant Prince, Fly Lord, then king-and-queen pairs), and play solo

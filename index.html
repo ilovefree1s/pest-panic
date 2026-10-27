@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0d1013"><link rel="icon" type="image/png" href="favicon.png?v=2"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=2"><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-title" content="Pest Panic"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1013"><link rel="icon" type="image/png" href="favicon.png?v=2"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=2"><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-title" content="Bug Blitz"><meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
-<title>Pest Panic Online</title>
+<title>Bug Blitz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap">
 <style>
@@ -339,11 +339,11 @@ body.menu #ver{display:block}
     </div>
     <div id="banner"></div>
     <div id="cut" hidden><div class="bub me" id="cutme"></div><div class="bub call" id="cutcall"></div><div id="cutring">RING! RING!</div><div id="daycard"><b id="dayn">DAY 2</b><span id="daya"></span></div><button class="btn dark" id="cutskip" type="button">Skip ▸</button></div>
-    <div id="ver">v1.58</div>
+    <div id="ver">v1.59</div>
     <div id="pad">Controller: press any button</div>
 
     <div class="screen" id="title">
-      <h1 class="logo">Pest<span>Panic</span></h1>
+      <h1 class="logo">Bug<span>Blitz</span></h1>
       <p class="sub">The kitchen is crawling. Grab your gear, squash the swarm, and survive a new bug boss every 3 minutes.</p>
       <div class="menu">
         <input id="pname" maxlength="12" placeholder="Your name" autocomplete="off" aria-label="Your name">
@@ -379,7 +379,7 @@ body.menu #ver{display:block}
         <p class="qa">Leave this run? <span id="quitwhy">Your progress will be lost.</span></p>
         <div class="qbtns"><button class="btn dark" id="quitno" type="button">Stay</button><button class="btn qyes" id="quityes" type="button">Yes, leave</button></div>
       </div>
-      <p class="hint pver">Pest Panic v1.58</p>
+      <p class="hint pver">Bug Blitz v1.59</p>
     </div>
     <div class="screen" id="over" hidden>
       <h2 class="t" id="overt">Bugged out!</h2>
@@ -460,7 +460,7 @@ body.menu #ver{display:block}
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <script type="module">
 // ============================================================================
-//  PEST PANIC HD  -  engine: renderer, textures, kitchen, models, sprite batches
+//  BUG BLITZ  -  engine: renderer, textures, kitchen, models, sprite batches
 // ============================================================================
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -1702,7 +1702,7 @@ function buildOffice() {
   box(5.9, 0.25, 0.3, C('#e8e2d4'), 3.4, 3.55, -3.85); box(5.9, 0.25, 0.3, C('#e8e2d4'), 3.4, 7.25, -3.85); box(0.2, 3.7, 0.2, C('#e8e2d4'), 3.4, 5.4, -3.85);
   // a company poster and a framed licence
   const [pc, px] = cnv(256, 340); px.fillStyle = '#1f6a3a'; px.fillRect(0, 0, 256, 340); px.fillStyle = '#ffd23f'; px.font = '900 46px Arial Black,Arial'; px.textAlign = 'center';
-  px.fillText('PEST', 128, 70); px.fillText('PANIC', 128, 122); px.font = '800 22px Arial'; px.fillStyle = '#fff'; px.fillText('EXTERMINATORS', 128, 160);
+  px.fillText('BUG', 128, 70); px.fillText('BLITZ', 128, 122); px.font = '800 22px Arial'; px.fillStyle = '#fff'; px.fillText('EXTERMINATORS', 128, 160);
   px.fillStyle = '#7a1a10'; px.beginPath(); px.ellipse(128, 245, 46, 62, 0, 0, TAU); px.fill(); px.strokeStyle = '#fff'; px.lineWidth = 12; px.beginPath(); px.arc(128, 245, 86, 0, TAU); px.stroke(); px.beginPath(); px.moveTo(62, 310); px.lineTo(194, 180); px.stroke();
   const poster = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.2), std({ map: tex(pc), roughness: 0.8 })); poster.position.set(-3.2, 5.6, -3.95); g.add(poster);
   const [lc, lx] = cnv(256, 190); lx.fillStyle = '#f4ecd8'; lx.fillRect(0, 0, 256, 190); lx.strokeStyle = '#b08a3a'; lx.lineWidth = 8; lx.strokeRect(10, 10, 236, 170); lx.fillStyle = '#3a2a1a'; lx.font = '700 20px Georgia'; lx.textAlign = 'center'; lx.fillText('Licensed', 128, 60); lx.fillText('Exterminator', 128, 88); lx.fillStyle = '#c0392b'; lx.beginPath(); lx.arc(128, 135, 22, 0, TAU); lx.fill();
@@ -1945,7 +1945,7 @@ class Arcs {
 
 
 // ============================================================================
-//  PEST PANIC ONLINE  -  game logic (host-authoritative co-op), weapons, HUD,
+//  BUG BLITZ  -  game logic (host-authoritative co-op), weapons, HUD,
 //  input and networking over Supabase Realtime
 // ============================================================================
 const CONCEPT = !!window.__CONCEPT;   // concept preview page: shows gear that isn't in the game yet
@@ -4240,7 +4240,7 @@ function cutView(t, dt) {
   camera.lookAt(OFFICE_X + 0.2, 2.1, 0.8);
   // speech bubbles, the RING and the day card
   const day = c.day, lines = [
-    [2.9, 4.9, 'me', 'Pest Panic Exterminators, what\'s bugging you?'],
+    [2.9, 4.9, 'me', 'Bug Blitz Exterminators, what\'s bugging you?'],
     [4.9, 7.4, 'call', 'Bugs EVERYWHERE! Ants in the kitchen, roaches in the living room… ' + houseName(day) + '. Please hurry!'],
     [7.4, 9.2, 'me', 'Say no more. I\'ll be there first thing tomorrow.'],
   ];

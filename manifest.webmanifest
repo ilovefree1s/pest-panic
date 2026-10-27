@@ -1,6 +1,6 @@
 {
-  "name": "Pest Panic",
-  "short_name": "Pest Panic",
+  "name": "Bug Blitz",
+  "short_name": "Bug Blitz",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

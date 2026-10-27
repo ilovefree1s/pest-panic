@@ -1,5 +1,5 @@
 // ============================================================================
-//  PEST PANIC HD  -  engine: renderer, textures, kitchen, models, sprite batches
+//  BUG BLITZ  -  engine: renderer, textures, kitchen, models, sprite batches
 // ============================================================================
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -1241,7 +1241,7 @@ export function buildOffice() {
   box(5.9, 0.25, 0.3, C('#e8e2d4'), 3.4, 3.55, -3.85); box(5.9, 0.25, 0.3, C('#e8e2d4'), 3.4, 7.25, -3.85); box(0.2, 3.7, 0.2, C('#e8e2d4'), 3.4, 5.4, -3.85);
   // a company poster and a framed licence
   const [pc, px] = cnv(256, 340); px.fillStyle = '#1f6a3a'; px.fillRect(0, 0, 256, 340); px.fillStyle = '#ffd23f'; px.font = '900 46px Arial Black,Arial'; px.textAlign = 'center';
-  px.fillText('PEST', 128, 70); px.fillText('PANIC', 128, 122); px.font = '800 22px Arial'; px.fillStyle = '#fff'; px.fillText('EXTERMINATORS', 128, 160);
+  px.fillText('BUG', 128, 70); px.fillText('BLITZ', 128, 122); px.font = '800 22px Arial'; px.fillStyle = '#fff'; px.fillText('EXTERMINATORS', 128, 160);
   px.fillStyle = '#7a1a10'; px.beginPath(); px.ellipse(128, 245, 46, 62, 0, 0, TAU); px.fill(); px.strokeStyle = '#fff'; px.lineWidth = 12; px.beginPath(); px.arc(128, 245, 86, 0, TAU); px.stroke(); px.beginPath(); px.moveTo(62, 310); px.lineTo(194, 180); px.stroke();
   const poster = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.2), std({ map: tex(pc), roughness: 0.8 })); poster.position.set(-3.2, 5.6, -3.95); g.add(poster);
   const [lc, lx] = cnv(256, 190); lx.fillStyle = '#f4ecd8'; lx.fillRect(0, 0, 256, 190); lx.strokeStyle = '#b08a3a'; lx.lineWidth = 8; lx.strokeRect(10, 10, 236, 170); lx.fillStyle = '#3a2a1a'; lx.font = '700 20px Georgia'; lx.textAlign = 'center'; lx.fillText('Licensed', 128, 60); lx.fillText('Exterminator', 128, 88); lx.fillStyle = '#c0392b'; lx.beginPath(); lx.arc(128, 135, 22, 0, TAU); lx.fill();
